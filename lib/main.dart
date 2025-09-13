@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'dart:convert';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -152,7 +153,7 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset('assets/images/Logo StockOne.png', height: 32),
+            Image.asset('assets/images/logo_ajudai.png', height: 32),
             const SizedBox(width: 8),
             const Text(
               "ATENDIMENTO",
@@ -283,7 +284,7 @@ class _FirstTimeScreenState extends State<FirstTimeScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
           child: Column(
             children: [
-              Image.asset('assets/images/StockOnesf.png', height: 120),
+              Image.asset('assets/images/logo_ajudai.png', height: 120),
               const SizedBox(height: 24),
               const Text(
                 "Olá! Cadastre-se!!!",
@@ -370,223 +371,255 @@ class _SecondScreenState extends State<SecondScreen> {
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
-      onWillPop: () async {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => StoreSelectionScreen()),
-        );
-        return false;
-      },
-      child: Scaffold(
-        backgroundColor: const Color(0xFFFFF8F0), // fundo aconchegante
-        appBar: AppBar(
-          backgroundColor: const Color(0xFFD2691E),
-          elevation: 4,
-          centerTitle: true,
-          title: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Image.asset('assets/images/StockOnesf.png', height: 50),
-              const SizedBox(width: 12),
-            ],
-          ),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => StoreSelectionScreen()),
-            ),
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.settings, color: Colors.white),
-              onPressed: () async {
-                await showDialog(
-                  context: context,
-                  builder: (context) {
-                    return AlertDialog(
-                      title: const Text("Opções"),
-                      content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ListTile(
-                            leading: const Icon(Icons.refresh,
-                                color: Color(0xFFD2691E)),
-                            title:
-                                const Text("Resetar dados de loja e usuário"),
-                            onTap: () async {
-                              await _resetStoreData();
-                              Navigator.pop(context);
-                            },
-                          ),
-                        ],
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ],
-        ),
-        body: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFFFFE5B4), // topo claro
-                Color(0xFFD29752), // marrom padaria (seu antigo fundo)
-              ],
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
+        onWillPop: () async {
+          // Ação quando o botão físico do aparelho é pressionado
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => StoreSelectionScreen()),
+          );
+          return false; // impede o comportamento padrão
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            backgroundColor: Colors.blueGrey.shade700,
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  "${widget.storeName}",
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF5D4037),
-                    fontFamily: 'Roboto',
-                  ),
-                  textAlign: TextAlign.center,
+                Image.asset(
+                  'assets/images/logo_ajudai.png',
+                  height: 30,
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  "Bem-vindo, $userName!",
+                const SizedBox(width: 10),
+                const Text(
+                  "AJUDAÍ",
                   style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.brown.shade700,
-                    fontFamily: 'Roboto',
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                // Grid para preencher toda a tela
-                Expanded(
-                  child: GridView.count(
-                    crossAxisCount: 2, // duas colunas
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 1.2, // altura proporcional
-                    children: [
-                      _padariaCard(Icons.bakery_dining, "Venda Produtos",
-                          Colors.orange.shade300, () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                ThirdScreen(storeName: widget.storeName),
-                          ),
-                        );
-                      }),
-                      _padariaCard(Icons.inventory, "Acerto Estoque",
-                          Colors.brown.shade300, () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => StockAdjustmentScreen(
-                                storeName: widget.storeName),
-                          ),
-                        );
-                      }),
-                      _padariaCard(
-                          Icons.note_alt, "Pedido", Colors.green.shade300, () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                FourthScreen(storeName: widget.storeName),
-                          ),
-                        );
-                      }),
-                      _padariaCard(
-                          Icons.menu_book, "Receituário", Colors.blue.shade300,
-                          () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const ReceituarioScreen(),
-                          ),
-                        );
-                      }),
-                      _padariaCard(
-                          Icons.note, "Relatórios", Colors.teal.shade300, () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                MenuScreen(storeName: widget.storeName),
-                          ),
-                        );
-                      }),
-                      _padariaCard(
-                          Icons.list_alt, "Códigos", Colors.red.shade300, () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const Codigos(),
-                          ),
-                        );
-                      }),
-                      _padariaCard(
-                          Icons.settings, "Equipamentos", Colors.brown.shade400,
-                          () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                Equipamentos(storeName: widget.storeName),
-                          ),
-                        );
-                      }),
-                    ],
+                    fontWeight: FontWeight.bold,
+                    fontSize: 22,
+                    fontFamily: 'Lora',
+                    color: Colors.white,
                   ),
                 ),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _padariaCard(
-      IconData icon, String label, Color color, VoidCallback onPressed) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      elevation: 4,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(16),
-        splashColor: color.withOpacity(0.3),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 36, color: color),
-              const SizedBox(height: 12),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: 'Roboto',
-                  color: Color(0xFF5D4037),
-                ),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => StoreSelectionScreen()),
+              ),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.settings),
+                onPressed: () async {
+                  await showDialog(
+                    context: context,
+                    builder: (context) {
+                      return AlertDialog(
+                        title: const Text("Opções"),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ListTile(
+                              title:
+                                  const Text("Resetar dados de loja e usuário"),
+                              onTap: () async {
+                                await _resetStoreData();
+                              },
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
               ),
             ],
           ),
-        ),
+          body: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFFEFEFEF), Color(0xFFFDFDFD)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        "${widget.storeName}",
+                        style: const TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Lora',
+                          color: Colors.brown,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        "Bem-vindo, $userName!",
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontFamily: 'Lora',
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black54,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 40),
+                      ElevatedButton.icon(
+                        icon: const Icon(
+                          Icons.bakery_dining,
+                          size: 26,
+                          color: Colors.white,
+                        ),
+                        label: const Text("Venda Produtos"),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    ThirdScreen(storeName: widget.storeName)),
+                          );
+                        },
+                        style: _buttonStyle(),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton.icon(
+                        icon: const Icon(
+                          Icons.inventory,
+                          size: 26,
+                          color: Colors.white,
+                        ),
+                        label: const Text("Acerto Estoque"),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => StockAdjustmentScreen(
+                                    storeName: widget.storeName)),
+                          );
+                        },
+                        style: _buttonStyle(),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton.icon(
+                        icon: const Icon(
+                          Icons.note_alt,
+                          size: 26,
+                          color: Colors.white,
+                        ),
+                        label: const Text("Pedido"),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    FourthScreen(storeName: widget.storeName)),
+                          );
+                        },
+                        style: _buttonStyle(),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton.icon(
+                        icon: const Icon(
+                          Icons.menu_book,
+                          size: 26,
+                          color: Colors.white,
+                        ),
+                        label: const Text("Receituário"),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    const ReceituarioScreen()),
+                          );
+                        },
+                        style: _buttonStyle(),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton.icon(
+                        icon: const Icon(
+                          Icons.note,
+                          size: 26,
+                          color: Colors.white,
+                        ),
+                        label: const Text("Relatórios"),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    MenuScreen(storeName: widget.storeName)),
+                          );
+                        },
+                        style: _buttonStyle(),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton.icon(
+                        icon: const Icon(
+                          Icons.list_alt,
+                          size: 26,
+                          color: Colors.white,
+                        ),
+                        label: const Text("Códigos"),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const Codigos()),
+                          );
+                        },
+                        style: _buttonStyle(),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton.icon(
+                        icon: const Icon(
+                          Icons.settings,
+                          size: 26,
+                          color: Colors.white,
+                        ),
+                        label: const Text("Equipamentos"),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    Equipamentos(storeName: widget.storeName)),
+                          );
+                        },
+                        style: _buttonStyle(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ));
+  }
+
+  ButtonStyle _buttonStyle() {
+    return ElevatedButton.styleFrom(
+      backgroundColor: Colors.brown.shade300,
+      foregroundColor: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+      textStyle: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        fontFamily: 'Roboto',
       ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      elevation: 4,
     );
   }
 }
@@ -660,7 +693,13 @@ class _ThirdScreenState extends State<ThirdScreen> {
     _loadDeliveries();
     _initializeControllers();
     _loadDiasDeGiro();
-    WakelockPlus.enable(); // mantém a tela ligada
+    WakelockPlus.enable();
+  }
+
+  void dispose() {
+    // Volta ao comportamento normal do sistema
+    WakelockPlus.disable();
+    super.dispose();
   }
 
   void _initializeControllers() {
@@ -985,7 +1024,7 @@ class _ThirdScreenState extends State<ThirdScreen> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset('assets/images/Logo StockOne.png', height: 30),
+            Image.asset('assets/images/logo_ajudai.png', height: 30),
             const SizedBox(width: 10),
             const Text(
               "VENDAS",
@@ -1657,7 +1696,6 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
     _loadData();
     _loadUserData();
     dateController.text = DateFormat('dd/MM/yy').format(selectedDate);
-    WakelockPlus.enable();
   }
 
   void _inicializarControllers() {
@@ -1907,13 +1945,8 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
 
   @override
   void dispose() {
-    // desliga o wakelock
-    WakelockPlus.disable();
-
-    // descarta os controllers
     controllers.forEach((_, controller) => controller.dispose());
     dateController.dispose();
-
     super.dispose();
   }
 
@@ -1928,7 +1961,7 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Image.asset(
-              'assets/images/Logo StockOne.png',
+              'assets/images/logo_ajudai.png',
               height: 30,
             ),
             const SizedBox(width: 10),
@@ -1994,21 +2027,41 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
             end: Alignment.bottomCenter,
           ),
         ),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           children: [
             // --- Cabeçalho ---
             Card(
               elevation: 4,
-              margin: const EdgeInsets.only(bottom: 4),
+              margin: const EdgeInsets.only(bottom: 20),
               child: Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
+                    Text(
+                      "${widget.storeName}",
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.brown,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Responsável: $userName",
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.brown,
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        const Text(
+                          "Data: ",
+                          style: TextStyle(fontSize: 16),
+                        ),
                         SizedBox(
                           width: 120,
                           child: TextFormField(
@@ -3252,7 +3305,7 @@ class _FourthScreenState extends State<FourthScreen> {
                 .min, // ← Importante: faz a Row ocupar apenas o espaço necessário
             children: [
               Image.asset(
-                'assets/images/Logo StockOne.png',
+                'assets/images/logo_ajudai.png',
                 height: 30,
               ),
               const SizedBox(width: 10),
@@ -3277,50 +3330,59 @@ class _FourthScreenState extends State<FourthScreen> {
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(4),
+            padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment:
-                      MainAxisAlignment.center, // Centraliza no eixo horizontal
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      DateFormat('dd/MM/yy').format(selectedDate),
-                      style: const TextStyle(color: Colors.white),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Responsável: $userName',
+                            style: TextStyle(color: Colors.white)),
+                        Text("${widget.storeName}",
+                            style: TextStyle(color: Colors.white)),
+                      ],
                     ),
-                    IconButton(
-                      icon:
-                          const Icon(Icons.calendar_today, color: Colors.white),
-                      onPressed: () => _selectDate(context),
+                    Row(
+                      children: [
+                        Text(DateFormat('dd/MM/yy').format(selectedDate),
+                            style: TextStyle(color: Colors.white)),
+                        IconButton(
+                          icon: Icon(Icons.calendar_today, color: Colors.white),
+                          onPressed: () => _selectDate(context),
+                        ),
+                      ],
                     ),
                   ],
                 ),
                 Center(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                  child: Column(
+                    mainAxisAlignment:
+                        MainAxisAlignment.center, // Centraliza verticalmente
+                    crossAxisAlignment:
+                        CrossAxisAlignment.center, // Centraliza horizontalmente
                     children: [
                       Text(
                         'INTERVALO DE ENTREGA (DIAS):',
                         style: TextStyle(
                           color: Color(0xff240217),
-                          fontWeight: FontWeight.bold,
+                          fontWeight:
+                              FontWeight.bold, // Opcional: estilo adicional
                         ),
                       ),
-                      SizedBox(width: 10),
+                      SizedBox(
+                          height:
+                              8), // Espaçamento reduzido entre texto e dropdown
                       Container(
-                        width: 50,
-                        padding: EdgeInsets.symmetric(horizontal: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 16), // Largura do dropdown
                         child: DropdownButton<int>(
                           value: intervaloEntrega,
-                          isExpanded: true,
-                          alignment: Alignment.center,
-                          underline: SizedBox(),
+                          alignment: Alignment
+                              .center, // Alinha o texto selecionado ao centro
                           onChanged: (int? novoIntervalo) {
                             setState(() {
                               intervaloEntrega = novoIntervalo ?? 1;
@@ -3333,7 +3395,8 @@ class _FourthScreenState extends State<FourthScreen> {
                                     value: days,
                                     child: Text(
                                       '$days',
-                                      textAlign: TextAlign.center,
+                                      textAlign: TextAlign
+                                          .center, // Centraliza os itens do dropdown
                                       style:
                                           TextStyle(color: Color(0xff240217)),
                                     ),
@@ -3411,12 +3474,12 @@ class _FourthScreenState extends State<FourthScreen> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(top: 10, bottom: 5),
+                  padding: const EdgeInsets.only(top: 20, bottom: 10),
                   child: Card(
                     elevation: 4,
-                    margin: const EdgeInsets.symmetric(horizontal: 10),
+                    margin: const EdgeInsets.symmetric(horizontal: 20),
                     child: Padding(
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(16),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -3889,50 +3952,16 @@ class MenuScreen extends StatelessWidget {
   final String storeName;
   const MenuScreen({super.key, required this.storeName});
 
-  // 🔹 Card estilo Android
-  Widget _menuCard(
-      BuildContext context, String label, Widget destination, Color color) {
-    return Card(
-      color: color,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 4,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        splashColor: Colors.brown.withOpacity(0.3),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => destination),
-          );
-        },
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              fontFamily: 'Roboto',
-              color: Color(0xFF5D4037),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xffbc2337),
+        backgroundColor: verdeEscuro,
         centerTitle: true,
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset('assets/images/Logo StockOne.png', height: 32),
+            Image.asset('assets/images/logo_ajudai.png', height: 32),
             const SizedBox(width: 8),
             const Text(
               "RELATÓRIOS",
@@ -3946,45 +3975,74 @@ class MenuScreen extends StatelessWidget {
           ],
         ),
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xffea8b98), // topo claro
-              Color(0xfff4314b), // base marrom padaria
-            ],
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: GridView.count(
-            crossAxisCount: 1, // 1 card por linha (vertical)
-            mainAxisSpacing: 16,
-            crossAxisSpacing: 16,
-            childAspectRatio: 3, // retangular, moderno
-            children: [
-              _menuCard(
-                context,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: verdeEscuro,
+                padding:
+                    const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+                textStyle: const TextStyle(fontSize: 19),
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ReportAberturaScreen(storeName: storeName),
+                  ),
+                );
+              },
+              child: const Text(
                 'Relatório Abertura',
-                ReportAberturaScreen(storeName: storeName),
-                Colors.white, // verde
+                style: TextStyle(color: Colors.white),
               ),
-              _menuCard(
-                context,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: vermelhoEscuro,
+                padding:
+                    const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+                textStyle: const TextStyle(fontSize: 19),
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ReportFinalScreen(storeName: storeName),
+                  ),
+                );
+              },
+              child: const Text(
                 'Relatório Final',
-                ReportFinalScreen(storeName: storeName),
-                Colors.white, // vermelho padaria
+                style: TextStyle(color: Colors.white),
               ),
-              _menuCard(
-                context,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey[700],
+                padding:
+                    const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+                textStyle: const TextStyle(fontSize: 19),
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        ManutencaoEquipamentosScreen(storeName: storeName),
+                  ),
+                );
+              },
+              child: const Text(
                 'Relatório Manutenção',
-                ManutencaoEquipamentosScreen(storeName: storeName),
-                Colors.white, // cinza
+                style: TextStyle(color: Colors.white),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -4099,7 +4157,7 @@ ${observacoesController.text}
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset('assets/images/Logo StockOne.png', height: 32),
+            Image.asset('assets/images/logo_ajudai.png', height: 32),
             const SizedBox(width: 8),
             const Text(
               "MANUTENÇÃO",
@@ -4273,7 +4331,7 @@ BOM DIA A TODOS!
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset('assets/images/Logo StockOne.png', height: 32),
+            Image.asset('assets/images/logo_ajudai.png', height: 32),
             const SizedBox(width: 8),
             const Text(
               "ABERTURA",
@@ -4640,7 +4698,7 @@ ${_formatarRupturas()}
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset('assets/images/Logo StockOne.png', height: 32),
+            Image.asset('assets/images/logo_ajudai.png', height: 32),
             const SizedBox(width: 8),
             const Text(
               "TÉRMINO",
@@ -5094,117 +5152,240 @@ ${_formatarRupturas()}
 class ReceituarioScreen extends StatelessWidget {
   const ReceituarioScreen({super.key});
 
-  // 🔹 Recebe o context como parâmetro
-  Widget _padariaCard(BuildContext context, String label, Widget destination) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      elevation: 4,
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => destination),
-          );
-        },
-        borderRadius: BorderRadius.circular(16),
-        splashColor: Colors.brown.withOpacity(0.3),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const SizedBox(height: 12),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                  fontFamily: 'Nunito ExtraBold',
-                  color: Color(0xFF5D4037),
-                ),
-              ),
-            ],
-          ),
-        ),
+  // 🔹 Estilo único para todos os botões desta tela
+  ButtonStyle _buttonStyle() {
+    return ElevatedButton.styleFrom(
+      minimumSize: const Size(double.infinity, 50), // largura total
+      backgroundColor: Colors.brown, // cor de fundo
+      foregroundColor: Colors.white, // cor do texto/ícone
+      textStyle: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        fontFamily: 'Lora',
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12), // cantos arredondados
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final List<Map<String, dynamic>> paes = [
-      {'label': "Pão Francês", 'screen': const PaoFrancesScreen()},
-      {'label': "Pão Francês Integral", 'screen': const integral()},
-      {'label': "Pão Francês Panhoca", 'screen': const panhoca()},
-      {'label': "Pão Baguete Francesa", 'screen': const paobaguete()},
-      {
-        'label': "Pão Baguete Francesa C/ Gergelim",
-        'screen': const PaoFrancesScreen()
-      },
-      {
-        'label': "Pão Baguete Francesa C/ Queijo",
-        'screen': const PaoFrancesScreen()
-      },
-      {'label': "Baguete Francesa", 'screen': const PaoFrancesScreen()},
-      {
-        'label': "Baguete Francesa C/ Queijo",
-        'screen': const PaoFrancesScreen()
-      },
-      {'label': "Pão Francês", 'screen': const PaoFrancesScreen()},
-    ];
-
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xffbc2337),
-        centerTitle: true,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset('assets/images/Logo StockOne.png', height: 32),
-            const SizedBox(width: 8),
-            const Text(
-              "RECEITUÁRIO",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Lora',
-                color: Colors.white,
+        appBar: AppBar(
+          backgroundColor: Color(0xffde3f54),
+          centerTitle: true,
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset('assets/images/logo_ajudai.png', height: 32),
+              const SizedBox(width: 8),
+              const Text(
+                "RECEITUÁRIO",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Lora',
+                  color: Colors.white,
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xffd5848f), // topo claro
-              Color(0xffbc2337), // marrom padaria (seu antigo fundo)
             ],
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: GridView.builder(
-            itemCount: paes.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: 1.2,
+        body: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: SingleChildScrollView(
+            // 🔹 deixa rolável
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Botão Pão Francês
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  icon: const Icon(
+                    Icons.menu_book,
+                    size: 26,
+                    color: Colors.white,
+                  ),
+                  label: const Text(
+                    "Pão Francês",
+                    textAlign: TextAlign.center,
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const PaoFrancesScreen()),
+                    );
+                  },
+                  style: _buttonStyle(),
+                ),
+
+                // Botão Pão Integral
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  icon: const Icon(
+                    Icons.menu_book,
+                    size: 26,
+                    color: Colors.white,
+                  ),
+                  label: const Text(
+                    "Pão Francês Integral",
+                    textAlign: TextAlign.center,
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const integral()),
+                    );
+                  },
+                  style: _buttonStyle(),
+                ),
+
+                // Botão Pão Francês Panhoca
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  icon: const Icon(
+                    Icons.menu_book,
+                    size: 26,
+                    color: Colors.white,
+                  ),
+                  label: const Text(
+                    "Pão Francês Panhoca",
+                    textAlign: TextAlign.center,
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const panhoca()),
+                    );
+                  },
+                  style: _buttonStyle(),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  icon: const Icon(
+                    Icons.menu_book,
+                    size: 26,
+                    color: Colors.white,
+                  ),
+                  label: const Text(
+                    "Pão Baguete Francesa",
+                    textAlign: TextAlign.center,
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const paobaguete()),
+                    );
+                  },
+                  style: _buttonStyle(),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  icon: const Icon(
+                    Icons.menu_book,
+                    size: 26,
+                    color: Colors.white,
+                  ),
+                  label: const Text(
+                    "Pão Baguete Francesa C/ Gergelim",
+                    textAlign: TextAlign.center,
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const PaoFrancesScreen()),
+                    );
+                  },
+                  style: _buttonStyle(),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  icon: const Icon(
+                    Icons.menu_book,
+                    size: 26,
+                    color: Colors.white,
+                  ),
+                  label: const Text(
+                    "Pão Baguete Francesa C/ Queijo",
+                    textAlign: TextAlign.center,
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const PaoFrancesScreen()),
+                    );
+                  },
+                  style: _buttonStyle(),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  icon: const Icon(
+                    Icons.menu_book,
+                    size: 26,
+                    color: Colors.white,
+                  ),
+                  label: const Text(
+                    "Baguete Francesa",
+                    textAlign: TextAlign.center,
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const PaoFrancesScreen()),
+                    );
+                  },
+                  style: _buttonStyle(),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  icon: const Icon(
+                    Icons.menu_book,
+                    size: 26,
+                    color: Colors.white,
+                  ),
+                  label: const Text(
+                    "Baguete Francesa C/ Queijo",
+                    textAlign: TextAlign.center,
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const PaoFrancesScreen()),
+                    );
+                  },
+                  style: _buttonStyle(),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  icon: const Icon(
+                    Icons.menu_book,
+                    size: 26,
+                    color: Colors.white,
+                  ),
+                  label: const Text(
+                    "Pão Francês",
+                    textAlign: TextAlign.center,
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const PaoFrancesScreen()),
+                    );
+                  },
+                  style: _buttonStyle(),
+                ),
+              ],
             ),
-            itemBuilder: (context, index) {
-              final pao = paes[index];
-              return _padariaCard(context, pao['label'], pao['screen']);
-            },
           ),
-        ),
-      ),
-    );
+        ));
   }
 }
 
@@ -5436,7 +5617,7 @@ class Equipamentos extends StatelessWidget {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset('assets/images/Logo StockOne.png', height: 32),
+            Image.asset('assets/images/logo_ajudai.png', height: 32),
             const SizedBox(width: 8),
             const Text(
               "EQUIPAMENTOS",
@@ -5513,7 +5694,7 @@ class Cadastro extends StatelessWidget {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset('assets/images/Logo StockOne.png', height: 32),
+            Image.asset('assets/images/logo_ajudai.png', height: 32),
             const SizedBox(width: 8),
             const Text(
               "CADASTRO",
@@ -5855,7 +6036,7 @@ class Limpeza extends StatelessWidget {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset('assets/images/Logo StockOne.png', height: 32),
+            Image.asset('assets/images/logo_ajudai.png', height: 32),
             const SizedBox(width: 8),
             const Text(
               "LIMPEZA",
