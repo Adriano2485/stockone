@@ -75,7 +75,236 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: StoreSelectionScreen(),
+      home: RedeScreen(),
+    );
+  }
+}
+
+class RedeScreen extends StatelessWidget {
+  const RedeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFFFF8F0), // fundo aconchegante
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFD2691E),
+        elevation: 4,
+        centerTitle: true,
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset('assets/images/StockOnesf.png', height: 50),
+            const SizedBox(width: 12),
+          ],
+        ),
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFFFE5B4), // topo claro
+              Color(0xFFD29752), // marrom padaria
+            ],
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              const Text(
+                "Escolha a Rede:",
+                style: TextStyle(
+                  fontSize: 28,
+                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF5D4037),
+                  fontFamily: 'Roboto',
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              // Grid de opções
+              Expanded(
+                child: GridView.count(
+                  crossAxisCount: 2, // duas colunas
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  childAspectRatio: 1.2, // altura proporcional
+                  children: [
+                    _padariaCard("assets/images/bahamas.jpg", () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => Bahamas(),
+                        ),
+                      );
+                    }),
+                    _padariaCard("assets/images/paisefilhos.jpg", () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => Bahamas(),
+                        ),
+                      );
+                    }),
+                    _padariaCard("assets/images/bh.jpg", () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => Bahamas(),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _padariaCard(String imagePath, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Card(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        clipBehavior: Clip.antiAlias,
+        elevation: 4,
+        child: Container(
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage(imagePath),
+              fit: BoxFit.cover, // preenche todo o card
+            ),
+          ),
+          height: 150,
+          width: double.infinity,
+        ),
+      ),
+    );
+  }
+}
+
+class Bahamas extends StatelessWidget {
+  const Bahamas({super.key});
+
+  // 🔹 Card estilo Android
+  Widget _menuCard(
+    BuildContext context,
+    IconData icon, // novo parâmetro
+    String label,
+    Widget destination,
+    Color color,
+  ) {
+    return Card(
+      color: color,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 4,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        splashColor: Colors.brown.withOpacity(0.3),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => destination),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 28,
+                color: const Color(0xFF5D4037),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  fontFamily: 'Roboto',
+                  color: Color(0xFF5D4037),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFD2691E),
+        centerTitle: true,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset('assets/images/Logo StockOne.png', height: 32),
+            const SizedBox(width: 8),
+            Image.asset('assets/images/logobahamas.jpg',
+                height: 40), // imagem no lugar do texto
+          ],
+        ),
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xffe16767), // topo claro
+              Color(0xf7ed1717), // base marrom padaria
+            ],
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: GridView.count(
+            crossAxisCount: 1, // 1 card por linha (vertical)
+            mainAxisSpacing: 16,
+            crossAxisSpacing: 16,
+            childAspectRatio: 3, // retangular, moderno
+            children: [
+              _menuCard(
+                context,
+                Icons.menu_book, // ícone
+                'RECEITUÁRIO', // texto
+                ReceituarioScreen(),
+                Colors.white,
+              ),
+              _menuCard(
+                context,
+                Icons.list_alt,
+                'CÓDIGOS',
+                Codigos(),
+                Colors.white, // vermelho padaria
+              ),
+              _menuCard(
+                context,
+                Icons.store,
+                'ATENDIMENTO',
+                StoreSelectionScreen(),
+                Colors.white, // cinza
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -506,16 +735,6 @@ class _SecondScreenState extends State<SecondScreen> {
                         );
                       }),
                       _padariaCard(
-                          Icons.menu_book, "Receituário", Colors.blue.shade300,
-                          () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const ReceituarioScreen(),
-                          ),
-                        );
-                      }),
-                      _padariaCard(
                           Icons.note, "Relatórios", Colors.teal.shade300, () {
                         Navigator.push(
                           context,
@@ -526,16 +745,7 @@ class _SecondScreenState extends State<SecondScreen> {
                         );
                       }),
                       _padariaCard(
-                          Icons.list_alt, "Códigos", Colors.red.shade300, () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const Codigos(),
-                          ),
-                        );
-                      }),
-                      _padariaCard(
-                          Icons.settings, "Equipamentos", Colors.brown.shade400,
+                          Icons.settings, "Equipamento", Colors.brown.shade400,
                           () {
                         Navigator.push(
                           context,
@@ -3891,7 +4101,12 @@ class MenuScreen extends StatelessWidget {
 
   // 🔹 Card estilo Android
   Widget _menuCard(
-      BuildContext context, String label, Widget destination, Color color) {
+    BuildContext context,
+    IconData icon, // novo parâmetro
+    String label,
+    Widget destination,
+    Color color,
+  ) {
     return Card(
       color: color,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -3908,15 +4123,26 @@ class MenuScreen extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(16),
           alignment: Alignment.center,
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              fontFamily: 'Roboto',
-              color: Color(0xFF5D4037),
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 28,
+                color: const Color(0xFF5D4037),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  fontFamily: 'Roboto',
+                  color: Color(0xFF5D4037),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -3927,7 +4153,7 @@ class MenuScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xffbc2337),
+        backgroundColor: const Color(0xFFD2691E),
         centerTitle: true,
         title: Row(
           mainAxisSize: MainAxisSize.min,
@@ -3952,8 +4178,8 @@ class MenuScreen extends StatelessWidget {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xffea8b98), // topo claro
-              Color(0xfff4314b), // base marrom padaria
+              Color(0xFFFFE5B4),
+              Color(0xFFD29752), // base marrom padaria
             ],
           ),
         ),
@@ -3967,19 +4193,22 @@ class MenuScreen extends StatelessWidget {
             children: [
               _menuCard(
                 context,
-                'Relatório Abertura',
+                Icons.place,
+                'POSICIONAMENTO',
                 ReportAberturaScreen(storeName: storeName),
                 Colors.white, // verde
               ),
               _menuCard(
                 context,
-                'Relatório Final',
+                Icons.check_circle,
+                'FECHAMENTO',
                 ReportFinalScreen(storeName: storeName),
                 Colors.white, // vermelho padaria
               ),
               _menuCard(
                 context,
-                'Relatório Manutenção',
+                Icons.build,
+                'MANUTENÇÃO',
                 ManutencaoEquipamentosScreen(storeName: storeName),
                 Colors.white, // cinza
               ),
@@ -4276,7 +4505,7 @@ BOM DIA A TODOS!
             Image.asset('assets/images/Logo StockOne.png', height: 32),
             const SizedBox(width: 8),
             const Text(
-              "ABERTURA",
+              "POSICIONAMENTO",
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -4501,7 +4730,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
       rotinaSelecionadas =
           prefs.getStringList(_prefsKey('rotinaSelecionadas')) ?? [];
       rotinaOutros = prefs.getString(_prefsKey('rotinaOutros')) ?? '';
-
       trabalhoRealizado = prefs.getString(_prefsKey('trabalhoRealizado')) ?? '';
       giroMedio = prefs.getString(_prefsKey('giroMedio')) ?? '';
       qtdRetirada = prefs.getString(_prefsKey('qtdRetirada')) ?? '';
@@ -4512,6 +4740,8 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
       gerente = prefs.getString(_prefsKey('gerente')) ?? '';
       vendamediadiaria = prefs.getString(_prefsKey('vendamediadiaria')) ?? '';
       userName = prefs.getString(_prefsKey('userName')) ?? '';
+      resultadoInteiro =
+          prefs.getString(_prefsKey('resultadoInteiro')) ?? ''; // <<< carregado
 
       // Carregar rupturas e motivos
       for (var produto in produtos) {
@@ -4522,6 +4752,16 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         outrosMotivos[produto] =
             prefs.getString(_prefsKey('outroMotivo_$produto')) ?? '';
       }
+
+      // Recalcular venda pão francês/dia
+      final vendaMensalPaoFrances = double.tryParse(
+              prefs.getString('Pão Francês_vendas_${widget.storeName}') ??
+                  '0') ??
+          0;
+      final diasDeGiro = prefs.getInt('diasGiro_${widget.storeName}') ?? 1;
+      final resultado = vendaMensalPaoFrances / diasDeGiro / 0.07;
+      resultadoInteiro = resultado.ceil().toString();
+      prefs.setString(_prefsKey('resultadoInteiro'), resultadoInteiro);
     });
   }
 
@@ -4542,6 +4782,8 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     await prefs.setString(_prefsKey('gerente'), gerente);
     await prefs.setString(_prefsKey('vendamediadiaria'), vendamediadiaria);
     await prefs.setString(_prefsKey('userName'), userName);
+    await prefs.setString(
+        _prefsKey('resultadoInteiro'), resultadoInteiro); // <<< salvo também
 
     // Salvar rupturas e motivos
     for (var produto in produtos) {
@@ -4582,7 +4824,7 @@ BOA TARDE A TODOS!
 *Término de visita: ${widget.storeName}
 *Data: $dataFormatada
 *Horário: ${horarioSaida.format(context)}
-*Técnico(s): $userName
+*Técnico(s): $userName 
 *Crachá: $cracha
 *Gerência: $gerente
 *Encarregado: $encarregado
@@ -4601,7 +4843,7 @@ $trabalhoRealizado
 *Vendas Do Dia:
 
 #Pão Francês: 
-$giroMedio unidades
+$vendamediadiaria unidades
 #Pão de Queijo Tradicional: 
 $qtdRetirada Kilos
 #Pão de Queijo Coquetel: 
@@ -4643,7 +4885,7 @@ ${_formatarRupturas()}
             Image.asset('assets/images/Logo StockOne.png', height: 32),
             const SizedBox(width: 8),
             const Text(
-              "TÉRMINO",
+              "FECHAMENTO",
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -4751,74 +4993,36 @@ ${_formatarRupturas()}
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Expanded(
-                    child: FutureBuilder<SharedPreferences>(
-                      future: SharedPreferences.getInstance(),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
-                          return const CircularProgressIndicator();
-                        }
-
-                        final prefs = snapshot.data!;
-
-                        // pega as chaves
-                        final vendaMensalPaoFrances = double.tryParse(
-                              prefs.getString(
-                                      'Pão Francês_vendas_${widget.storeName}') ??
-                                  '0',
-                            ) ??
-                            0;
-
-                        final diasDeGiro =
-                            prefs.getInt('diasGiro_${widget.storeName}') ??
-                                1; // evita divisão por zero
-
-                        // aplica a fórmula
-                        final resultado =
-                            vendaMensalPaoFrances / diasDeGiro / 0.07;
-
-                        // arredonda para o próximo número inteiro
-                        final resultadoInteiro = resultado.ceil();
-
-                        // salva o resultado no SharedPreferences
-                        prefs.setString(
-                          'Pão Francês_vendaDia_${widget.storeName}',
-                          resultadoInteiro.toString(),
-                        );
-
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Venda Pão Francês/Dia:',
-                              style:
-                                  TextStyle(fontSize: 23, color: verdeEscuro),
-                            ),
-                            const SizedBox(height: 8),
-                            RichText(
-                              text: TextSpan(
-                                children: [
-                                  TextSpan(
-                                    text: '$resultadoInteiro ',
-                                    style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.red, // cor do número
-                                    ),
-                                  ),
-                                  const TextSpan(
-                                    text: 'unidades',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: Color(
-                                          0xff0c0c0c), // cor do "unidades"
-                                    ),
-                                  ),
-                                ],
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Venda Pão Francês/Dia:',
+                          style: TextStyle(fontSize: 23, color: verdeEscuro),
+                        ),
+                        const SizedBox(height: 8),
+                        RichText(
+                          text: TextSpan(
+                            children: [
+                              TextSpan(
+                                text: resultadoInteiro.isNotEmpty
+                                    ? resultadoInteiro
+                                    : '0',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.red,
+                                ),
                               ),
-                            ),
-                          ],
-                        );
-                      },
+                              const TextSpan(
+                                text: ' unidades',
+                                style: TextStyle(
+                                    fontSize: 16, color: Color(0xff0c0c0c)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -4906,36 +5110,58 @@ ${_formatarRupturas()}
               const SizedBox(height: 25),
               Row(
                 children: [
+                  // Coluna do input em KG
                   Expanded(
                     child: TextField(
                       decoration: const InputDecoration(
-                        labelText: 'Pão Francês',
+                        labelText: 'Pão Francês (kg)',
                         labelStyle: TextStyle(fontSize: 22),
                         border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
                       controller: TextEditingController(text: giroMedio)
                         ..selection = TextSelection.fromPosition(
-                            TextPosition(offset: giroMedio.length)),
+                          TextPosition(offset: giroMedio.length),
+                        ),
                       onChanged: (v) {
                         giroMedio = v;
                         _salvarPreferencias();
+
+                        final valor = double.tryParse(giroMedio);
+                        if (valor != null && valor > 0) {
+                          final convertido = (valor / 0.07).toStringAsFixed(0);
+                          setState(() {
+                            // salva o valor convertido em outra variável
+                            vendamediadiaria = convertido;
+                          });
+                          _salvarPreferencias();
+                        }
                       },
                     ),
                   ),
                   const SizedBox(width: 10),
-                  ElevatedButton(
-                    onPressed: () {
-                      final valor = double.tryParse(giroMedio);
-                      if (valor != null && valor > 0) {
-                        final convertido = (valor / 0.07).toStringAsFixed(0);
-                        setState(() {
-                          giroMedio = convertido;
-                        });
-                        _salvarPreferencias();
-                      }
-                    },
-                    child: const Text('/unid'),
+                  // Coluna do resultado em UNIDADES
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 16, horizontal: 12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade400),
+                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.white,
+                      ),
+                      child: Text(
+                        vendamediadiaria.isNotEmpty
+                            ? '$vendamediadiaria unid'
+                            : '0 unid',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -5097,7 +5323,7 @@ class ReceituarioScreen extends StatelessWidget {
   // 🔹 Recebe o context como parâmetro
   Widget _padariaCard(BuildContext context, String label, Widget destination) {
     return Material(
-      color: Colors.white,
+      color: Color(0xffe1d98e),
       borderRadius: BorderRadius.circular(16),
       elevation: 4,
       child: InkWell(
@@ -5430,73 +5656,91 @@ class Equipamentos extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Color(0x76153555),
-        centerTitle: true,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset('assets/images/Logo StockOne.png', height: 32),
-            const SizedBox(width: 8),
-            const Text(
-              "EQUIPAMENTOS",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Lora',
-                color: Colors.white,
+        appBar: AppBar(
+          backgroundColor: Color(0x76153555),
+          centerTitle: true,
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset('assets/images/Logo StockOne.png', height: 32),
+              const SizedBox(width: 8),
+              const Text(
+                "EQUIPAMENTOS",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Lora',
+                  color: Colors.white,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0x76153555),
-                padding:
-                    const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-                textStyle: const TextStyle(fontSize: 19),
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => Cadastro(storeName: storeName),
-                  ),
-                );
-              },
-              child: const Text(
-                'Cadastro',
-                style: TextStyle(color: Colors.white),
-              ),
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFFFFE5B4), // topo claro
+                Color(0xFFD29752), // marrom padaria
+              ],
             ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0x97095195),
-                padding:
-                    const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-                textStyle: const TextStyle(fontSize: 19),
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const Limpeza()),
-                );
-              },
-              child: const Text(
-                'Limpeza',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        ),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton.icon(
+  style: ElevatedButton.styleFrom(
+    backgroundColor: const Color(0x76153555),
+    padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 48), // dobro
+    textStyle: const TextStyle(fontSize: 32), // dobro do texto
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+    ),
+  ),
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Cadastro(storeName: storeName),
       ),
     );
+  },
+  icon: const Icon(Icons.person_add, size: 36, color: Colors.white), // ícone Cadastro
+  label: const Text(
+    'Cadastro',
+    style: TextStyle(color: Colors.white),
+  ),
+),
+const SizedBox(height: 24), // mais espaço
+ElevatedButton.icon(
+  style: ElevatedButton.styleFrom(
+    backgroundColor: const Color(0x97095195),
+    padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 48),
+    textStyle: const TextStyle(fontSize: 32),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+    ),
+  ),
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const Limpeza()),
+    );
+  },
+  icon: const Icon(Icons.cleaning_services, size: 36, color: Colors.white), // ícone Limpeza
+  label: const Text(
+    'Limpeza',
+    style: TextStyle(color: Colors.white),
+  ),
+),
+
+              ],
+            ),
+          ),
+        ));
   }
 }
 
@@ -5507,130 +5751,142 @@ class Cadastro extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Color(0x76153555),
-        centerTitle: true,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset('assets/images/Logo StockOne.png', height: 32),
-            const SizedBox(width: 8),
-            const Text(
-              "CADASTRO",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Lora',
-                color: Colors.white,
+        appBar: AppBar(
+          backgroundColor: Color(0x76153555),
+          centerTitle: true,
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset('assets/images/Logo StockOne.png', height: 32),
+              const SizedBox(width: 8),
+              const Text(
+                "CADASTRO",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Lora',
+                  color: Colors.white,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0x97095195),
-                padding:
-                    const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-                textStyle: const TextStyle(fontSize: 19),
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => Forno(storeName: storeName),
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFFFFE5B4), // topo claro
+                Color(0xFFD29752), // marrom padaria
+              ],
+            ),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0x97095195),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 14, horizontal: 24),
+                    textStyle: const TextStyle(fontSize: 19),
                   ),
-                );
-              },
-              child: const Text(
-                'Fornos',
-                style: TextStyle(color: Colors.white),
-              ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => Forno(storeName: storeName),
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    'Fornos',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0x97095195),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 14, horizontal: 24),
+                    textStyle: const TextStyle(fontSize: 19),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const armarios()),
+                    );
+                  },
+                  child: const Text(
+                    'Armários e Esqueletos',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0x97095195),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 14, horizontal: 24),
+                    textStyle: const TextStyle(fontSize: 19),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const climatica()),
+                    );
+                  },
+                  child: const Text(
+                    'Climática',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0x97095195),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 14, horizontal: 24),
+                    textStyle: const TextStyle(fontSize: 19),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const freezers()),
+                    );
+                  },
+                  child: const Text(
+                    'Freezers',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0x97095195),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 14, horizontal: 24),
+                    textStyle: const TextStyle(fontSize: 19),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const latas()),
+                    );
+                  },
+                  child: const Text(
+                    'Assadeiras',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0x97095195),
-                padding:
-                    const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-                textStyle: const TextStyle(fontSize: 19),
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const armarios()),
-                );
-              },
-              child: const Text(
-                'Armários e Esqueletos',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0x97095195),
-                padding:
-                    const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-                textStyle: const TextStyle(fontSize: 19),
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const climatica()),
-                );
-              },
-              child: const Text(
-                'Climática',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0x97095195),
-                padding:
-                    const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-                textStyle: const TextStyle(fontSize: 19),
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const freezers()),
-                );
-              },
-              child: const Text(
-                'Freezers',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0x97095195),
-                padding:
-                    const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-                textStyle: const TextStyle(fontSize: 19),
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const latas()),
-                );
-              },
-              child: const Text(
-                'Assadeiras',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+          ),
+        ));
   }
 }
 
@@ -5849,128 +6105,140 @@ class Limpeza extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Color(0x97095195),
-        centerTitle: true,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset('assets/images/Logo StockOne.png', height: 32),
-            const SizedBox(width: 8),
-            const Text(
-              "LIMPEZA",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Lora',
-                color: Colors.white,
+        appBar: AppBar(
+          backgroundColor: Color(0x97095195),
+          centerTitle: true,
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset('assets/images/Logo StockOne.png', height: 32),
+              const SizedBox(width: 8),
+              const Text(
+                "LIMPEZA",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Lora',
+                  color: Colors.white,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0x97095195),
-                padding:
-                    const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-                textStyle: const TextStyle(fontSize: 19),
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const fornos()),
-                );
-              },
-              child: const Text(
-                'Fornos',
-                style: TextStyle(color: Colors.white),
-              ),
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFFFFE5B4), // topo claro
+                Color(0xFFD29752), // marrom padaria
+              ],
             ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0x97095195),
-                padding:
-                    const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-                textStyle: const TextStyle(fontSize: 19),
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const armarios()),
-                );
-              },
-              child: const Text(
-                'Armários e Esqueletos',
-                style: TextStyle(color: Colors.white),
-              ),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0x97095195),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 14, horizontal: 24),
+                    textStyle: const TextStyle(fontSize: 19),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const fornos()),
+                    );
+                  },
+                  child: const Text(
+                    'Fornos',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0x97095195),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 14, horizontal: 24),
+                    textStyle: const TextStyle(fontSize: 19),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const armarios()),
+                    );
+                  },
+                  child: const Text(
+                    'Armários e Esqueletos',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0x97095195),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 14, horizontal: 24),
+                    textStyle: const TextStyle(fontSize: 19),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const climatica()),
+                    );
+                  },
+                  child: const Text(
+                    'Climática',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0x97095195),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 14, horizontal: 24),
+                    textStyle: const TextStyle(fontSize: 19),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const freezers()),
+                    );
+                  },
+                  child: const Text(
+                    'Freezers',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0x97095195),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 14, horizontal: 24),
+                    textStyle: const TextStyle(fontSize: 19),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const latas()),
+                    );
+                  },
+                  child: const Text(
+                    'Assadeiras',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0x97095195),
-                padding:
-                    const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-                textStyle: const TextStyle(fontSize: 19),
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const climatica()),
-                );
-              },
-              child: const Text(
-                'Climática',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0x97095195),
-                padding:
-                    const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-                textStyle: const TextStyle(fontSize: 19),
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const freezers()),
-                );
-              },
-              child: const Text(
-                'Freezers',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0x97095195),
-                padding:
-                    const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-                textStyle: const TextStyle(fontSize: 19),
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const latas()),
-                );
-              },
-              child: const Text(
-                'Assadeiras',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+          ),
+        ));
   }
 }
 
