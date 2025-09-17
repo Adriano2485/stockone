@@ -2,7 +2,7 @@ name: stockone
 description: A new Flutter project.
 publish_to: 'none'
 
-version: 1.0.0+2
+version: 1.0.0+3
 
 environment:
   sdk: ^3.0.0
@@ -14,6 +14,7 @@ dependencies:
   share_plus: ^7.0.2 
   printing: 5.14.2
   pdf: 3.11.3
+  image_picker: ^0.8.7+5
   intl: 0.20.2
   path_provider: 2.1.5
   csv: 6.0.0
@@ -41,11 +42,55 @@ flutter:
     - assets/images/panhoca.jpg
     - assets/images/integral.jpg
     - assets/images/Logo StockOne.png
+    - assets/images/paofrancesqueijo.jpg
     - assets/images/StockOnesf.png
     - assets/images/bh.jpg
     - assets/images/paisefilhos.jpg
     - assets/images/bahamas.jpg
     - assets/images/logobahamas.jpg
+    - assets/images/baguetefrancesa.jpg
+    - assets/images/baguetefrancesaqueijo.jpg
+    - assets/images/biscoitodequeijo.jpg
+    - assets/images/biscoitopolvilho.jpg
+    - assets/images/minipaofrancesgergelim.jpg
+    - assets/images/minipaomartarocha.jpg
+    - assets/images/minipaosonho.jpg
+    - assets/images/minipaosonhochocolate.jpg
+    - assets/images/paobaguetefrancesagergelim.jpg
+    - assets/images/paobaguetefrancesaqueijo.jpg
+    - assets/images/paobambino.jpg
+    - assets/images/paocaseirinho.jpg
+    - assets/images/paodealhodacasa.jpg
+    - assets/images/paodealhodacasapicante.jpg
+    - assets/images/paodequeijocoquetel.jpg
+    - assets/images/paodequeijotradicional.jpg
+    - assets/images/paodocecaracol.jpg
+    - assets/images/paodocecomprido.jpg
+    - assets/images/paodoceferradura.jpg
+    - assets/images/paomilho.jpg
+    - assets/images/paopararabanada.jpg
+    - assets/images/paopizza.jpg
+    - assets/images/paosamaritano.jpg
+    - assets/images/paotatu.jpg
+    - assets/images/profiterolesbrigadeiro.jpg
+    - assets/images/profiterolesbrigadeirobranco.jpg
+    - assets/images/profiterolesdocedeleite.jpg
+    - assets/images/rabanadaassada.jpg
+    - assets/images/roscacaseira.jpg
+    - assets/images/roscacaseiracoco.jpg
+    - assets/images/roscacaseiraleiteempo.jpg
+    - assets/images/roscafofinhatemperada.jpg
+    - assets/images/sanduichebahamas.jpg
+    - assets/images/sanduichefofinho.jpg
+    - assets/images/torradacomum.jpg
+    - assets/images/roscacocoequeijo.jpg
+    - assets/images/paofofinho.jpg
+    - assets/images/torradadealho.jpg
+    - assets/images/torradadealhointegral.jpg
+    - assets/images/torradaintegral.jpg
+
+
+
 
 # configuração do flutter_launcher_icons
 flutter_icons:

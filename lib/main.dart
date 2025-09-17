@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -267,8 +268,8 @@ class Bahamas extends StatelessWidget {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xffe16767), // topo claro
-              Color(0xf7ed1717), // base marrom padaria
+              Color(0xFFFFE5B4), // topo claro
+              Color(0xFFD29752), // base marrom padaria
             ],
           ),
         ),
@@ -988,6 +989,12 @@ class _ThirdScreenState extends State<ThirdScreen> {
     }
   }
 
+  void _refreshTodos() {
+    for (var produto in subprodutos) {
+      _refreshEstoque(produto);
+    }
+  }
+
   double _calcularEstoqueMaximo(double valorMensal, String produto) {
     if (diasDeGiro == null || diasDeGiro! <= 0) return 0;
 
@@ -1231,27 +1238,35 @@ class _ThirdScreenState extends State<ThirdScreen> {
               // Caixa Dias de giro com título acima
               Card(
                 elevation: 1,
-                margin: const EdgeInsets.all(2), // margem bem pequena
+                margin: const EdgeInsets.all(2),
                 shape: RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.circular(6), // cantos menos arredondados
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(4), // padding mínimo
+                  padding: const EdgeInsets.all(4),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min, // altura mínima
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        "DIAS DE GIRO",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 12, // fonte menor
-                          fontWeight: FontWeight.w600,
-                          color: Colors.blueGrey.shade800,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "DIAS DE GIRO",
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blueGrey.shade800,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.refresh, color: Colors.blue),
+                            tooltip: "Atualizar todos",
+                            onPressed: _refreshTodos,
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 2), // quase nada de espaço
+                      const SizedBox(height: 2),
                       TextFormField(
                         controller: giroController,
                         keyboardType: TextInputType.number,
@@ -1260,10 +1275,9 @@ class _ThirdScreenState extends State<ThirdScreen> {
                           FilteringTextInputFormatter.digitsOnly,
                           LengthLimitingTextInputFormatter(3),
                         ],
-                        style: const TextStyle(
-                            fontSize: 16), // texto menor no campo
+                        style: const TextStyle(fontSize: 16),
                         decoration: InputDecoration(
-                          isDense: true, // compacto
+                          isDense: true,
                           contentPadding: const EdgeInsets.symmetric(
                               horizontal: 6, vertical: 6),
                           border: const OutlineInputBorder(
@@ -1285,8 +1299,10 @@ class _ThirdScreenState extends State<ThirdScreen> {
                               31,
                               (index) => PopupMenuItem(
                                 value: index + 1,
-                                child: Text('${index + 1}',
-                                    style: const TextStyle(fontSize: 16)),
+                                child: Text(
+                                  '${index + 1}',
+                                  style: const TextStyle(fontSize: 16),
+                                ),
                               ),
                             ),
                           ),
@@ -1399,6 +1415,7 @@ class _ThirdScreenState extends State<ThirdScreen> {
 
 class MapeamentoEstoqueScreen extends StatefulWidget {
   final String storeName;
+
   final List<String> subprodutos;
 
   const MapeamentoEstoqueScreen({
@@ -1406,6 +1423,7 @@ class MapeamentoEstoqueScreen extends StatefulWidget {
     required this.subprodutos,
     Key? key,
   }) : super(key: key);
+
   @override
   _MapeamentoEstoqueScreenState createState() =>
       _MapeamentoEstoqueScreenState();
@@ -1414,11 +1432,26 @@ class MapeamentoEstoqueScreen extends StatefulWidget {
 class _MapeamentoEstoqueScreenState extends State<MapeamentoEstoqueScreen> {
   Map<String, String> estoqueMaximos = {};
   int totalFreezers = 0;
+  List<Map<String, dynamic>> freezersData = []; // Dados dos freezers
 
   @override
   void initState() {
     super.initState();
     _loadEstoqueMaximoData();
+    _loadFreezersData(); // Carrega dados dos freezers
+  }
+
+  // Carrega dados dos freezers do SharedPreferences
+  Future<void> _loadFreezersData() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? jsonString = prefs.getString('freezers_${widget.storeName}');
+
+    if (jsonString != null && jsonString.isNotEmpty) {
+      List<dynamic> freezerList = jsonDecode(jsonString);
+      setState(() {
+        freezersData = List<Map<String, dynamic>>.from(freezerList);
+      });
+    }
   }
 
   Future<void> _loadEstoqueMaximoData() async {
@@ -1479,6 +1512,13 @@ class _MapeamentoEstoqueScreenState extends State<MapeamentoEstoqueScreen> {
       'Profiteroles Doce Leit.': ['Profiteroles Doce de Leite'],
     };
 
+    // Lista dos produtos que devem ter teto mínimo de 1
+    final produtosTetoMinimo1 = [
+      'Profiteroles Brigadeiro',
+      'Profiteroles Brig Branc',
+      'Profiteroles Doce Leit.'
+    ];
+
     // Calculando a quantidade de pacotes de Pão Francês e outras massas
     int pacotesPaoFrances = 0;
     int pacotesOutrasMassas = 0;
@@ -1494,8 +1534,16 @@ class _MapeamentoEstoqueScreenState extends State<MapeamentoEstoqueScreen> {
         }
       }
 
-      // MODIFICAÇÃO AQUI: Garante estoque mínimo de 6
-      int estoqueFinal = somaEstoque < 6 ? 6 : somaEstoque;
+      // MODIFICAÇÃO: Teto mínimo diferenciado para os profiteroles
+      int estoqueFinal;
+      if (produtosTetoMinimo1.contains(categoria)) {
+        // Para os profiteroles, teto mínimo é 1
+        estoqueFinal = somaEstoque < 1 ? 1 : somaEstoque;
+      } else {
+        // Para os demais produtos, teto mínimo é 6
+        estoqueFinal = somaEstoque < 6 ? 6 : somaEstoque;
+      }
+
       dadosEstoque[categoria] = estoqueFinal.toString();
 
       // Separando os pacotes de Pão Francês das outras massas
@@ -1568,6 +1616,7 @@ class _MapeamentoEstoqueScreenState extends State<MapeamentoEstoqueScreen> {
                         context,
                         MaterialPageRoute(
                           builder: (context) => LayoutDistribuicaoScreen(
+                            storeName: widget.storeName,
                             estoqueMassas: estoqueMaximos,
                           ),
                         ),
@@ -1585,19 +1634,33 @@ class _MapeamentoEstoqueScreenState extends State<MapeamentoEstoqueScreen> {
   }
 }
 
-class LayoutDistribuicaoScreen extends StatelessWidget {
-  final Map<String, String> estoqueMassas;
+class LayoutDistribuicaoScreen extends StatefulWidget {
+  final String storeName;
+  final Map<String, String> estoqueMassas; // Teto de estoque de cada massa
 
-  LayoutDistribuicaoScreen({required this.estoqueMassas});
+  const LayoutDistribuicaoScreen({
+    super.key,
+    required this.storeName,
+    required this.estoqueMassas,
+  });
+
+  @override
+  State<LayoutDistribuicaoScreen> createState() => _LayoutDistribuicaoScreen();
+}
+
+class _LayoutDistribuicaoScreen extends State<LayoutDistribuicaoScreen> {
+  List<Map<String, dynamic>> freezersData = [];
+  bool faltaEspaco = false;
+  Map<String, int> massasFaltantes = {};
 
   final List<String> listaMassas = [
     'Massa Pão Francês',
+    'Massa Cervejinha',
+    'Massa Pão Francês Integral',
     'Massa Mini Baguete 80g',
     'Massa Mini Pão Francês',
     'Massa Mini Baguete 40g',
     'Massa Baguete 330g',
-    'Massa Pão Francês Integral',
-    'Massa Cervejinha',
     'Massa Pão Queijo Tradicional',
     'Massa Pão Queijo Coquetel',
     'Massa Biscoito Queijo',
@@ -1616,197 +1679,230 @@ class LayoutDistribuicaoScreen extends StatelessWidget {
     'Profiteroles Doce Leit.',
   ];
 
-  final int pacotesPaoFrancesPorSlot = 20;
-  final int pacotesOutrasMassasPorSlot = 36;
+  @override
+  void initState() {
+    super.initState();
+    _loadFreezersData();
+  }
 
-  List<List<Map<String, Map<String, int>>>> _distribuirMassasPorFreezers() {
-    List<List<Map<String, Map<String, int>>>> freezers = [];
-    List<Map<String, Map<String, int>>> freezerAtual = [];
-    int slotIndex = 0;
+  Future<void> _loadFreezersData() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? jsonString = prefs.getString('freezers_${widget.storeName}');
 
-    // Primeiro, distribui o Pão Francês
-    for (var massa in listaMassas) {
-      int quantidade = int.tryParse(estoqueMassas[massa] ?? '0') ?? 0;
+    if (jsonString == null || jsonString.isEmpty) {
+      // Nenhum freezer cadastrado
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Atenção'),
+          content: const Text(
+              'Por favor cadastrar freezers na tela de equipamentos.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            )
+          ],
+        ),
+      );
+      return;
+    }
 
-      if (massa == 'Massa Pão Francês') {
-        while (quantidade > 0) {
-          int pacotesNoSlot = quantidade >= pacotesPaoFrancesPorSlot
-              ? pacotesPaoFrancesPorSlot
-              : quantidade;
+    List<dynamic> freezerList = jsonDecode(jsonString);
+    setState(() {
+      freezersData = List<Map<String, dynamic>>.from(freezerList);
+    });
 
-          freezerAtual.add({
-            'slot${slotIndex + 1}': {massa: pacotesNoSlot},
-          });
+    _distribuirMassas(); // Calcula distribuição assim que carrega os dados
+  }
 
-          quantidade -= pacotesNoSlot;
-          slotIndex++;
+  // Map de freezer index para massas alocadas
+  Map<int, Map<String, int>> distribuicao = {};
 
-          if (slotIndex % 3 == 0) {
-            freezers.add(freezerAtual);
-            freezerAtual = [];
-          }
+  void _distribuirMassas() {
+    // Ordena freezers: verticais primeiro (maior capacidade para pão francês)
+    freezersData.sort((a, b) {
+      if (a['tipo'] == b['tipo']) return 0;
+      return a['tipo'] == 'Vertical' ? -1 : 1;
+    });
+
+    // Inicializa distribuição vazia para cada freezer
+    distribuicao = Map.fromIterable(
+      List.generate(freezersData.length, (i) => i),
+      value: (_) => {},
+    );
+
+    // Limpa o mapa de massas faltantes
+    massasFaltantes = {};
+
+    // Calcula VOLUME total de cada freezer em metros cúbicos
+    List<double> volumesFreezers = freezersData.map((freezer) {
+      return double.tryParse(freezer['volume'] ?? '0') ?? 0.0;
+    }).toList();
+
+    // Rastreia volume OCUPADO em cada freezer (em m³)
+    List<double> volumeOcupado = List.generate(freezersData.length, (_) => 0.0);
+
+    faltaEspaco = false;
+
+    // Ordem de prioridade das massas
+    List<String> ordemMassas = ['Massa Pão Francês'] +
+        listaMassas.where((m) => m != 'Massa Pão Francês').toList();
+
+    // Para cada massa na ordem de prioridade
+    for (String massa in ordemMassas) {
+      int quantidade = int.tryParse(widget.estoqueMassas[massa] ?? '0') ?? 0;
+      int quantidadeOriginal = quantidade; // Guarda a quantidade original
+
+      // Para cada freezer (em ordem)
+      for (int i = 0; i < freezersData.length && quantidade > 0; i++) {
+        String tipo = freezersData[i]['tipo'] ?? 'Horizontal';
+        double fatorMassa = _getFatorPorMassa(massa, tipo);
+
+        // Volume ocupado por 1 pacote desta massa
+        double volumePorPacote = 1.0 / fatorMassa;
+
+        // Volume disponível neste freezer
+        double volumeDisponivel = volumesFreezers[i] - volumeOcupado[i];
+
+        // Quantos pacotes CABEM no espaço disponível
+        int maxPacotes = (volumeDisponivel * fatorMassa).floor();
+
+        if (maxPacotes > 0) {
+          int paraAlocar = quantidade <= maxPacotes ? quantidade : maxPacotes;
+
+          // Atualiza distribuição
+          distribuicao[i]![massa] = (distribuicao[i]![massa] ?? 0) + paraAlocar;
+
+          // Atualiza volume ocupado (em m³)
+          volumeOcupado[i] += paraAlocar * volumePorPacote;
+
+          quantidade -= paraAlocar;
         }
+      }
+
+      // Se sobrou massa depois de tentar todos os freezers
+      if (quantidade > 0) {
+        faltaEspaco = true;
+        // Registra a massa faltante e a quantidade que não coube
+        massasFaltantes[massa] = quantidade;
       }
     }
 
-    // Agora, distribui as outras massas
-    for (var massa in listaMassas) {
-      if (massa == 'Massa Pão Francês') continue;
+    setState(() {});
+  }
 
-      int quantidade = int.tryParse(estoqueMassas[massa] ?? '0') ?? 0;
+  double _getFatorPorMassa(String massa, String tipo) {
+    // Pão Francês
+    if (massa == 'Massa Pão Francês') return 0.053;
 
-      while (quantidade > 0) {
-        bool encontrouEspaco = false;
+    // Biscoito Polvilho
+    if (massa == 'Massa Biscoito Polvilho') return 0.053;
 
-        for (var freezer in freezers) {
-          for (var slot in freezer) {
-            if (slot.isNotEmpty &&
-                !slot.values.first.containsKey('Massa Pão Francês')) {
-              int pacotesNoSlotAtual =
-                  slot.values.first.values.fold(0, (a, b) => a + b);
-              int espacoRestante =
-                  pacotesOutrasMassasPorSlot - pacotesNoSlotAtual;
-
-              if (espacoRestante > 0) {
-                int adicionar =
-                    quantidade >= espacoRestante ? espacoRestante : quantidade;
-
-                if (slot.values.first.containsKey(massa)) {
-                  slot.values.first[massa] =
-                      (slot.values.first[massa] ?? 0) + adicionar;
-                } else {
-                  slot.values.first[massa] = adicionar;
-                }
-
-                quantidade -= adicionar;
-                encontrouEspaco = true;
-                break;
-              }
-            }
-          }
-          if (encontrouEspaco) break;
-        }
-
-        if (!encontrouEspaco) {
-          int pacotesNoSlot = quantidade >= pacotesOutrasMassasPorSlot
-              ? pacotesOutrasMassasPorSlot
-              : quantidade;
-
-          freezerAtual.add({
-            'slot${slotIndex + 1}': {massa: pacotesNoSlot},
-          });
-
-          quantidade -= pacotesNoSlot;
-          slotIndex++;
-
-          if (slotIndex % 3 == 0) {
-            freezers.add(freezerAtual);
-            freezerAtual = [];
-          }
-        }
-      }
+    // Profiteroles
+    if (massa == 'Profiteroles Brigadeiro' ||
+        massa == 'Profiteroles Brig Branc' ||
+        massa == 'Profiteroles Doce Leit.') {
+      return tipo == 'Horizontal' ? 0.3 : 0.2;
     }
 
-    if (freezerAtual.isNotEmpty) {
-      while (freezerAtual.length < 3) {
-        freezerAtual.add({});
-      }
-      freezers.add(freezerAtual);
-    }
-
-    return freezers;
+    // Outras massas
+    return tipo == 'Horizontal' ? 0.187 : 0.113;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Sugestão de layout'),
-      ),
-      body: Center(
-        child: Column(
-          children: [
-            Text('Distribuição de Massas por Freezers (pcts)'),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _distribuirMassasPorFreezers().length,
-                itemBuilder: (context, freezerIndex) {
-                  return Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text('Freezer ${freezerIndex + 1}'),
-                        Container(
-                          padding: EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: Colors.black,
-                              width: 3,
-                            ),
-                          ),
-                          child: Wrap(
-                            spacing: 4,
-                            runSpacing: 4,
-                            alignment: WrapAlignment.center,
-                            children:
-                                _distribuirMassasPorFreezers()[freezerIndex]
-                                    .map((slot) {
-                              return Container(
-                                padding: EdgeInsets.all(1),
-                                margin: EdgeInsets.all(2),
-                                width: 180,
-                                height: 140,
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: Colors.black,
-                                    width: 2,
-                                  ),
-                                  color: slot.isNotEmpty
-                                      ? Colors.blue[100]
-                                      : Colors.grey[300],
-                                ),
-                                child: slot.isNotEmpty
-                                    ? Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                        children: slot.values
-                                            .map((massaInfo) {
-                                              return massaInfo.keys
-                                                  .map((massa) {
-                                                String nomeDaMassa = massa
-                                                    .replaceFirst('Massa ', '');
-                                                return Text(
-                                                  '$nomeDaMassa: ${massaInfo[massa]}',
-                                                  textAlign: TextAlign.center,
-                                                  style:
-                                                      TextStyle(fontSize: 12),
-                                                );
-                                              }).toList();
-                                            })
-                                            .expand((widget) => widget)
-                                            .toList(),
-                                      )
-                                    : Center(
-                                        child: Text(
-                                          'Vazio',
-                                          style: TextStyle(fontSize: 12),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                      ),
-                              );
-                            }).toList(),
-                          ),
+      appBar: AppBar(title: const Text('Distribuição Pacotes')),
+      body: freezersData.isEmpty
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  // BOTÃO FREEZERS ADICIONADO AQUI
+                  ElevatedButton(
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => Freezer(storeName: widget.storeName),
                         ),
-                      ],
+                      );
+                      _loadFreezersData(); // Atualiza os dados ao voltar
+                    },
+                    child: const Text(
+                      'Freezers',
+                      style: TextStyle(color: Colors.white),
                     ),
-                  );
-                },
+                  ),
+                  const SizedBox(
+                      height: 16), // Espaço entre o botão e os freezers
+
+                  // LISTA DE FREEZERS
+                  ...List.generate(freezersData.length, (i) {
+                    Map<String, dynamic> freezer = freezersData[i];
+                    Map<String, int> massas = distribuicao[i] ?? {};
+
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      color: Colors.blue[50],
+                      child: Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${freezer['modelo'] ?? 'Freezer'} (${freezer['tipo'] ?? 'N/A'}) - ${freezer['volume'] ?? '0'} litros',
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 8),
+                            ...massas.entries.map((e) {
+                              return Text(
+                                  '${e.key.replaceFirst("Massa ", "")}: ${e.value} pacotes');
+                            }).toList(),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+
+                  if (faltaEspaco)
+                    Card(
+                      color: Colors.red[300],
+                      margin: const EdgeInsets.only(top: 16),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'ATENÇÃO: Freezers insuficientes para armazenar todas as massas!',
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 8),
+                            if (massasFaltantes.isNotEmpty) ...[
+                              const Text(
+                                'Massas que não couberam:',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 4),
+                              ...massasFaltantes.entries.map((e) {
+                                return Text(
+                                  '• ${e.key.replaceFirst("Massa ", "")}: ${e.value} pacotes',
+                                  style: const TextStyle(fontSize: 14),
+                                );
+                              }).toList(),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -4232,87 +4328,132 @@ class ManutencaoEquipamentosScreen extends StatefulWidget {
 
 class _ManutencaoEquipamentosScreenState
     extends State<ManutencaoEquipamentosScreen> {
-  late TextEditingController equipamentoController;
-  late TextEditingController modeloController;
+  Map<String, dynamic> dadosResumo = {};
+  Map<String, bool> equipamentosSelecionados = {};
+  Map<String, TextEditingController> defeitosControllers = {};
   late TextEditingController gerenteController;
-  late TextEditingController defeitoController;
   late TextEditingController observacoesController;
-
   late String dataFormatada;
 
   @override
   void initState() {
     super.initState();
-    equipamentoController = TextEditingController();
-    modeloController = TextEditingController();
     gerenteController = TextEditingController();
-    defeitoController = TextEditingController();
     observacoesController = TextEditingController();
-
-    _carregarPreferencias();
 
     final dataHoje = DateTime.now();
     dataFormatada =
         "${dataHoje.day.toString().padLeft(2, '0')}/${dataHoje.month.toString().padLeft(2, '0')}/${dataHoje.year}";
+
+    _carregarDados();
   }
 
-  Future<void> _carregarPreferencias() async {
+  Future<void> _carregarDados() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      equipamentoController.text =
-          prefs.getString('equipamento_${widget.storeName}') ?? '';
-      modeloController.text =
-          prefs.getString('modelo_${widget.storeName}') ?? '';
-      gerenteController.text =
-          prefs.getString('gerente_${widget.storeName}') ?? '';
-      defeitoController.text =
-          prefs.getString('defeito_${widget.storeName}') ?? '';
-      observacoesController.text =
-          prefs.getString('observacoes_${widget.storeName}') ?? '';
-    });
-  }
+    gerenteController.text =
+        prefs.getString('gerente_${widget.storeName}') ?? '';
 
-  Future<void> _salvarPreferencias() async {
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setString(
-        'equipamento_${widget.storeName}', equipamentoController.text);
-    prefs.setString('modelo_${widget.storeName}', modeloController.text);
-    prefs.setString('gerente_${widget.storeName}', gerenteController.text);
-    prefs.setString('defeito_${widget.storeName}', defeitoController.text);
-    prefs.setString(
-        'observacoes_${widget.storeName}', observacoesController.text);
+    Map<String, dynamic> dados = {};
+
+    try {
+      String? fornosJson = prefs.getString('fornos_${widget.storeName}');
+      if (fornosJson != null) dados['fornos'] = jsonDecode(fornosJson);
+
+      String? armariosJson = prefs.getString('armarios_${widget.storeName}');
+      if (armariosJson != null) dados['armarios'] = jsonDecode(armariosJson);
+
+      String? esqueletosJson =
+          prefs.getString('esqueletos_${widget.storeName}');
+      if (esqueletosJson != null)
+        dados['esqueletos'] = jsonDecode(esqueletosJson);
+
+      String? climaticasJson =
+          prefs.getString('climaticas_${widget.storeName}');
+      if (climaticasJson != null)
+        dados['climaticas'] = jsonDecode(climaticasJson);
+
+      String? freezersJson = prefs.getString('freezers_${widget.storeName}');
+      if (freezersJson != null) dados['freezers'] = jsonDecode(freezersJson);
+
+      setState(() {
+        dadosResumo = dados;
+
+        // Inicializa seleção e controllers
+        for (var tipo in dadosResumo.keys) {
+          var lista = dadosResumo[tipo];
+          for (int i = 0; i < lista.length; i++) {
+            String key = "$tipo-$i";
+            equipamentosSelecionados[key] = false;
+            defeitosControllers[key] = TextEditingController();
+          }
+        }
+      });
+    } catch (e) {
+      debugPrint("Erro ao carregar dados: $e");
+    }
   }
 
   Future<void> _compartilharRelatorio() async {
-    String texto = """
-ORDEM DE SERVIÇO
+    StringBuffer relatorio = StringBuffer();
 
-*${widget.storeName}
-*Data: $dataFormatada
-*Gerência: ${gerenteController.text}
+    relatorio.writeln("ORDEM DE SERVIÇO");
+    relatorio.writeln("");
+    relatorio.writeln("${widget.storeName}");
+    relatorio.writeln("Data: $dataFormatada");
+    relatorio.writeln("Gerência: ${gerenteController.text}");
+    relatorio.writeln("");
+    relatorio.writeln("Equipamentos:");
 
-*Equipamento(s):
-${equipamentoController.text}
+    equipamentosSelecionados.entries
+        .where((entry) => entry.value)
+        .forEach((entry) {
+      final key = entry.key;
+      final partes = key.split("-");
+      final tipo = partes[0];
+      final index = int.parse(partes[1]);
+      final equipamento = dadosResumo[tipo][index];
+      final defeito = defeitosControllers[key]?.text ?? "";
 
-*Modelo(s): 
-${modeloController.text}
+      relatorio.writeln("- ${_tituloEquipamento(tipo, index, equipamento)}");
 
-*Defeito(s):
-${defeitoController.text}
+      equipamento.forEach((campo, valor) {
+        relatorio.writeln("   $campo: $valor");
+      });
 
-*Observações:
-${observacoesController.text}
-""";
-    await Share.share(texto.trim(), subject: 'Relatório Manutenção');
+      relatorio.writeln("   Defeito(s): $defeito");
+      relatorio.writeln("");
+    });
+
+    relatorio.writeln("Observações:");
+    relatorio.writeln(observacoesController.text);
+
+    await Share.share(relatorio.toString());
+  }
+
+  String _tituloEquipamento(String tipo, int index, Map<String, dynamic> eq) {
+    switch (tipo) {
+      case 'fornos':
+        return "Forno ${index + 1}";
+      case 'armarios':
+        return "Armário ${index + 1}";
+      case 'esqueletos':
+        return "Esqueleto ${index + 1}";
+      case 'climaticas':
+        return "Climática ${index + 1}";
+      case 'freezers':
+        return "Freezer ${index + 1}";
+      default:
+        return "Equipamento ${index + 1}";
+    }
   }
 
   @override
   void dispose() {
-    equipamentoController.dispose();
-    modeloController.dispose();
     gerenteController.dispose();
-    defeitoController.dispose();
     observacoesController.dispose();
+    for (var controller in defeitosControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -4342,48 +4483,96 @@ ${observacoesController.text}
           ],
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: DefaultTextStyle(
-          style: const TextStyle(fontSize: 19, color: preto),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Data: $dataFormatada',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 19,
-                      color: verdeEscuro)),
-              const SizedBox(height: 32),
-              _buildInput("Gerência:", gerenteController, verdeEscuro),
-              const SizedBox(height: 16),
-              _buildInput(
-                  "Equipamento(s):", equipamentoController, verdeEscuro),
-              const SizedBox(height: 16),
-              _buildInput("Modelo(s):", modeloController, verdeEscuro),
-              const SizedBox(height: 16),
-              _buildInput("Defeito(s):", defeitoController, verdeEscuro),
-              const SizedBox(height: 16),
-              _buildInput("Observações:", observacoesController, verdeEscuro),
-              const SizedBox(height: 32),
-              Center(
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey,
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: _compartilharRelatorio,
-                  icon: const Icon(Icons.share),
-                  label: const Text(
-                    'Compartilhar',
-                    style: TextStyle(fontSize: 19),
-                  ),
+      body: dadosResumo.isEmpty
+          ? const Center(
+              child: Text("Nenhum equipamento cadastrado."),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: DefaultTextStyle(
+                style: const TextStyle(fontSize: 19, color: preto),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Data: $dataFormatada',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 19,
+                            color: verdeEscuro)),
+                    const SizedBox(height: 16),
+                    _buildInput("Gerência:", gerenteController, verdeEscuro),
+                    const SizedBox(height: 24),
+
+                    // Lista de checkboxes
+                    ...dadosResumo.keys.expand((tipo) {
+                      var lista = dadosResumo[tipo];
+                      return List.generate(lista.length, (index) {
+                        String key = "$tipo-$index";
+                        final equipamento = lista[index];
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CheckboxListTile(
+                              title: Text(
+                                _tituloEquipamento(tipo, index, equipamento),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              subtitle: Text(
+                                equipamento.entries
+                                    .map((e) => "${e.key}: ${e.value}")
+                                    .join(", "),
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              value: equipamentosSelecionados[key],
+                              onChanged: (value) {
+                                setState(() {
+                                  equipamentosSelecionados[key] =
+                                      value ?? false;
+                                });
+                              },
+                            ),
+                            if (equipamentosSelecionados[key] == true)
+                              Card(
+                                margin: const EdgeInsets.only(
+                                    left: 32, right: 8, bottom: 16),
+                                elevation: 2,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: TextField(
+                                    controller: defeitosControllers[key],
+                                    decoration: const InputDecoration(
+                                        labelText: "Defeito(s)"),
+                                  ),
+                                ),
+                              )
+                          ],
+                        );
+                      });
+                    }),
+
+                    const SizedBox(height: 16),
+                    _buildInput(
+                        "Observações:", observacoesController, verdeEscuro),
+                    const SizedBox(height: 32),
+                    Center(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: _compartilharRelatorio,
+                        icon: const Icon(Icons.share),
+                        label: const Text(
+                          'Compartilhar',
+                          style: TextStyle(fontSize: 19),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 
@@ -4395,7 +4584,6 @@ ${observacoesController.text}
         labelStyle: TextStyle(fontSize: 23, color: color),
       ),
       controller: controller,
-      onChanged: (_) => _salvarPreferencias(),
     );
   }
 }
@@ -4406,9 +4594,7 @@ ${observacoesController.text}
 
 class ReportAberturaScreen extends StatefulWidget {
   final String storeName;
-
   const ReportAberturaScreen({super.key, required this.storeName});
-
   @override
   State<ReportAberturaScreen> createState() => _ReportAberturaScreenState();
 }
@@ -4417,13 +4603,10 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
   late TextEditingController crachaController;
   late TextEditingController gerenteController;
   late TextEditingController encarregadoController;
-
   int colaboradoresAtivos = 0;
   int sobrasGeladeira = 0;
-
   late String userName;
   late String dataFormatada;
-
   @override
   void initState() {
     super.initState();
@@ -4431,7 +4614,6 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     gerenteController = TextEditingController();
     encarregadoController = TextEditingController();
     _carregarPreferencias();
-
     final dataHoje = DateTime.now();
     dataFormatada =
         "${dataHoje.day.toString().padLeft(2, '0')}/${dataHoje.month.toString().padLeft(2, '0')}/${dataHoje.year}";
@@ -4466,19 +4648,8 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
   }
 
   Future<void> _compartilharRelatorioComImagens() async {
-    String texto = """
-BOM DIA A TODOS!
-
-*Posicionamento: ${widget.storeName}
-*Data: $dataFormatada
-*Técnico: $userName
-*Crachá: ${crachaController.text}
-*Gerência: ${gerenteController.text}
-*Encarregado: ${encarregadoController.text}
-*Colaboradores ativos: $colaboradoresAtivos
-*Sobras Pão Francês: $sobrasGeladeira telas
-""";
-
+    String texto =
+        """ BOM DIA A TODOS! *Posicionamento: ${widget.storeName} *Data: $dataFormatada *Técnico: $userName *Crachá: ${crachaController.text} *Gerência: ${gerenteController.text} *Encarregado: ${encarregadoController.text} *Colaboradores ativos: $colaboradoresAtivos *Sobras Pão Francês: $sobrasGeladeira telas """;
     await Share.share(texto.trim(), subject: 'Relatório Abertura');
   }
 
@@ -4494,7 +4665,6 @@ BOM DIA A TODOS!
   Widget build(BuildContext context) {
     const verdeEscuro = Color(0xFF006400);
     const preto = Color(0xff0e0101);
-
     return Scaffold(
       appBar: AppBar(
         backgroundColor: verdeEscuro,
@@ -5115,7 +5285,7 @@ ${_formatarRupturas()}
                     child: TextField(
                       decoration: const InputDecoration(
                         labelText: 'Pão Francês (kg)',
-                        labelStyle: TextStyle(fontSize: 22),
+                        labelStyle: TextStyle(fontSize: 16),
                         border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
@@ -5169,7 +5339,7 @@ ${_formatarRupturas()}
               TextField(
                 decoration: const InputDecoration(
                   labelText: 'Pão de Queijo Tradicional (Kg)',
-                  labelStyle: TextStyle(fontSize: 22),
+                  labelStyle: TextStyle(fontSize: 16),
                   border: OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.number,
@@ -5185,7 +5355,7 @@ ${_formatarRupturas()}
               TextField(
                 decoration: const InputDecoration(
                   labelText: 'Pão de Queijo Coquetel (Kg)',
-                  labelStyle: TextStyle(fontSize: 22),
+                  labelStyle: TextStyle(fontSize: 16),
                   border: OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.number,
@@ -5201,7 +5371,7 @@ ${_formatarRupturas()}
               TextField(
                 decoration: const InputDecoration(
                   labelText: 'Biscoito de Queijo (Kg)',
-                  labelStyle: TextStyle(fontSize: 22),
+                  labelStyle: TextStyle(fontSize: 16),
                   border: OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.number,
@@ -5322,37 +5492,47 @@ class ReceituarioScreen extends StatelessWidget {
 
   // 🔹 Recebe o context como parâmetro
   Widget _padariaCard(BuildContext context, String label, Widget destination) {
-    return Material(
-      color: Color(0xffe1d98e),
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => destination),
+        );
+      },
       borderRadius: BorderRadius.circular(16),
-      elevation: 4,
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => destination),
-          );
-        },
-        borderRadius: BorderRadius.circular(16),
-        splashColor: Colors.brown.withOpacity(0.3),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const SizedBox(height: 12),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                  fontFamily: 'Nunito ExtraBold',
-                  color: Color(0xFF5D4037),
-                ),
-              ),
-            ],
+      splashColor: Colors.brown.withOpacity(0.3),
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xffffffff),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xff131212), // cor da borda (marrom)
+            width: 2, // espessura da borda
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 6,
+              offset: const Offset(2, 2),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(height: 0.1),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                fontFamily: 'Nunito ExtraBold',
+                color: Color(0xFF5D4037),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -5366,24 +5546,102 @@ class ReceituarioScreen extends StatelessWidget {
       {'label': "Pão Francês Panhoca", 'screen': const panhoca()},
       {'label': "Pão Baguete Francesa", 'screen': const paobaguete()},
       {
-        'label': "Pão Baguete Francesa C/ Gergelim",
-        'screen': const PaoFrancesScreen()
-      },
-      {
         'label': "Pão Baguete Francesa C/ Queijo",
-        'screen': const PaoFrancesScreen()
+        'screen': const PaoBagueteFrancesaCQueijoScreen()
       },
-      {'label': "Baguete Francesa", 'screen': const PaoFrancesScreen()},
+      {'label': "Baguete Francesa", 'screen': const BagueteFrancesaScreen()},
       {
         'label': "Baguete Francesa C/ Queijo",
-        'screen': const PaoFrancesScreen()
+        'screen': const BagueteFrancesaCQueijoScreen()
       },
-      {'label': "Pão Francês", 'screen': const PaoFrancesScreen()},
+      {
+        'label': "Pão Baguete Francesa C/ Gergelim",
+        'screen': const PaoBagueteFrancesaCGergelimScreen()
+      },
+      {
+        'label': "Mini Pão Francês C/ Gergelim",
+        'screen': const MiniPaoFrancesCGergelimScreen()
+      },
+      {
+        'label': "Pão Francês C/ Queijo",
+        'screen': const PaoFrancesCQueijoScreen()
+      },
+      {'label': "Pão De Alho Da Casa", 'screen': const PaoDeAlhoDaCasaScreen()},
+      {
+        'label': "Pão De Alho Da Casa Picante",
+        'screen': const PaoDeAlhoDaCasaPicanteScreen()
+      },
+      {'label': "Torrada Comum", 'screen': const TorradaComumScreen()},
+      {'label': "Torrada De Alho", 'screen': const TorradaDeAlhoScreen()},
+      {'label': "Torrada Integral", 'screen': const TorradaIntegralScreen()},
+      {
+        'label': "Torrada Integral De Alho",
+        'screen': const TorradaIntegralDeAlhoScreen()
+      },
+      {'label': "Pão Doce Caracol", 'screen': const PaoDoceCaracolScreen()},
+      {'label': "Pão Doce Ferradura", 'screen': const PaoDoceFerraduraScreen()},
+      {'label': "Pão Doce Comprido", 'screen': const PaoDoceCompridoScreen()},
+      {'label': "Pão Milho", 'screen': const PaoMilhoScreen()},
+      {'label': "Pão Tatu", 'screen': const PaoTatuScreen()},
+      {'label': "Pão Caseirinho", 'screen': const PaoCaseirinhoScreen()},
+      {'label': "Pão Fofinho", 'screen': const PaoFofinhoScreen()},
+      {
+        'label': "Rosca Fofinha Temperada",
+        'screen': const RoscaFofinhaTemperadaScreen()
+      },
+      {
+        'label': "Mini Pão Sonho Chocolate",
+        'screen': const MiniPaoSonhoChocolateScreen()
+      },
+      {'label': "Mini Pão Sonho", 'screen': const MiniPaoSonhoScreen()},
+      {'label': "Pão Bambino", 'screen': const PaoBambinoScreen()},
+      {
+        'label': "Mini Pão Marta Rocha",
+        'screen': const MiniPaoMartaRochaScreen()
+      },
+      {'label': "Rosca Caseira", 'screen': const RoscaCaseiraScreen()},
+      {'label': "Rosca Caseira Côco", 'screen': const RoscaCaseiraCocoScreen()},
+      {
+        'label': "Rosca Caseira Leite em Pó",
+        'screen': const RoscaCaseiraLeiteEmPoScreen()
+      },
+      {
+        'label': "Rosca Côco E Queijo",
+        'screen': const RoscaCocoEQueijoScreen()
+      },
+      {'label': "Pão Para Rabanada", 'screen': const PaoParaRabanadaScreen()},
+      {'label': "Rabanada Assada", 'screen': const RabanadaAssadaScreen()},
+      {'label': "Pão Samaritano", 'screen': const PaoSamaritanoScreen()},
+      {'label': "Pão Pizza", 'screen': const PaoPizzaScreen()},
+      {'label': "Sanduíche Fofinho", 'screen': const SanduicheFofinhoScreen()},
+      {'label': "Sanduíche Bahamas", 'screen': const SanduicheBahamasScreen()},
+      {
+        'label': "Pão De Queijo Tradicional",
+        'screen': const PaoDeQueijoTradicionalScreen()
+      },
+      {
+        'label': "Pão De Queijo Coquetel",
+        'screen': const PaoDeQueijoCoquetelScreen()
+      },
+      {'label': "Biscoito Queijo ", 'screen': const BiscoitoQueijoScreen()},
+      {'label': "Biscoito Polvilho", 'screen': const BiscoitoPolvilhoScreen()},
+      {
+        'label': "Profiteroles Brigadeiro",
+        'screen': const ProfiterolesBrigadeiroScreen()
+      },
+      {
+        'label': "Profiteroles Brigadeiro Branco",
+        'screen': const ProfiterolesBrigadeiroBrancoScreen()
+      },
+      {
+        'label': "Profiteroles Doce de Leite",
+        'screen': const ProfiterolesDoceDeLeiteScreen()
+      },
     ];
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xffbc2337),
+        backgroundColor: const Color(0xFFD2691E),
         centerTitle: true,
         title: Row(
           mainAxisSize: MainAxisSize.min,
@@ -5408,8 +5666,8 @@ class ReceituarioScreen extends StatelessWidget {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xffd5848f), // topo claro
-              Color(0xffbc2337), // marrom padaria (seu antigo fundo)
+              Color(0xFFFFE5B4), // topo claro
+              Color(0xFFD29752), // marrom padaria (seu antigo fundo)
             ],
           ),
         ),
@@ -5606,6 +5864,1749 @@ class paobaguete extends StatelessWidget {
   }
 }
 
+class PaoBagueteFrancesaCGergelimScreen extends StatelessWidget {
+  const PaoBagueteFrancesaCGergelimScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/paobaguetefrancesagergelim.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PaoBagueteFrancesaCQueijoScreen extends StatelessWidget {
+  const PaoBagueteFrancesaCQueijoScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/paobaguetefrancesaqueijo.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class RoscaCaseiraCocoScreen extends StatelessWidget {
+  const RoscaCaseiraCocoScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/roscacaseiracoco.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class RoscaCaseiraScreen extends StatelessWidget {
+  const RoscaCaseiraScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/roscacaseira.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class MiniPaoMartaRochaScreen extends StatelessWidget {
+  const MiniPaoMartaRochaScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/minipaomartarocha.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PaoBambinoScreen extends StatelessWidget {
+  const PaoBambinoScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/paobambino.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class MiniPaoSonhoScreen extends StatelessWidget {
+  const MiniPaoSonhoScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/minipaosonho.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class MiniPaoSonhoChocolateScreen extends StatelessWidget {
+  const MiniPaoSonhoChocolateScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/minipaosonhochocolate.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class RoscaFofinhaTemperadaScreen extends StatelessWidget {
+  const RoscaFofinhaTemperadaScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/roscafofinhatemperada.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PaoCaseirinhoScreen extends StatelessWidget {
+  const PaoCaseirinhoScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/paocaseirinho.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PaoTatuScreen extends StatelessWidget {
+  const PaoTatuScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/paotatu.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PaoMilhoScreen extends StatelessWidget {
+  const PaoMilhoScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/paomilho.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PaoDoceCompridoScreen extends StatelessWidget {
+  const PaoDoceCompridoScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/paodocecomprido.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PaoDoceFerraduraScreen extends StatelessWidget {
+  const PaoDoceFerraduraScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/paodoceferradura.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PaoDoceCaracolScreen extends StatelessWidget {
+  const PaoDoceCaracolScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/paodocecaracol.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class TorradaIntegralDeAlhoScreen extends StatelessWidget {
+  const TorradaIntegralDeAlhoScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/torradadealhointegral.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class TorradaIntegralScreen extends StatelessWidget {
+  const TorradaIntegralScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/torradaintegral.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class TorradaDeAlhoScreen extends StatelessWidget {
+  const TorradaDeAlhoScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/torradadealho.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class TorradaComumScreen extends StatelessWidget {
+  const TorradaComumScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/torradacomum.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PaoDeAlhoDaCasaPicanteScreen extends StatelessWidget {
+  const PaoDeAlhoDaCasaPicanteScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/paodealhodacasapicante.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PaoDeAlhoDaCasaScreen extends StatelessWidget {
+  const PaoDeAlhoDaCasaScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/paodealhodacasa.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PaoFrancesCQueijoScreen extends StatelessWidget {
+  const PaoFrancesCQueijoScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/paofrancesqueijo.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class MiniPaoFrancesCGergelimScreen extends StatelessWidget {
+  const MiniPaoFrancesCGergelimScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                '- assets/images/minipaofrancesgergelim.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class BagueteFrancesaCQueijoScreen extends StatelessWidget {
+  const BagueteFrancesaCQueijoScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/baguetefrancesaqueijo.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class BagueteFrancesaScreen extends StatelessWidget {
+  const BagueteFrancesaScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/baguetefrancesa.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PaoFofinhoScreen extends StatelessWidget {
+  const PaoFofinhoScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/paofofinho.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ProfiterolesDoceDeLeiteScreen extends StatelessWidget {
+  const ProfiterolesDoceDeLeiteScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/profiterolesdocedeleite.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ProfiterolesBrigadeiroBrancoScreen extends StatelessWidget {
+  const ProfiterolesBrigadeiroBrancoScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/profiterolesbrigadeirobranco.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ProfiterolesBrigadeiroScreen extends StatelessWidget {
+  const ProfiterolesBrigadeiroScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/profiterolesbrigadeiro.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class BiscoitoPolvilhoScreen extends StatelessWidget {
+  const BiscoitoPolvilhoScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/biscoitopolvilho.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class BiscoitoQueijoScreen extends StatelessWidget {
+  const BiscoitoQueijoScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/biscoitodequeijo.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PaoDeQueijoCoquetelScreen extends StatelessWidget {
+  const PaoDeQueijoCoquetelScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/paodequeijocoquetel.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PaoDeQueijoTradicionalScreen extends StatelessWidget {
+  const PaoDeQueijoTradicionalScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/paodequeijotradicional.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class SanduicheBahamasScreen extends StatelessWidget {
+  const SanduicheBahamasScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/sanduichebahamas.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class SanduicheFofinhoScreen extends StatelessWidget {
+  const SanduicheFofinhoScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/sanduichefofinho.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PaoPizzaScreen extends StatelessWidget {
+  const PaoPizzaScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/paopizza.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PaoSamaritanoScreen extends StatelessWidget {
+  const PaoSamaritanoScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/paosamaritano.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class RabanadaAssadaScreen extends StatelessWidget {
+  const RabanadaAssadaScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/rabanadaassada.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PaoParaRabanadaScreen extends StatelessWidget {
+  const PaoParaRabanadaScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/paopararabanada.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class RoscaCocoEQueijoScreen extends StatelessWidget {
+  const RoscaCocoEQueijoScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/roscacocoequeijo.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class RoscaCaseiraLeiteEmPoScreen extends StatelessWidget {
+  const RoscaCaseiraLeiteEmPoScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/roscacaseiraleiteempo.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class Codigos extends StatelessWidget {
   const Codigos({super.key});
 
@@ -5692,51 +7693,54 @@ class Equipamentos extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ElevatedButton.icon(
-  style: ElevatedButton.styleFrom(
-    backgroundColor: const Color(0x76153555),
-    padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 48), // dobro
-    textStyle: const TextStyle(fontSize: 32), // dobro do texto
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(16),
-    ),
-  ),
-  onPressed: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => Cadastro(storeName: storeName),
-      ),
-    );
-  },
-  icon: const Icon(Icons.person_add, size: 36, color: Colors.white), // ícone Cadastro
-  label: const Text(
-    'Cadastro',
-    style: TextStyle(color: Colors.white),
-  ),
-),
-const SizedBox(height: 24), // mais espaço
-ElevatedButton.icon(
-  style: ElevatedButton.styleFrom(
-    backgroundColor: const Color(0x97095195),
-    padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 48),
-    textStyle: const TextStyle(fontSize: 32),
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(16),
-    ),
-  ),
-  onPressed: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const Limpeza()),
-    );
-  },
-  icon: const Icon(Icons.cleaning_services, size: 36, color: Colors.white), // ícone Limpeza
-  label: const Text(
-    'Limpeza',
-    style: TextStyle(color: Colors.white),
-  ),
-),
-
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0x76153555),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 18, horizontal: 38), // dobro
+                    textStyle: const TextStyle(fontSize: 22), // dobro do texto
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => Cadastro(storeName: storeName),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.person_add,
+                      size: 26, color: Colors.white), // ícone Cadastro
+                  label: const Text(
+                    'Cadastro',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+                const SizedBox(height: 24), // mais espaço
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0x97095195),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 18, horizontal: 38),
+                    textStyle: const TextStyle(fontSize: 22),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const Limpeza()),
+                    );
+                  },
+                  icon: const Icon(Icons.cleaning_services,
+                      size: 26, color: Colors.white), // ícone Limpeza
+                  label: const Text(
+                    'Limpeza',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
               ],
             ),
           ),
@@ -5817,7 +7821,9 @@ class Cadastro extends StatelessWidget {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const armarios()),
+                      MaterialPageRoute(
+                        builder: (_) => Armarios(storeName: storeName),
+                      ),
                     );
                   },
                   child: const Text(
@@ -5837,7 +7843,8 @@ class Cadastro extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (context) => const climatica()),
+                        builder: (_) => Climatica(storeName: storeName),
+                      ),
                     );
                   },
                   child: const Text(
@@ -5856,7 +7863,9 @@ class Cadastro extends StatelessWidget {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const freezers()),
+                      MaterialPageRoute(
+                        builder: (_) => Freezer(storeName: storeName),
+                      ),
                     );
                   },
                   child: const Text(
@@ -5875,11 +7884,35 @@ class Cadastro extends StatelessWidget {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const latas()),
+                      MaterialPageRoute(
+                        builder: (_) => Assadeiras(storeName: storeName),
+                      ),
                     );
                   },
                   child: const Text(
                     'Assadeiras',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0x97095195),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 14, horizontal: 24),
+                    textStyle: const TextStyle(fontSize: 19),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            ResumoEquipamentos(storeName: storeName),
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    'Resumo',
                     style: TextStyle(color: Colors.white),
                   ),
                 ),
@@ -5903,16 +7936,19 @@ class _FornoState extends State<Forno> {
 
   // Para armazenar os dados de cada forno
   List<TextEditingController> modeloControllers = [];
-  List<String?> tiposForno = [];
-  List<int?> suportesForno = [];
+  List<String> tiposForno = [];
+  List<int> suportesForno = [];
 
   final List<String> tipos = ['Elétrico', 'Gás'];
-  final List<int> suportes = [1, 2, 3, 4, 5];
+  final List<int> suportes = [1, 2, 3, 4, 5, 6, 7, 8];
 
   @override
   void initState() {
     super.initState();
-    _loadFornoData(); // Carrega os dados salvos
+    criarFornoControllers(0);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadFornoData();
+    });
   }
 
   @override
@@ -5924,61 +7960,77 @@ class _FornoState extends State<Forno> {
   }
 
   void criarFornoControllers(int quantidade) {
+    for (var controller in modeloControllers) {
+      controller.dispose();
+    }
     modeloControllers =
         List.generate(quantidade, (_) => TextEditingController());
-    tiposForno = List.generate(quantidade, (_) => null);
-    suportesForno = List.generate(quantidade, (_) => null);
+    tiposForno = List.generate(quantidade, (_) => '');
+    suportesForno = List.generate(quantidade, (_) => 0);
   }
 
-  // ----------------- SharedPreferences -----------------
   Future<void> _saveFornoData() async {
     final prefs = await SharedPreferences.getInstance();
     List<Map<String, dynamic>> fornoList = [];
-
     for (int i = 0; i < quantidadeFornos; i++) {
       fornoList.add({
         'modelo': modeloControllers[i].text,
-        'tipo': tiposForno[i] ?? '',
-        'suportes': suportesForno[i] ?? 0,
+        'tipo': tiposForno[i],
+        'suportes': suportesForno[i],
       });
     }
-
-    String jsonString = jsonEncode(fornoList);
-    await prefs.setString('fornos_${widget.storeName}', jsonString);
+    await prefs.setString('fornos_${widget.storeName}', jsonEncode(fornoList));
   }
 
   Future<void> _loadFornoData() async {
     final prefs = await SharedPreferences.getInstance();
     String? jsonString = prefs.getString('fornos_${widget.storeName}');
-    if (jsonString != null) {
+    if (jsonString != null && jsonString.isNotEmpty) {
       List<dynamic> fornoList = jsonDecode(jsonString);
-      setState(() {
-        quantidadeFornos = fornoList.length;
-        criarFornoControllers(quantidadeFornos);
-
-        for (int i = 0; i < quantidadeFornos; i++) {
-          var forno = fornoList[i];
-          modeloControllers[i].text = forno['modelo'] ?? '';
-          tiposForno[i] = forno['tipo'] ?? null;
-          suportesForno[i] = forno['suportes'] ?? null;
-        }
-      });
+      if (mounted) {
+        setState(() {
+          quantidadeFornos = fornoList.length;
+          criarFornoControllers(quantidadeFornos);
+          for (int i = 0; i < quantidadeFornos; i++) {
+            var forno = fornoList[i];
+            modeloControllers[i].text = forno['modelo'] ?? '';
+            tiposForno[i] = forno['tipo'] ?? '';
+            suportesForno[i] = forno['suportes'] ?? 0;
+          }
+        });
+      }
     }
   }
 
-  // Chama _saveFornoData sempre que houver mudança
   void _onFieldChanged() {
     _saveFornoData();
   }
 
-  // -------------------------------------------------------
+  void _adicionarForno() {
+    setState(() {
+      quantidadeFornos++;
+      modeloControllers.add(TextEditingController());
+      tiposForno.add('');
+      suportesForno.add(0);
+    });
+    _saveFornoData();
+  }
+
+  void _removerForno(int index) {
+    setState(() {
+      quantidadeFornos--;
+      modeloControllers[index].dispose();
+      modeloControllers.removeAt(index);
+      tiposForno.removeAt(index);
+      suportesForno.removeAt(index);
+    });
+    _saveFornoData();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Forno'),
-      ),
+      appBar: AppBar(title: const Text('Fornos')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -5993,15 +8045,17 @@ class _FornoState extends State<Forno> {
               hint: const Text('Selecione a quantidade'),
               isExpanded: true,
               items: List.generate(10, (index) => index + 1)
-                  .map((e) =>
-                      DropdownMenuItem(value: e, child: Text(e.toString())))
+                  .map((e) => DropdownMenuItem(
+                        value: e,
+                        child: Text(e.toString()),
+                      ))
                   .toList(),
               onChanged: (value) {
                 if (value != null) {
                   setState(() {
                     quantidadeFornos = value;
                     criarFornoControllers(quantidadeFornos);
-                    _saveFornoData(); // salva sempre que muda a quantidade
+                    _saveFornoData();
                   });
                 }
               },
@@ -6016,11 +8070,19 @@ class _FornoState extends State<Forno> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Forno ${index + 1}',
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Forno ${index + 1}',
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => _removerForno(index),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 12),
-                      // Campo modelo maior
                       TextField(
                         controller: modeloControllers[index],
                         maxLines: 3,
@@ -6037,7 +8099,9 @@ class _FornoState extends State<Forno> {
                           Expanded(
                             child: DropdownButtonFormField<String>(
                               isExpanded: true,
-                              value: tiposForno[index],
+                              value: tiposForno[index].isNotEmpty
+                                  ? tiposForno[index]
+                                  : null,
                               hint: const Text('Tipo de forno'),
                               items: tipos
                                   .map((tipo) => DropdownMenuItem(
@@ -6048,7 +8112,7 @@ class _FornoState extends State<Forno> {
                                   .toList(),
                               onChanged: (value) {
                                 setState(() {
-                                  tiposForno[index] = value;
+                                  tiposForno[index] = value ?? '';
                                   _saveFornoData();
                                 });
                               },
@@ -6063,22 +8127,24 @@ class _FornoState extends State<Forno> {
                           Expanded(
                             child: DropdownButtonFormField<int>(
                               isExpanded: true,
-                              value: suportesForno[index],
-                              hint: const Text('Suportes'),
+                              value: suportesForno[index] > 0
+                                  ? suportesForno[index]
+                                  : null,
                               items: suportes
                                   .map((num) => DropdownMenuItem(
                                         value: num,
-                                        child: Text(num.toString(),
-                                            overflow: TextOverflow.ellipsis),
+                                        child: Text(num.toString()),
                                       ))
                                   .toList(),
                               onChanged: (value) {
                                 setState(() {
-                                  suportesForno[index] = value;
+                                  suportesForno[index] = value ?? 0;
                                   _saveFornoData();
                                 });
                               },
                               decoration: const InputDecoration(
+                                labelText:
+                                    'Suportes', // O texto permanece acima mesmo após selecionar
                                 border: OutlineInputBorder(),
                                 contentPadding: EdgeInsets.symmetric(
                                     horizontal: 12, vertical: 8),
@@ -6092,9 +8158,1480 @@ class _FornoState extends State<Forno> {
                 ),
               );
             }),
+            Center(
+              child: IconButton(
+                icon:
+                    const Icon(Icons.add_circle, color: Colors.green, size: 36),
+                onPressed: _adicionarForno,
+              ),
+            ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class Armarios extends StatefulWidget {
+  final String storeName;
+  const Armarios({super.key, required this.storeName});
+
+  @override
+  State<Armarios> createState() => _ArmariosState();
+}
+
+class _ArmariosState extends State<Armarios> {
+  List<String> tiposArmario = [];
+  List<int> suportesArmario = [];
+
+  List<String> tiposEsqueleto = [];
+  List<int> suportesEsqueleto = [];
+
+  final List<String> tiposMaterial = ['Inox', 'Alumínio', 'Epoxi'];
+  final List<int> suportes = List.generate(20, (index) => index + 1); // 1 a 20
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
+  }
+
+  void criarArmarioControllers(int quantidade) {
+    tiposArmario = List.generate(quantidade, (_) => '');
+    suportesArmario = List.generate(quantidade, (_) => 0);
+  }
+
+  void criarEsqueletoControllers(int quantidade) {
+    tiposEsqueleto = List.generate(quantidade, (_) => '');
+    suportesEsqueleto = List.generate(quantidade, (_) => 0);
+  }
+
+  Future<void> _saveData() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    List<Map<String, dynamic>> armarioList = [];
+    for (int i = 0; i < tiposArmario.length; i++) {
+      armarioList.add({
+        'tipo': tiposArmario[i],
+        'suportes': suportesArmario[i],
+      });
+    }
+    await prefs.setString(
+        'armarios_${widget.storeName}', jsonEncode(armarioList));
+
+    List<Map<String, dynamic>> esqueletoList = [];
+    for (int i = 0; i < tiposEsqueleto.length; i++) {
+      esqueletoList.add({
+        'tipo': tiposEsqueleto[i],
+        'suportes': suportesEsqueleto[i],
+      });
+    }
+    await prefs.setString(
+        'esqueletos_${widget.storeName}', jsonEncode(esqueletoList));
+  }
+
+  Future<void> _loadData() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Armários
+    String? armarioJson = prefs.getString('armarios_${widget.storeName}');
+    if (armarioJson != null && armarioJson.isNotEmpty) {
+      List<dynamic> armarioList = jsonDecode(armarioJson);
+      if (mounted) {
+        setState(() {
+          criarArmarioControllers(armarioList.length);
+          for (int i = 0; i < armarioList.length; i++) {
+            tiposArmario[i] = armarioList[i]['tipo'] ?? '';
+            suportesArmario[i] = armarioList[i]['suportes'] ?? 0;
+          }
+        });
+      }
+    }
+
+    // Esqueletos
+    String? esqueletoJson = prefs.getString('esqueletos_${widget.storeName}');
+    if (esqueletoJson != null && esqueletoJson.isNotEmpty) {
+      List<dynamic> esqueletoList = jsonDecode(esqueletoJson);
+      if (mounted) {
+        setState(() {
+          criarEsqueletoControllers(esqueletoList.length);
+          for (int i = 0; i < esqueletoList.length; i++) {
+            tiposEsqueleto[i] = esqueletoList[i]['tipo'] ?? '';
+            suportesEsqueleto[i] = esqueletoList[i]['suportes'] ?? 0;
+          }
+        });
+      }
+    }
+  }
+
+  void _onFieldChanged() => _saveData();
+
+  void _adicionarArmario() {
+    setState(() {
+      tiposArmario.add('');
+      suportesArmario.add(0);
+    });
+    _saveData();
+  }
+
+  void _removerArmario(int index) {
+    setState(() {
+      tiposArmario.removeAt(index);
+      suportesArmario.removeAt(index);
+    });
+    _saveData();
+  }
+
+  void _adicionarEsqueleto() {
+    setState(() {
+      tiposEsqueleto.add('');
+      suportesEsqueleto.add(0);
+    });
+    _saveData();
+  }
+
+  void _removerEsqueleto(int index) {
+    setState(() {
+      tiposEsqueleto.removeAt(index);
+      suportesEsqueleto.removeAt(index);
+    });
+    _saveData();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    int quantidadeArmarios = tiposArmario.length;
+    int quantidadeEsqueletos = tiposEsqueleto.length;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Armários e Esqueletos')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Armários
+            const Text('Armários:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            const Text('Quantidade de armários:',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            DropdownButton<int>(
+              value: quantidadeArmarios > 0 ? quantidadeArmarios : null,
+              hint: const Text('Selecione a quantidade'),
+              isExpanded: true,
+              items: List.generate(10, (index) => index + 1)
+                  .map((e) =>
+                      DropdownMenuItem(value: e, child: Text(e.toString())))
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    if (value > quantidadeArmarios) {
+                      int dif = value - quantidadeArmarios;
+                      for (int i = 0; i < dif; i++) _adicionarArmario();
+                    } else if (value < quantidadeArmarios) {
+                      int dif = quantidadeArmarios - value;
+                      for (int i = 0; i < dif; i++)
+                        _removerArmario(tiposArmario.length - 1);
+                    }
+                  });
+                }
+              },
+            ),
+            const SizedBox(height: 20),
+            ...List.generate(tiposArmario.length, (index) {
+              return Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Armário ${index + 1}',
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
+                          IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () => _removerArmario(index)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              isExpanded: true,
+                              value: tiposArmario[index].isNotEmpty
+                                  ? tiposArmario[index]
+                                  : null,
+                              items: tiposMaterial
+                                  .map((tipo) => DropdownMenuItem(
+                                      value: tipo, child: Text(tipo)))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  tiposArmario[index] = value ?? '';
+                                  _saveData();
+                                });
+                              },
+                              decoration: const InputDecoration(
+                                labelText: 'Tipo de material',
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: DropdownButtonFormField<int>(
+                              isExpanded: true,
+                              value: suportesArmario[index] > 0
+                                  ? suportesArmario[index]
+                                  : null,
+                              items: suportes
+                                  .map((num) => DropdownMenuItem(
+                                      value: num, child: Text(num.toString())))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  suportesArmario[index] = value ?? 0;
+                                  _saveData();
+                                });
+                              },
+                              decoration: const InputDecoration(
+                                labelText: 'Suportes',
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+            Center(
+              child: IconButton(
+                icon:
+                    const Icon(Icons.add_circle, size: 40, color: Colors.green),
+                onPressed: _adicionarArmario,
+              ),
+            ),
+            const SizedBox(height: 30),
+            // Esqueletos
+            const Text('Esqueletos:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            const Text('Quantidade de esqueletos:',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            DropdownButton<int>(
+              value: quantidadeEsqueletos > 0 ? quantidadeEsqueletos : null,
+              hint: const Text('Selecione a quantidade'),
+              isExpanded: true,
+              items: List.generate(10, (index) => index + 1)
+                  .map((e) =>
+                      DropdownMenuItem(value: e, child: Text(e.toString())))
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    if (value > quantidadeEsqueletos) {
+                      int dif = value - quantidadeEsqueletos;
+                      for (int i = 0; i < dif; i++) _adicionarEsqueleto();
+                    } else if (value < quantidadeEsqueletos) {
+                      int dif = quantidadeEsqueletos - value;
+                      for (int i = 0; i < dif; i++)
+                        _removerEsqueleto(tiposEsqueleto.length - 1);
+                    }
+                  });
+                }
+              },
+            ),
+            const SizedBox(height: 20),
+            ...List.generate(tiposEsqueleto.length, (index) {
+              return Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Esqueleto ${index + 1}',
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
+                          IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () => _removerEsqueleto(index)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              isExpanded: true,
+                              value: tiposEsqueleto[index].isNotEmpty
+                                  ? tiposEsqueleto[index]
+                                  : null,
+                              items: tiposMaterial
+                                  .map((tipo) => DropdownMenuItem(
+                                      value: tipo, child: Text(tipo)))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  tiposEsqueleto[index] = value ?? '';
+                                  _saveData();
+                                });
+                              },
+                              decoration: const InputDecoration(
+                                labelText: 'Tipo de material',
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: DropdownButtonFormField<int>(
+                              isExpanded: true,
+                              value: suportesEsqueleto[index] > 0
+                                  ? suportesEsqueleto[index]
+                                  : null,
+                              items: suportes
+                                  .map((num) => DropdownMenuItem(
+                                      value: num, child: Text(num.toString())))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  suportesEsqueleto[index] = value ?? 0;
+                                  _saveData();
+                                });
+                              },
+                              decoration: const InputDecoration(
+                                labelText: 'Suportes',
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+            Center(
+              child: IconButton(
+                icon:
+                    const Icon(Icons.add_circle, size: 40, color: Colors.green),
+                onPressed: _adicionarEsqueleto,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class Assadeiras extends StatefulWidget {
+  final String storeName;
+  const Assadeiras({super.key, required this.storeName});
+
+  @override
+  State<Assadeiras> createState() => _AssadeirasState();
+}
+
+class _AssadeirasState extends State<Assadeiras> {
+  List<String> tiposEsteiras = [];
+  List<int> quantidadesEsteiras = [];
+
+  List<String> tiposAssadeiras = [];
+  List<int> quantidadesAssadeiras = [];
+
+  final List<String> tiposMaterial = [
+    'Alumínio',
+    'Inox',
+    'Flandre',
+    'Ferro Fundido'
+  ];
+  final List<int> quantidades = List.generate(120, (index) => index + 1);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _saveData() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final esteirasData = List.generate(
+        tiposEsteiras.length,
+        (i) =>
+            {'tipo': tiposEsteiras[i], 'quantidade': quantidadesEsteiras[i]});
+    await prefs.setString(
+        'esteiras_${widget.storeName}', jsonEncode(esteirasData));
+
+    final assadeirasData = List.generate(
+        tiposAssadeiras.length,
+        (i) => {
+              'tipo': tiposAssadeiras[i],
+              'quantidade': quantidadesAssadeiras[i]
+            });
+    await prefs.setString(
+        'assadeiras_${widget.storeName}', jsonEncode(assadeirasData));
+  }
+
+  Future<void> _loadData() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    String? esteirasJson = prefs.getString('esteiras_${widget.storeName}');
+    if (esteirasJson != null) {
+      final List<dynamic> list = jsonDecode(esteirasJson);
+      setState(() {
+        tiposEsteiras = list.map((e) => e['tipo'] as String).toList();
+        quantidadesEsteiras = list.map((e) => e['quantidade'] as int).toList();
+      });
+    }
+
+    String? assadeirasJson = prefs.getString('assadeiras_${widget.storeName}');
+    if (assadeirasJson != null) {
+      final List<dynamic> list = jsonDecode(assadeirasJson);
+      setState(() {
+        tiposAssadeiras = list.map((e) => e['tipo'] as String).toList();
+        quantidadesAssadeiras =
+            list.map((e) => e['quantidade'] as int).toList();
+      });
+    }
+  }
+
+  void _adicionarEsteira() {
+    setState(() {
+      tiposEsteiras.add('');
+      quantidadesEsteiras.add(0);
+    });
+    _saveData();
+  }
+
+  void _removerEsteira(int index) {
+    setState(() {
+      tiposEsteiras.removeAt(index);
+      quantidadesEsteiras.removeAt(index);
+    });
+    _saveData();
+  }
+
+  void _adicionarAssadeira() {
+    setState(() {
+      tiposAssadeiras.add('');
+      quantidadesAssadeiras.add(0);
+    });
+    _saveData();
+  }
+
+  void _removerAssadeira(int index) {
+    setState(() {
+      tiposAssadeiras.removeAt(index);
+      quantidadesAssadeiras.removeAt(index);
+    });
+    _saveData();
+  }
+
+  Widget _buildCard(
+      {required String title,
+      required int index,
+      required String tipo,
+      required int quantidade,
+      required void Function(String?) onTipoChanged,
+      required void Function(int?) onQtdChanged,
+      required VoidCallback onRemove}) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: tipo.isNotEmpty ? tipo : null,
+              hint: const Text('Tipo de material'),
+              items: tiposMaterial
+                  .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                  .toList(),
+              onChanged: onTipoChanged,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<int>(
+              value: quantidade > 0 ? quantidade : null,
+              hint: const Text('Quantidade'),
+              items: quantidades
+                  .map((q) =>
+                      DropdownMenuItem(value: q, child: Text(q.toString())))
+                  .toList(),
+              onChanged: onQtdChanged,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: onRemove,
+              ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Esteiras e Assadeiras')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Esteiras:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            ...List.generate(tiposEsteiras.length, (index) {
+              return _buildCard(
+                title: 'Esteira Tipo ${index + 1}',
+                index: index,
+                tipo: tiposEsteiras[index],
+                quantidade: quantidadesEsteiras[index],
+                onTipoChanged: (value) {
+                  setState(() {
+                    tiposEsteiras[index] = value ?? '';
+                    _saveData();
+                  });
+                },
+                onQtdChanged: (value) {
+                  setState(() {
+                    quantidadesEsteiras[index] = value ?? 0;
+                    _saveData();
+                  });
+                },
+                onRemove: () => _removerEsteira(index),
+              );
+            }),
+            Center(
+              child: IconButton(
+                icon:
+                    const Icon(Icons.add_circle, size: 40, color: Colors.green),
+                onPressed: _adicionarEsteira,
+              ),
+            ),
+            const SizedBox(height: 30),
+            const Text('Assadeiras:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            ...List.generate(tiposAssadeiras.length, (index) {
+              return _buildCard(
+                title: 'Assadeira Tipo ${index + 1}',
+                index: index,
+                tipo: tiposAssadeiras[index],
+                quantidade: quantidadesAssadeiras[index],
+                onTipoChanged: (value) {
+                  setState(() {
+                    tiposAssadeiras[index] = value ?? '';
+                    _saveData();
+                  });
+                },
+                onQtdChanged: (value) {
+                  setState(() {
+                    quantidadesAssadeiras[index] = value ?? 0;
+                    _saveData();
+                  });
+                },
+                onRemove: () => _removerAssadeira(index),
+              );
+            }),
+            Center(
+              child: IconButton(
+                icon:
+                    const Icon(Icons.add_circle, size: 40, color: Colors.green),
+                onPressed: _adicionarAssadeira,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class Climatica extends StatefulWidget {
+  final String storeName;
+  const Climatica({super.key, required this.storeName});
+
+  @override
+  State<Climatica> createState() => _ClimaticaState();
+}
+
+class _ClimaticaState extends State<Climatica> {
+  List<TextEditingController> modeloControllers = [];
+  List<int> suportesClimatica = [];
+  final List<int> suportes = List.generate(40, (index) => index + 1);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
+  }
+
+  @override
+  void dispose() {
+    for (var controller in modeloControllers) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  void criarClimaticaControllers(int quantidade) {
+    for (var controller in modeloControllers) {
+      controller.dispose();
+    }
+    modeloControllers =
+        List.generate(quantidade, (_) => TextEditingController());
+    suportesClimatica = List.generate(quantidade, (_) => 0);
+  }
+
+  Future<void> _saveData() async {
+    final prefs = await SharedPreferences.getInstance();
+    List<Map<String, dynamic>> climaticaList = [];
+
+    for (int i = 0; i < modeloControllers.length; i++) {
+      climaticaList.add({
+        'modelo': modeloControllers[i].text,
+        'suportes': suportesClimatica[i],
+      });
+    }
+
+    await prefs.setString(
+        'climaticas_${widget.storeName}', jsonEncode(climaticaList));
+  }
+
+  Future<void> _loadData() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? jsonString = prefs.getString('climaticas_${widget.storeName}');
+    if (jsonString != null && jsonString.isNotEmpty) {
+      List<dynamic> climaticaList = jsonDecode(jsonString);
+      if (mounted) {
+        setState(() {
+          criarClimaticaControllers(climaticaList.length);
+          for (int i = 0; i < climaticaList.length; i++) {
+            var climatica = climaticaList[i];
+            modeloControllers[i].text = climatica['modelo'] ?? '';
+            suportesClimatica[i] = climatica['suportes'] ?? 0;
+          }
+        });
+      }
+    }
+  }
+
+  void _onFieldChanged() => _saveData();
+
+  void _adicionarCard() {
+    setState(() {
+      modeloControllers.add(TextEditingController());
+      suportesClimatica.add(0);
+    });
+    _saveData();
+  }
+
+  void _removerCard(int index) {
+    setState(() {
+      modeloControllers[index].dispose();
+      modeloControllers.removeAt(index);
+      suportesClimatica.removeAt(index);
+    });
+    _saveData();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    int quantidadeClimaticas = modeloControllers.length;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Climática')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Quantidade de Climáticas:',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            DropdownButton<int>(
+              value: quantidadeClimaticas > 0 ? quantidadeClimaticas : null,
+              hint: const Text('Selecione a quantidade'),
+              isExpanded: true,
+              items: List.generate(10, (index) => index + 1)
+                  .map((e) => DropdownMenuItem(
+                        value: e,
+                        child: Text(e.toString()),
+                      ))
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    if (value > quantidadeClimaticas) {
+                      // adiciona cards extras
+                      int dif = value - quantidadeClimaticas;
+                      for (int i = 0; i < dif; i++) {
+                        modeloControllers.add(TextEditingController());
+                        suportesClimatica.add(0);
+                      }
+                    } else if (value < quantidadeClimaticas) {
+                      // remove cards extras do final
+                      int dif = quantidadeClimaticas - value;
+                      for (int i = 0; i < dif; i++) {
+                        modeloControllers.last.dispose();
+                        modeloControllers.removeLast();
+                        suportesClimatica.removeLast();
+                      }
+                    }
+                    _saveData();
+                  });
+                }
+              },
+            ),
+            const SizedBox(height: 20),
+            ...List.generate(modeloControllers.length, (index) {
+              return Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Climática ${index + 1}',
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => _removerCard(index),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: modeloControllers[index],
+                        maxLines: 3,
+                        decoration: const InputDecoration(
+                          labelText: 'Modelo',
+                          border: OutlineInputBorder(),
+                          alignLabelWithHint: true,
+                        ),
+                        onChanged: (_) => _onFieldChanged(),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<int>(
+                        isExpanded: true,
+                        value: suportesClimatica[index] > 0
+                            ? suportesClimatica[index]
+                            : null,
+                        items: suportes
+                            .map((num) => DropdownMenuItem(
+                                  value: num,
+                                  child: Text(num.toString(),
+                                      overflow: TextOverflow.ellipsis),
+                                ))
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            suportesClimatica[index] = value ?? 0;
+                            _saveData();
+                          });
+                        },
+                        decoration: const InputDecoration(
+                          labelText: 'Suportes',
+                          border: OutlineInputBorder(),
+                          contentPadding:
+                              EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+            Center(
+              child: IconButton(
+                icon:
+                    const Icon(Icons.add_circle, size: 40, color: Colors.green),
+                onPressed: _adicionarCard,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class Freezer extends StatefulWidget {
+  final String storeName;
+  const Freezer({super.key, required this.storeName});
+
+  @override
+  State<Freezer> createState() => _FreezerState();
+}
+
+class _FreezerState extends State<Freezer> {
+  List<TextEditingController> modeloControllers = [];
+  List<TextEditingController> volumeControllers = [];
+  List<String> tiposFreezer = [];
+
+  final List<String> tipos = ['Vertical', 'Horizontal'];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
+  }
+
+  @override
+  void dispose() {
+    for (var controller in modeloControllers) {
+      controller.dispose();
+    }
+    for (var controller in volumeControllers) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  void criarFreezerControllers(int quantidade) {
+    for (var controller in modeloControllers) {
+      controller.dispose();
+    }
+    for (var controller in volumeControllers) {
+      controller.dispose();
+    }
+
+    modeloControllers =
+        List.generate(quantidade, (_) => TextEditingController());
+    volumeControllers =
+        List.generate(quantidade, (_) => TextEditingController());
+    tiposFreezer = List.generate(quantidade, (_) => '');
+  }
+
+  Future<void> _saveData() async {
+    final prefs = await SharedPreferences.getInstance();
+    List<Map<String, dynamic>> freezerList = [];
+
+    for (int i = 0; i < modeloControllers.length; i++) {
+      freezerList.add({
+        'modelo': modeloControllers[i].text,
+        'volume': volumeControllers[i].text,
+        'tipo': tiposFreezer[i],
+      });
+    }
+
+    await prefs.setString(
+        'freezers_${widget.storeName}', jsonEncode(freezerList));
+  }
+
+  Future<void> _loadData() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? jsonString = prefs.getString('freezers_${widget.storeName}');
+    if (jsonString != null && jsonString.isNotEmpty) {
+      List<dynamic> freezerList = jsonDecode(jsonString);
+      if (mounted) {
+        setState(() {
+          criarFreezerControllers(freezerList.length);
+          for (int i = 0; i < freezerList.length; i++) {
+            var freezer = freezerList[i];
+            modeloControllers[i].text = freezer['modelo'] ?? '';
+            volumeControllers[i].text = freezer['volume'] ?? '';
+            tiposFreezer[i] = freezer['tipo'] ?? '';
+          }
+        });
+      }
+    }
+  }
+
+  void _onFieldChanged() => _saveData();
+
+  void _adicionarCard() {
+    setState(() {
+      modeloControllers.add(TextEditingController());
+      volumeControllers.add(TextEditingController());
+      tiposFreezer.add('');
+    });
+    _saveData();
+  }
+
+  void _removerCard(int index) {
+    setState(() {
+      modeloControllers[index].dispose();
+      volumeControllers[index].dispose();
+      modeloControllers.removeAt(index);
+      volumeControllers.removeAt(index);
+      tiposFreezer.removeAt(index);
+    });
+    _saveData();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    int quantidadeFreezers = modeloControllers.length;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Freezers')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Quantidade de freezers:',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            DropdownButton<int>(
+              value: quantidadeFreezers > 0 ? quantidadeFreezers : null,
+              hint: const Text('Selecione a quantidade'),
+              isExpanded: true,
+              items: List.generate(5, (index) => index + 1)
+                  .map((e) => DropdownMenuItem(
+                        value: e,
+                        child: Text(e.toString()),
+                      ))
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    if (value > quantidadeFreezers) {
+                      int dif = value - quantidadeFreezers;
+                      for (int i = 0; i < dif; i++) {
+                        modeloControllers.add(TextEditingController());
+                        volumeControllers.add(TextEditingController());
+                        tiposFreezer.add('');
+                      }
+                    } else if (value < quantidadeFreezers) {
+                      int dif = quantidadeFreezers - value;
+                      for (int i = 0; i < dif; i++) {
+                        _removerCard(modeloControllers.length - 1);
+                      }
+                    }
+                    _saveData();
+                  });
+                }
+              },
+            ),
+            const SizedBox(height: 20),
+            ...List.generate(modeloControllers.length, (index) {
+              return Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Freezer ${index + 1}',
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => _removerCard(index),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: modeloControllers[index],
+                        decoration: const InputDecoration(
+                          labelText: 'Modelo',
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: (_) => _onFieldChanged(),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: volumeControllers[index],
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Volume (litros)',
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: (_) => _onFieldChanged(),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        value: tiposFreezer[index].isNotEmpty
+                            ? tiposFreezer[index]
+                            : null,
+                        items: tipos
+                            .map((tipo) => DropdownMenuItem(
+                                  value: tipo,
+                                  child: Text(tipo),
+                                ))
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            tiposFreezer[index] = value ?? '';
+                            _saveData();
+                          });
+                        },
+                        decoration: const InputDecoration(
+                          labelText: 'Tipo de freezer',
+                          border: OutlineInputBorder(),
+                          contentPadding:
+                              EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+            Center(
+              child: IconButton(
+                icon:
+                    const Icon(Icons.add_circle, size: 40, color: Colors.green),
+                onPressed: _adicionarCard,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ResumoEquipamentos extends StatefulWidget {
+  final String storeName;
+  const ResumoEquipamentos({super.key, required this.storeName});
+
+  @override
+  State<ResumoEquipamentos> createState() => _ResumoEquipamentosState();
+}
+
+class _ResumoEquipamentosState extends State<ResumoEquipamentos> {
+  Map<String, dynamic> dadosResumo = {};
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _carregarTodosDados();
+  }
+
+  Future<void> _carregarTodosDados() async {
+    final prefs = await SharedPreferences.getInstance();
+    Map<String, dynamic> dados = {};
+
+    try {
+      String? fornosJson = prefs.getString('fornos_${widget.storeName}');
+      if (fornosJson != null && fornosJson.isNotEmpty) {
+        dados['fornos'] = jsonDecode(fornosJson);
+      }
+
+      String? armariosJson = prefs.getString('armarios_${widget.storeName}');
+      if (armariosJson != null && armariosJson.isNotEmpty) {
+        dados['armarios'] = jsonDecode(armariosJson);
+      }
+
+      String? esqueletosJson =
+          prefs.getString('esqueletos_${widget.storeName}');
+      if (esqueletosJson != null && esqueletosJson.isNotEmpty) {
+        dados['esqueletos'] = jsonDecode(esqueletosJson);
+      }
+
+      String? esteirasJson = prefs.getString('esteiras_${widget.storeName}');
+      if (esteirasJson != null && esteirasJson.isNotEmpty) {
+        dados['esteiras'] = jsonDecode(esteirasJson);
+      }
+
+      String? assadeirasJson =
+          prefs.getString('assadeiras_${widget.storeName}');
+      if (assadeirasJson != null && assadeirasJson.isNotEmpty) {
+        dados['assadeiras'] = jsonDecode(assadeirasJson);
+      }
+
+      String? climaticasJson =
+          prefs.getString('climaticas_${widget.storeName}');
+      if (climaticasJson != null && climaticasJson.isNotEmpty) {
+        dados['climaticas'] = jsonDecode(climaticasJson);
+      }
+
+      String? freezersJson = prefs.getString('freezers_${widget.storeName}');
+      if (freezersJson != null && freezersJson.isNotEmpty) {
+        dados['freezers'] = jsonDecode(freezersJson);
+      }
+
+      if (mounted) {
+        setState(() {
+          dadosResumo = dados;
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  /// Gera o PDF
+  Future<Uint8List> _gerarPdf() async {
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.MultiPage(
+        build: (context) => [
+          pw.Center(
+            child: pw.Text(
+              'Inventário de Equipamentos - ${widget.storeName}',
+              style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.SizedBox(height: 20),
+
+          // Função para gerar itens em lista
+          if (dadosResumo['fornos'] != null &&
+              dadosResumo['fornos'].isNotEmpty) ...[
+            pw.Text('Fornos:',
+                style:
+                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+            ...List.generate(dadosResumo['fornos'].length, (i) {
+              final forno = dadosResumo['fornos'][i];
+              return pw.Bullet(
+                  text:
+                      "Forno ${i + 1} - Modelo: ${forno['modelo'] ?? 'N/I'}, Tipo: ${forno['tipo'] ?? 'N/I'}, Suportes: ${forno['suportes'] ?? 0}");
+            }),
+            pw.SizedBox(height: 10),
+          ],
+
+          if (dadosResumo['armarios'] != null &&
+              dadosResumo['armarios'].isNotEmpty) ...[
+            pw.Text('Armários:',
+                style:
+                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+            ...List.generate(dadosResumo['armarios'].length, (i) {
+              final armario = dadosResumo['armarios'][i];
+              return pw.Bullet(
+                  text:
+                      "Armário ${i + 1} - Tipo: ${armario['tipo'] ?? 'N/I'}, Suportes: ${armario['suportes'] ?? 0}");
+            }),
+            pw.SizedBox(height: 10),
+          ],
+
+          if (dadosResumo['esqueletos'] != null &&
+              dadosResumo['esqueletos'].isNotEmpty) ...[
+            pw.Text('Esqueletos:',
+                style:
+                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+            ...List.generate(dadosResumo['esqueletos'].length, (i) {
+              final esqueleto = dadosResumo['esqueletos'][i];
+              return pw.Bullet(
+                  text:
+                      "Esqueleto ${i + 1} - Tipo: ${esqueleto['tipo'] ?? 'N/I'}, Suportes: ${esqueleto['suportes'] ?? 0}");
+            }),
+            pw.SizedBox(height: 10),
+          ],
+
+          if (dadosResumo['esteiras'] != null &&
+              dadosResumo['esteiras'].isNotEmpty) ...[
+            pw.Text('Esteiras:',
+                style:
+                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+            ...List.generate(dadosResumo['esteiras'].length, (i) {
+              final esteira = dadosResumo['esteiras'][i];
+              return pw.Bullet(
+                  text:
+                      "Esteira Tipo ${i + 1} - Tipo: ${esteira['tipo'] ?? 'N/I'}, Quantidade: ${esteira['quantidade'] ?? 0}");
+            }),
+            pw.SizedBox(height: 10),
+          ],
+
+          if (dadosResumo['assadeiras'] != null &&
+              dadosResumo['assadeiras'].isNotEmpty) ...[
+            pw.Text('Assadeiras:',
+                style:
+                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+            ...List.generate(dadosResumo['assadeiras'].length, (i) {
+              final assadeira = dadosResumo['assadeiras'][i];
+              return pw.Bullet(
+                  text:
+                      "Assadeira Tipo ${i + 1} - Tipo: ${assadeira['tipo'] ?? 'N/I'}, Quantidade: ${assadeira['quantidade'] ?? 0}");
+            }),
+            pw.SizedBox(height: 10),
+          ],
+
+          if (dadosResumo['climaticas'] != null &&
+              dadosResumo['climaticas'].isNotEmpty) ...[
+            pw.Text('Climáticas:',
+                style:
+                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+            ...List.generate(dadosResumo['climaticas'].length, (i) {
+              final clim = dadosResumo['climaticas'][i];
+              return pw.Bullet(
+                  text:
+                      "Climática ${i + 1} - Modelo: ${clim['modelo'] ?? 'N/I'}, Suportes: ${clim['suportes'] ?? 0}");
+            }),
+            pw.SizedBox(height: 10),
+          ],
+
+          if (dadosResumo['freezers'] != null &&
+              dadosResumo['freezers'].isNotEmpty) ...[
+            pw.Text('Freezers:',
+                style:
+                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+            ...List.generate(dadosResumo['freezers'].length, (i) {
+              final freezer = dadosResumo['freezers'][i];
+              return pw.Bullet(
+                  text:
+                      "Freezer ${i + 1} - Modelo: ${freezer['modelo'] ?? 'N/I'}, Volume: ${freezer['volume'] ?? 'N/I'}L, Tipo: ${freezer['tipo'] ?? 'N/I'}");
+            }),
+            pw.SizedBox(height: 10),
+          ],
+        ],
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  Future<void> _compartilharPdf() async {
+    final pdfBytes = await _gerarPdf();
+    await Printing.sharePdf(
+      bytes: pdfBytes,
+      filename: "Inventário Equipamentos_${widget.storeName}.pdf",
+    );
+  }
+
+  Widget _buildSection(String title, List<Widget> children) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 3,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title,
+                style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue)),
+            const SizedBox(height: 12),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildItemCard(String title, String subtitle) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      color: Colors.grey[50],
+      elevation: 1,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 4),
+                  Text(subtitle,
+                      style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final hasData = dadosResumo.isNotEmpty &&
+        dadosResumo.values.any((value) => value != null && value.isNotEmpty);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Inventário'),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share),
+            onPressed: _compartilharPdf,
+          ),
+        ],
+      ),
+      body: !hasData
+          ? const Center(
+              child: Text('Nenhum dado cadastrado',
+                  style: TextStyle(fontSize: 18, color: Colors.grey)),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Fornos
+                  if (dadosResumo['fornos'] != null &&
+                      dadosResumo['fornos'].isNotEmpty)
+                    _buildSection(
+                      'Fornos (${dadosResumo['fornos'].length})',
+                      List.generate(dadosResumo['fornos'].length, (index) {
+                        final forno = dadosResumo['fornos'][index];
+                        return _buildItemCard(
+                          'Forno ${index + 1}',
+                          'Modelo: ${forno['modelo'] ?? 'Não informado'}, Tipo: ${forno['tipo'] ?? 'Não selecionado'}, Suportes: ${forno['suportes'] ?? 0}',
+                        );
+                      }),
+                    ),
+
+                  // Armários
+                  if (dadosResumo['armarios'] != null &&
+                      dadosResumo['armarios'].isNotEmpty)
+                    _buildSection(
+                      'Armários (${dadosResumo['armarios'].length})',
+                      List.generate(dadosResumo['armarios'].length, (index) {
+                        final armario = dadosResumo['armarios'][index];
+                        return _buildItemCard(
+                          'Armário ${index + 1}',
+                          'Tipo: ${armario['tipo'] ?? 'Não selecionado'}, Suportes: ${armario['suportes'] ?? 0}',
+                        );
+                      }),
+                    ),
+
+                  // Esqueletos
+                  if (dadosResumo['esqueletos'] != null &&
+                      dadosResumo['esqueletos'].isNotEmpty)
+                    _buildSection(
+                      'Esqueletos (${dadosResumo['esqueletos'].length})',
+                      List.generate(dadosResumo['esqueletos'].length, (index) {
+                        final esqueleto = dadosResumo['esqueletos'][index];
+                        return _buildItemCard(
+                          'Esqueleto ${index + 1}',
+                          'Tipo: ${esqueleto['tipo'] ?? 'Não selecionado'}, Suportes: ${esqueleto['suportes'] ?? 0}',
+                        );
+                      }),
+                    ),
+
+                  // Esteiras
+                  if (dadosResumo['esteiras'] != null &&
+                      (dadosResumo['esteiras'] as List).isNotEmpty)
+                    _buildSection(
+                      'Esteiras',
+                      List.generate((dadosResumo['esteiras'] as List).length,
+                          (index) {
+                        final esteira = dadosResumo['esteiras'][index];
+                        return _buildItemCard(
+                          'Esteira Tipo ${index + 1}',
+                          'Tipo: ${esteira['tipo'] ?? 'Não selecionado'}, Quantidade: ${esteira['quantidade'] ?? 0}',
+                        );
+                      }),
+                    ),
+
+                  // Assadeiras
+                  if (dadosResumo['assadeiras'] != null &&
+                      (dadosResumo['assadeiras'] as List).isNotEmpty)
+                    _buildSection(
+                      'Assadeiras',
+                      List.generate((dadosResumo['assadeiras'] as List).length,
+                          (index) {
+                        final assadeira = dadosResumo['assadeiras'][index];
+                        return _buildItemCard(
+                          'Assadeira Tipo ${index + 1}',
+                          'Tipo: ${assadeira['tipo'] ?? 'Não selecionado'}, Quantidade: ${assadeira['quantidade'] ?? 0}',
+                        );
+                      }),
+                    ),
+
+                  // Climáticas
+                  if (dadosResumo['climaticas'] != null &&
+                      dadosResumo['climaticas'].isNotEmpty)
+                    _buildSection(
+                      'Climáticas (${dadosResumo['climaticas'].length})',
+                      List.generate(dadosResumo['climaticas'].length, (index) {
+                        final climatica = dadosResumo['climaticas'][index];
+                        return _buildItemCard(
+                          'Climática ${index + 1}',
+                          'Modelo: ${climatica['modelo'] ?? 'Não informado'}, Suportes: ${climatica['suportes'] ?? 0}',
+                        );
+                      }),
+                    ),
+
+                  // Freezers
+                  if (dadosResumo['freezers'] != null &&
+                      dadosResumo['freezers'].isNotEmpty)
+                    _buildSection(
+                      'Freezers (${dadosResumo['freezers'].length})',
+                      List.generate(dadosResumo['freezers'].length, (index) {
+                        final freezer = dadosResumo['freezers'][index];
+                        return _buildItemCard(
+                          'Freezer ${index + 1}',
+                          'Modelo: ${freezer['modelo'] ?? 'Não informado'}, Volume: ${freezer['volume'] ?? 'Não informado'} litros, Tipo: ${freezer['tipo'] ?? 'Não selecionado'}',
+                        );
+                      }),
+                    ),
+                ],
+              ),
+            ),
     );
   }
 }
