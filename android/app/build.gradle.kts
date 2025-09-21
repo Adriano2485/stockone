@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -20,17 +23,17 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.StockOne" // altere para o seu ID único do app
+        applicationId = "com.example.StockOne" // Altere se quiser outro ID
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
-    // 🔑 Configuração de assinatura
-    val keystorePropertiesFile: File = rootProject.file("android/key.properties")
-    val keystoreProperties = java.util.Properties()
-    keystoreProperties.load(java.io.FileInputStream(keystorePropertiesFile))
+    // 🔑 Configuração de assinatura (lendo key.properties)
+    val keystoreProperties = Properties().apply {
+        load(FileInputStream(rootProject.file("android/key.properties")))
+    }
 
     signingConfigs {
         create("release") {
