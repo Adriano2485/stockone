@@ -30,7 +30,7 @@ android {
     }
 
     // 🔑 Configuração da keystore com validação
-    val keystorePropertiesFile = rootProject.file("android/key.properties")
+    val keystorePropertiesFile = file("../key.properties")
     val keystoreProperties = Properties()
 
     if (keystorePropertiesFile.exists()) {
