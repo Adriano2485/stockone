@@ -1,14 +1,12 @@
-import java.util.Properties
-import java.io.FileInputStream
-
 plugins {
     id("com.android.application")
     id("kotlin-android")
+    // O plugin Flutter deve vir depois dos de Android/Kotlin
     id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
-    namespace = "com.example.StockOne"
+    namespace = "com.example.stockone"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -22,7 +20,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.StockOne" // altere se quiser outro ID
+        applicationId = "com.example.StockOne" // altere para o seu ID único do app
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -30,21 +28,16 @@ android {
     }
 
     // 🔑 Configuração de assinatura
-    val keystorePropertiesFile = rootProject.file("android/key.properties")
-    val keystoreProperties = Properties()
-
-    if (keystorePropertiesFile.exists()) {
-        keystoreProperties.load(FileInputStream(keystorePropertiesFile))
-    }
+    val keystorePropertiesFile: File = rootProject.file("android/key.properties")
+    val keystoreProperties = java.util.Properties()
+    keystoreProperties.load(java.io.FileInputStream(keystorePropertiesFile))
 
     signingConfigs {
         create("release") {
-            if (keystorePropertiesFile.exists()) {
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-            }
+            storeFile = file(keystoreProperties["storeFile"] as String)
+            storePassword = keystoreProperties["storePassword"] as String
+            keyAlias = keystoreProperties["keyAlias"] as String
+            keyPassword = keystoreProperties["keyPassword"] as String
         }
     }
 
