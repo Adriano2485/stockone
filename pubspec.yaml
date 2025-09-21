@@ -32,7 +32,7 @@ flutter:
   assets:
     - assets/images/logo_ajudai.png
     - assets/images/paofrances.jpg
-    - assets/images/codigos.jpg
+    - assets/images/codigos.png
     - assets/images/armarios.jpg
     - assets/images/fornos.jpg
     - assets/images/freezers.jpg
@@ -96,6 +96,6 @@ flutter:
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/images/iconeapp.png" # seu ícone
+  image_path: "assets/images/iconeapp2.jpg" # seu ícone
   adaptive_icon_background: "#ffffff" # fundo para Android adaptativo
-  adaptive_icon_foreground: "assets/images/iconeapp.png"
+  adaptive_icon_foreground: "assets/images/iconeapp2.jpg"

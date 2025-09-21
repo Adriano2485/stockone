@@ -137,6 +137,7 @@ class RedeScreen extends StatelessWidget {
                   children: [
                     _padariaCard("assets/images/bahamas.jpg", () {
                       Navigator.push(
+                        // ✅ Alterado para push (em vez de pushReplacement)
                         context,
                         MaterialPageRoute(
                           builder: (context) => Bahamas(),
@@ -379,6 +380,17 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
       appBar: AppBar(
         backgroundColor: Colors.blueGrey.shade700,
         centerTitle: true,
+        automaticallyImplyLeading: false, // Importante
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            // Navega de volta para a RedeScreen
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => Bahamas()),
+            );
+          },
+        ),
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -589,10 +601,10 @@ class _SecondScreenState extends State<SecondScreen> {
     await prefs.remove('deliveries');
     await prefs.setBool('isFirstLaunch', true);
 
-    Navigator.pushAndRemoveUntil(
-      context,
+    Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
-          builder: (context) => FirstTimeScreen(storeName: widget.storeName)),
+        builder: (context) => FirstTimeScreen(storeName: widget.storeName),
+      ),
       (Route<dynamic> route) => false,
     );
   }
@@ -601,9 +613,9 @@ class _SecondScreenState extends State<SecondScreen> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        Navigator.pushReplacement(
-          context,
+        Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => StoreSelectionScreen()),
+          (route) => false,
         );
         return false;
       },
@@ -622,10 +634,12 @@ class _SecondScreenState extends State<SecondScreen> {
           ),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => StoreSelectionScreen()),
-            ),
+            onPressed: () {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => StoreSelectionScreen()),
+                (route) => false,
+              );
+            },
           ),
           actions: [
             IconButton(
@@ -645,8 +659,8 @@ class _SecondScreenState extends State<SecondScreen> {
                             title:
                                 const Text("Resetar dados de loja e usuário"),
                             onTap: () async {
-                              await _resetStoreData();
-                              Navigator.pop(context);
+                              Navigator.pop(context); // fecha o dialog primeiro
+                              await _resetStoreData(); // depois reseta e navega
                             },
                           ),
                         ],
@@ -697,7 +711,6 @@ class _SecondScreenState extends State<SecondScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
-                // Grid para preencher toda a tela
                 Expanded(
                   child: GridView.count(
                     crossAxisCount: 2, // duas colunas
@@ -1696,7 +1709,7 @@ class _LayoutDistribuicaoScreen extends State<LayoutDistribuicaoScreen> {
         builder: (_) => AlertDialog(
           title: const Text('Atenção'),
           content: const Text(
-              'Por favor cadastrar freezers na tela de equipamentos.'),
+              'Por favor cadastrar conservadores na tela de equipamentos.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -1794,7 +1807,7 @@ class _LayoutDistribuicaoScreen extends State<LayoutDistribuicaoScreen> {
 
   double _getFatorPorMassa(String massa, String tipo) {
     // Pão Francês
-    if (massa == 'Massa Pão Francês') return 0.053;
+    if (massa == 'Massa Pão Francês') return 0.0557;
 
     // Biscoito Polvilho
     if (massa == 'Massa Biscoito Polvilho') return 0.053;
@@ -1832,7 +1845,7 @@ class _LayoutDistribuicaoScreen extends State<LayoutDistribuicaoScreen> {
                       _loadFreezersData(); // Atualiza os dados ao voltar
                     },
                     child: const Text(
-                      'Freezers',
+                      'Conservadores',
                       style: TextStyle(color: Colors.white),
                     ),
                   ),
@@ -3226,7 +3239,7 @@ class _FourthScreenState extends State<FourthScreen> {
     } else if (produto == 'Massa Pão Cervejinha') {
       estoqueCalculado = estoqueAtual -
           (intervaloEntrega *
-              (vendaMensalPaoFrancesPanhoca * 1.45 / diasDeGiro! / 3.3));
+              (vendaMensalPaoFrancesPanhoca * 1.40 / diasDeGiro! / 3.3));
       resultadoPedido = estoqueCalculado < 0
           ? estoqueMaxPaoFrancesPanhoca / 6
           : (estoqueMaxPaoFrancesPanhoca - estoqueCalculado) / 6;
@@ -3248,7 +3261,7 @@ class _FourthScreenState extends State<FourthScreen> {
     } else if (produto == 'Massa Mini Baguete 40g') {
       estoqueCalculado = estoqueAtual -
           (intervaloEntrega *
-              (vendaMensalPaoFrancesComQueijo * 1.40 / diasDeGiro! / 3.3));
+              (vendaMensalPaoFrancesComQueijo * 1.15 / diasDeGiro! / 3.3));
       resultadoPedido = estoqueCalculado < 0
           ? estoqueMaxPaoFrancesComQueijo / 6
           : (estoqueMaxPaoFrancesComQueijo - estoqueCalculado) / 6;
@@ -3259,9 +3272,9 @@ class _FourthScreenState extends State<FourthScreen> {
     } else if (produto == 'Massa Mini Baguete 80g') {
       estoqueCalculado = estoqueAtual -
           (intervaloEntrega *
-              ((vendaMensalPaodeAlhodaCasa * 0.24) +
-                  (vendaMensalPaodeAlhodaCasaPicante * 0.24) +
-                  (vendaMensalSanduicheBahamas * 0.085) +
+              ((vendaMensalPaodeAlhodaCasa * 0.27) +
+                  (vendaMensalPaodeAlhodaCasaPicante * 0.27) +
+                  (vendaMensalSanduicheBahamas * 0.090) +
                   vendaMensalPaoBagueteFrancesaQueijo +
                   vendaMensalPaoBagueteFrancesa +
                   vendaMensalPaoBagueteFrancesaGergelim) *
@@ -3292,10 +3305,10 @@ class _FourthScreenState extends State<FourthScreen> {
       estoqueCalculado = estoqueAtual -
           (intervaloEntrega *
               ((vendaMensalPaoParaRabanada) +
-                  (vendaMensalRabanadaAssada * 0.8 * 0.33) *
+                  (vendaMensalRabanadaAssada * 0.8 / 0.33) *
                       1.20 /
                       diasDeGiro! /
-                      3.3));
+                      10));
       resultadoPedido = estoqueCalculado < 0
           ? (estoqueMaxPaoParaRabanada + estoqueMaxRabanadaAssada) / 6
           : ((estoqueMaxPaoParaRabanada + estoqueMaxRabanadaAssada) -
@@ -3309,7 +3322,7 @@ class _FourthScreenState extends State<FourthScreen> {
       estoqueCalculado = estoqueAtual -
           (intervaloEntrega *
               ((vendaMensalPaoDoceComprido + vendaMensalPaoMilho) *
-                  1.30 /
+                  1.15 /
                   diasDeGiro! /
                   3.3));
       resultadoPedido = estoqueCalculado < 0
@@ -3408,7 +3421,7 @@ class _FourthScreenState extends State<FourthScreen> {
         estoqueInsuficiente[produto] = false;
     } else if (produto == 'Massa Pão Tatu') {
       estoqueCalculado = estoqueAtual -
-          (intervaloEntrega * (vendaMensalPaoTatu * 1.40 / diasDeGiro! / 3.3));
+          (intervaloEntrega * (vendaMensalPaoTatu * 1.20 / diasDeGiro! / 3.3));
       resultadoPedido = estoqueCalculado < 0
           ? estoqueMaxPaoTatu / 6
           : (estoqueMaxPaoTatu - estoqueCalculado) / 6;
@@ -4441,7 +4454,7 @@ class _ManutencaoEquipamentosScreenState
       case 'climaticas':
         return "Climática ${index + 1}";
       case 'freezers':
-        return "Freezer ${index + 1}";
+        return "Conservador ${index + 1}";
       default:
         return "Equipamento ${index + 1}";
     }
@@ -4540,6 +4553,8 @@ class _ManutencaoEquipamentosScreenState
                                 child: Padding(
                                   padding: const EdgeInsets.all(8.0),
                                   child: TextField(
+                                    maxLines: null,
+                                    minLines: 3,
                                     controller: defeitosControllers[key],
                                     decoration: const InputDecoration(
                                         labelText: "Defeito(s)"),
@@ -5278,63 +5293,61 @@ ${_formatarRupturas()}
                     color: verdeEscuro),
               ),
               const SizedBox(height: 25),
-              Row(
-                children: [
-                  // Coluna do input em KG
-                  Expanded(
-                    child: TextField(
-                      decoration: const InputDecoration(
-                        labelText: 'Pão Francês (kg)',
-                        labelStyle: TextStyle(fontSize: 16),
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.number,
-                      controller: TextEditingController(text: giroMedio)
-                        ..selection = TextSelection.fromPosition(
-                          TextPosition(offset: giroMedio.length),
-                        ),
-                      onChanged: (v) {
-                        giroMedio = v;
-                        _salvarPreferencias();
+Row(
+  children: [
+    // Coluna do input em KG - MAIOR espaço
+    Expanded(
+      flex: 3, // ✅ Da mais espaço para o TextField
+      child: TextField(
+        decoration: const InputDecoration(
+          labelText: 'Pão Francês (kg)',
+          labelStyle: TextStyle(fontSize: 16),
+          border: OutlineInputBorder(),
+        ),
+        keyboardType: TextInputType.number,
+        controller: TextEditingController(text: giroMedio)
+          ..selection = TextSelection.fromPosition(
+            TextPosition(offset: giroMedio.length),
+          ),
+        onChanged: (v) {
+          giroMedio = v;
+          _salvarPreferencias();
 
-                        final valor = double.tryParse(giroMedio);
-                        if (valor != null && valor > 0) {
-                          final convertido = (valor / 0.07).toStringAsFixed(0);
-                          setState(() {
-                            // salva o valor convertido em outra variável
-                            vendamediadiaria = convertido;
-                          });
-                          _salvarPreferencias();
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  // Coluna do resultado em UNIDADES
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 16, horizontal: 12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade400),
-                        borderRadius: BorderRadius.circular(12),
-                        color: Colors.white,
-                      ),
-                      child: Text(
-                        vendamediadiaria.isNotEmpty
-                            ? '$vendamediadiaria unid'
-                            : '0 unid',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.red,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+          final valor = double.tryParse(giroMedio);
+          if (valor != null && valor > 0) {
+            final convertido = (valor / 0.07).toStringAsFixed(0);
+            setState(() {
+              vendamediadiaria = convertido;
+            });
+            _salvarPreferencias();
+          }
+        },
+      ),
+    ),
+    const SizedBox(width: 10), // ✅ Aumentei o espaço entre os campos
+    // Coluna do resultado em UNIDADES - MENOR espaço
+    Expanded(
+      flex: 2, // ✅ Reduz o espaço da caixa de unidades
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade400),
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.white,
+        ),
+        child: Text(
+          vendamediadiaria.isNotEmpty ? '$vendamediadiaria unid' : '0 unid',
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.red,
+          ),
+        ),
+      ),
+    ),
+  ],
+),
               const SizedBox(height: 10),
               TextField(
                 decoration: const InputDecoration(
@@ -5487,6 +5500,33 @@ ${_formatarRupturas()}
   }
 }
 
+class FoldedCornerPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.amber.shade700 // cor da dobra
+      ..style = PaintingStyle.fill;
+
+    final path = Path()
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, size.height)
+      ..close();
+
+    canvas.drawPath(path, paint);
+
+    // borda da dobra
+    final borderPaint = Paint()
+      ..color = Colors.brown
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke;
+
+    canvas.drawPath(path, borderPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
 class ReceituarioScreen extends StatelessWidget {
   const ReceituarioScreen({super.key});
 
@@ -5501,39 +5541,54 @@ class ReceituarioScreen extends StatelessWidget {
       },
       borderRadius: BorderRadius.circular(16),
       splashColor: Colors.brown.withOpacity(0.3),
-      child: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xffffffff),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xff131212), // cor da borda (marrom)
-            width: 2, // espessura da borda
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 6,
-              offset: const Offset(2, 2),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(height: 0.1),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
-                fontFamily: 'Nunito ExtraBold',
-                color: Color(0xFF5D4037),
+      child: Stack(
+        children: [
+          // Card principal
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xffffffff),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xff131212), // cor da borda
+                width: 2, // espessura da borda
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 6,
+                  offset: const Offset(2, 2),
+                ),
+              ],
             ),
-          ],
-        ),
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(height: 0.1),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    fontFamily: 'Nunito ExtraBold',
+                    color: Color(0xFF5D4037),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Dobra no canto superior direito (todos os cards terão)
+          Positioned(
+            right: 0,
+            top: 0,
+            child: CustomPaint(
+              size: const Size(30, 30), // tamanho da dobra
+              painter: FoldedCornerPainter(),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -5541,90 +5596,69 @@ class ReceituarioScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final List<Map<String, dynamic>> paes = [
-      {'label': "Pão Francês", 'screen': const PaoFrancesScreen()},
-      {'label': "Pão Francês Integral", 'screen': const integral()},
-      {'label': "Pão Francês Panhoca", 'screen': const panhoca()},
-      {'label': "Pão Baguete Francesa", 'screen': const paobaguete()},
-      {
-        'label': "Pão Baguete Francesa C/ Queijo",
-        'screen': const PaoBagueteFrancesaCQueijoScreen()
-      },
       {'label': "Baguete Francesa", 'screen': const BagueteFrancesaScreen()},
       {
         'label': "Baguete Francesa C/ Queijo",
         'screen': const BagueteFrancesaCQueijoScreen()
       },
-      {
-        'label': "Pão Baguete Francesa C/ Gergelim",
-        'screen': const PaoBagueteFrancesaCGergelimScreen()
-      },
+      {'label': "Biscoito Polvilho", 'screen': const BiscoitoPolvilhoScreen()},
+      {'label': "Biscoito Queijo ", 'screen': const BiscoitoQueijoScreen()},
       {
         'label': "Mini Pão Francês C/ Gergelim",
         'screen': const MiniPaoFrancesCGergelimScreen()
       },
       {
-        'label': "Pão Francês C/ Queijo",
-        'screen': const PaoFrancesCQueijoScreen()
+        'label': "Mini Pão Marta Rocha",
+        'screen': const MiniPaoMartaRochaScreen()
       },
+      {'label': "Mini Pão Sonho", 'screen': const MiniPaoSonhoScreen()},
+      {
+        'label': "Mini Pão Sonho Chocolate",
+        'screen': const MiniPaoSonhoChocolateScreen()
+      },
+      {
+        'label': "Pão Bambino              ",
+        'screen': const PaoBambinoScreen()
+      },
+      {'label': "Pão Baguete Francesa", 'screen': const paobaguete()},
+      {
+        'label': "Pão Baguete Francesa C/ Gergelim",
+        'screen': const PaoBagueteFrancesaCGergelimScreen()
+      },
+      {
+        'label': "Pão Baguete Francesa C/ Queijo",
+        'screen': const PaoBagueteFrancesaCQueijoScreen()
+      },
+      {'label': "Pão Caseirinho", 'screen': const PaoCaseirinhoScreen()},
       {'label': "Pão De Alho Da Casa", 'screen': const PaoDeAlhoDaCasaScreen()},
       {
         'label': "Pão De Alho Da Casa Picante",
         'screen': const PaoDeAlhoDaCasaPicanteScreen()
       },
-      {'label': "Torrada Comum", 'screen': const TorradaComumScreen()},
-      {'label': "Torrada De Alho", 'screen': const TorradaDeAlhoScreen()},
-      {'label': "Torrada Integral", 'screen': const TorradaIntegralScreen()},
-      {
-        'label': "Torrada Integral De Alho",
-        'screen': const TorradaIntegralDeAlhoScreen()
-      },
-      {'label': "Pão Doce Caracol", 'screen': const PaoDoceCaracolScreen()},
-      {'label': "Pão Doce Ferradura", 'screen': const PaoDoceFerraduraScreen()},
-      {'label': "Pão Doce Comprido", 'screen': const PaoDoceCompridoScreen()},
-      {'label': "Pão Milho", 'screen': const PaoMilhoScreen()},
-      {'label': "Pão Tatu", 'screen': const PaoTatuScreen()},
-      {'label': "Pão Caseirinho", 'screen': const PaoCaseirinhoScreen()},
-      {'label': "Pão Fofinho", 'screen': const PaoFofinhoScreen()},
-      {
-        'label': "Rosca Fofinha Temperada",
-        'screen': const RoscaFofinhaTemperadaScreen()
-      },
-      {
-        'label': "Mini Pão Sonho Chocolate",
-        'screen': const MiniPaoSonhoChocolateScreen()
-      },
-      {'label': "Mini Pão Sonho", 'screen': const MiniPaoSonhoScreen()},
-      {'label': "Pão Bambino", 'screen': const PaoBambinoScreen()},
-      {
-        'label': "Mini Pão Marta Rocha",
-        'screen': const MiniPaoMartaRochaScreen()
-      },
-      {'label': "Rosca Caseira", 'screen': const RoscaCaseiraScreen()},
-      {'label': "Rosca Caseira Côco", 'screen': const RoscaCaseiraCocoScreen()},
-      {
-        'label': "Rosca Caseira Leite em Pó",
-        'screen': const RoscaCaseiraLeiteEmPoScreen()
-      },
-      {
-        'label': "Rosca Côco E Queijo",
-        'screen': const RoscaCocoEQueijoScreen()
-      },
-      {'label': "Pão Para Rabanada", 'screen': const PaoParaRabanadaScreen()},
-      {'label': "Rabanada Assada", 'screen': const RabanadaAssadaScreen()},
-      {'label': "Pão Samaritano", 'screen': const PaoSamaritanoScreen()},
-      {'label': "Pão Pizza", 'screen': const PaoPizzaScreen()},
-      {'label': "Sanduíche Fofinho", 'screen': const SanduicheFofinhoScreen()},
-      {'label': "Sanduíche Bahamas", 'screen': const SanduicheBahamasScreen()},
-      {
-        'label': "Pão De Queijo Tradicional",
-        'screen': const PaoDeQueijoTradicionalScreen()
-      },
       {
         'label': "Pão De Queijo Coquetel",
         'screen': const PaoDeQueijoCoquetelScreen()
       },
-      {'label': "Biscoito Queijo ", 'screen': const BiscoitoQueijoScreen()},
-      {'label': "Biscoito Polvilho", 'screen': const BiscoitoPolvilhoScreen()},
+      {
+        'label': "Pão De Queijo Tradicional",
+        'screen': const PaoDeQueijoTradicionalScreen()
+      },
+      {'label': "Pão Doce Caracol", 'screen': const PaoDoceCaracolScreen()},
+      {'label': "Pão Doce Comprido", 'screen': const PaoDoceCompridoScreen()},
+      {'label': "Pão Doce Ferradura", 'screen': const PaoDoceFerraduraScreen()},
+      {'label': "Pão Fofinho        ", 'screen': const PaoFofinhoScreen()},
+      {'label': "Pão Francês        ", 'screen': const PaoFrancesScreen()},
+      {
+        'label': "Pão Francês C/ Queijo",
+        'screen': const PaoFrancesCQueijoScreen()
+      },
+      {'label': "Pão Francês Integral", 'screen': const integral()},
+      {'label': "Pão Francês Panhoca", 'screen': const panhoca()},
+      {'label': "Pão Milho          ", 'screen': const PaoMilhoScreen()},
+      {'label': "Pão Para Rabanada", 'screen': const PaoParaRabanadaScreen()},
+      {'label': "Pão Pizza          ", 'screen': const PaoPizzaScreen()},
+      {'label': "Pão Samaritano", 'screen': const PaoSamaritanoScreen()},
+      {'label': "Pão Tatu           ", 'screen': const PaoTatuScreen()},
       {
         'label': "Profiteroles Brigadeiro",
         'screen': const ProfiterolesBrigadeiroScreen()
@@ -5636,6 +5670,30 @@ class ReceituarioScreen extends StatelessWidget {
       {
         'label': "Profiteroles Doce de Leite",
         'screen': const ProfiterolesDoceDeLeiteScreen()
+      },
+      {'label': "Rabanada Assada", 'screen': const RabanadaAssadaScreen()},
+      {'label': "Rosca Caseira", 'screen': const RoscaCaseiraScreen()},
+      {'label': "Rosca Caseira Côco", 'screen': const RoscaCaseiraCocoScreen()},
+      {
+        'label': "Rosca Caseira Leite em Pó",
+        'screen': const RoscaCaseiraLeiteEmPoScreen()
+      },
+      {
+        'label': "Rosca Côco E Queijo",
+        'screen': const RoscaCocoEQueijoScreen()
+      },
+      {
+        'label': "Rosca Fofinha Temperada",
+        'screen': const RoscaFofinhaTemperadaScreen()
+      },
+      {'label': "Sanduíche Bahamas", 'screen': const SanduicheBahamasScreen()},
+      {'label': "Sanduíche Fofinho", 'screen': const SanduicheFofinhoScreen()},
+      {'label': "Torrada Comum", 'screen': const TorradaComumScreen()},
+      {'label': "Torrada De Alho", 'screen': const TorradaDeAlhoScreen()},
+      {'label': "Torrada Integral", 'screen': const TorradaIntegralScreen()},
+      {
+        'label': "Torrada Integral De Alho",
+        'screen': const TorradaIntegralDeAlhoScreen()
       },
     ];
 
@@ -6815,7 +6873,7 @@ class MiniPaoFrancesCGergelimScreen extends StatelessWidget {
               minScale: 1.0,
               maxScale: 5.0,
               child: Image.asset(
-                '- assets/images/minipaofrancesgergelim.jpg',
+                'assets/images/minipaofrancesgergelim.jpg',
                 fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
@@ -7622,7 +7680,7 @@ class Codigos extends StatelessWidget {
               minScale: 1.0,
               maxScale: 5.0,
               child: Image.asset(
-                'assets/images/codigos.jpg',
+                'assets/images/codigos.png',
                 fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
@@ -7869,7 +7927,7 @@ class Cadastro extends StatelessWidget {
                     );
                   },
                   child: const Text(
-                    'Freezers',
+                    'Conservadores',
                     style: TextStyle(color: Colors.white),
                   ),
                 ),
@@ -8036,30 +8094,6 @@ class _FornoState extends State<Forno> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Quantidade de fornos:',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            DropdownButton<int>(
-              value: quantidadeFornos > 0 ? quantidadeFornos : null,
-              hint: const Text('Selecione a quantidade'),
-              isExpanded: true,
-              items: List.generate(10, (index) => index + 1)
-                  .map((e) => DropdownMenuItem(
-                        value: e,
-                        child: Text(e.toString()),
-                      ))
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    quantidadeFornos = value;
-                    criarFornoControllers(quantidadeFornos);
-                    _saveFornoData();
-                  });
-                }
-              },
-            ),
             const SizedBox(height: 20),
             ...List.generate(quantidadeFornos, (index) {
               return Card(
@@ -8102,7 +8136,7 @@ class _FornoState extends State<Forno> {
                               value: tiposForno[index].isNotEmpty
                                   ? tiposForno[index]
                                   : null,
-                              hint: const Text('Tipo de forno'),
+                              hint: const Text('Tipo'),
                               items: tipos
                                   .map((tipo) => DropdownMenuItem(
                                         value: tipo,
@@ -8312,35 +8346,9 @@ class _ArmariosState extends State<Armarios> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Armários
             const Text('Armários:',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            const Text('Quantidade de armários:',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            DropdownButton<int>(
-              value: quantidadeArmarios > 0 ? quantidadeArmarios : null,
-              hint: const Text('Selecione a quantidade'),
-              isExpanded: true,
-              items: List.generate(10, (index) => index + 1)
-                  .map((e) =>
-                      DropdownMenuItem(value: e, child: Text(e.toString())))
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    if (value > quantidadeArmarios) {
-                      int dif = value - quantidadeArmarios;
-                      for (int i = 0; i < dif; i++) _adicionarArmario();
-                    } else if (value < quantidadeArmarios) {
-                      int dif = quantidadeArmarios - value;
-                      for (int i = 0; i < dif; i++)
-                        _removerArmario(tiposArmario.length - 1);
-                    }
-                  });
-                }
-              },
-            ),
+
             const SizedBox(height: 20),
             ...List.generate(tiposArmario.length, (index) {
               return Card(
@@ -8382,7 +8390,7 @@ class _ArmariosState extends State<Armarios> {
                                 });
                               },
                               decoration: const InputDecoration(
-                                labelText: 'Tipo de material',
+                                labelText: 'Tipo',
                                 border: OutlineInputBorder(),
                                 contentPadding: EdgeInsets.symmetric(
                                     horizontal: 12, vertical: 8),
@@ -8432,32 +8440,7 @@ class _ArmariosState extends State<Armarios> {
             // Esqueletos
             const Text('Esqueletos:',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            const Text('Quantidade de esqueletos:',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            DropdownButton<int>(
-              value: quantidadeEsqueletos > 0 ? quantidadeEsqueletos : null,
-              hint: const Text('Selecione a quantidade'),
-              isExpanded: true,
-              items: List.generate(10, (index) => index + 1)
-                  .map((e) =>
-                      DropdownMenuItem(value: e, child: Text(e.toString())))
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    if (value > quantidadeEsqueletos) {
-                      int dif = value - quantidadeEsqueletos;
-                      for (int i = 0; i < dif; i++) _adicionarEsqueleto();
-                    } else if (value < quantidadeEsqueletos) {
-                      int dif = quantidadeEsqueletos - value;
-                      for (int i = 0; i < dif; i++)
-                        _removerEsqueleto(tiposEsqueleto.length - 1);
-                    }
-                  });
-                }
-              },
-            ),
+
             const SizedBox(height: 20),
             ...List.generate(tiposEsqueleto.length, (index) {
               return Card(
@@ -8894,44 +8877,6 @@ class _ClimaticaState extends State<Climatica> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Quantidade de Climáticas:',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            DropdownButton<int>(
-              value: quantidadeClimaticas > 0 ? quantidadeClimaticas : null,
-              hint: const Text('Selecione a quantidade'),
-              isExpanded: true,
-              items: List.generate(10, (index) => index + 1)
-                  .map((e) => DropdownMenuItem(
-                        value: e,
-                        child: Text(e.toString()),
-                      ))
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    if (value > quantidadeClimaticas) {
-                      // adiciona cards extras
-                      int dif = value - quantidadeClimaticas;
-                      for (int i = 0; i < dif; i++) {
-                        modeloControllers.add(TextEditingController());
-                        suportesClimatica.add(0);
-                      }
-                    } else if (value < quantidadeClimaticas) {
-                      // remove cards extras do final
-                      int dif = quantidadeClimaticas - value;
-                      for (int i = 0; i < dif; i++) {
-                        modeloControllers.last.dispose();
-                        modeloControllers.removeLast();
-                        suportesClimatica.removeLast();
-                      }
-                    }
-                    _saveData();
-                  });
-                }
-              },
-            ),
             const SizedBox(height: 20),
             ...List.generate(modeloControllers.length, (index) {
               return Card(
@@ -9121,47 +9066,12 @@ class _FreezerState extends State<Freezer> {
     int quantidadeFreezers = modeloControllers.length;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Freezers')),
+      appBar: AppBar(title: const Text('Conservadores')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Quantidade de freezers:',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            DropdownButton<int>(
-              value: quantidadeFreezers > 0 ? quantidadeFreezers : null,
-              hint: const Text('Selecione a quantidade'),
-              isExpanded: true,
-              items: List.generate(5, (index) => index + 1)
-                  .map((e) => DropdownMenuItem(
-                        value: e,
-                        child: Text(e.toString()),
-                      ))
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    if (value > quantidadeFreezers) {
-                      int dif = value - quantidadeFreezers;
-                      for (int i = 0; i < dif; i++) {
-                        modeloControllers.add(TextEditingController());
-                        volumeControllers.add(TextEditingController());
-                        tiposFreezer.add('');
-                      }
-                    } else if (value < quantidadeFreezers) {
-                      int dif = quantidadeFreezers - value;
-                      for (int i = 0; i < dif; i++) {
-                        _removerCard(modeloControllers.length - 1);
-                      }
-                    }
-                    _saveData();
-                  });
-                }
-              },
-            ),
             const SizedBox(height: 20),
             ...List.generate(modeloControllers.length, (index) {
               return Card(
@@ -9175,7 +9085,7 @@ class _FreezerState extends State<Freezer> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Freezer ${index + 1}',
+                          Text('Conservador ${index + 1}',
                               style: const TextStyle(
                                   fontSize: 16, fontWeight: FontWeight.bold)),
                           IconButton(
@@ -9222,7 +9132,7 @@ class _FreezerState extends State<Freezer> {
                           });
                         },
                         decoration: const InputDecoration(
-                          labelText: 'Tipo de freezer',
+                          labelText: 'Tipo',
                           border: OutlineInputBorder(),
                           contentPadding:
                               EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -9421,14 +9331,14 @@ class _ResumoEquipamentosState extends State<ResumoEquipamentos> {
 
           if (dadosResumo['freezers'] != null &&
               dadosResumo['freezers'].isNotEmpty) ...[
-            pw.Text('Freezers:',
+            pw.Text('Conservadores:',
                 style:
                     pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
             ...List.generate(dadosResumo['freezers'].length, (i) {
               final freezer = dadosResumo['freezers'][i];
               return pw.Bullet(
                   text:
-                      "Freezer ${i + 1} - Modelo: ${freezer['modelo'] ?? 'N/I'}, Volume: ${freezer['volume'] ?? 'N/I'}L, Tipo: ${freezer['tipo'] ?? 'N/I'}");
+                      "Conservador ${i + 1} - Modelo: ${freezer['modelo'] ?? 'N/I'}, Volume: ${freezer['volume'] ?? 'N/I'}L, Tipo: ${freezer['tipo'] ?? 'N/I'}");
             }),
             pw.SizedBox(height: 10),
           ],
@@ -9620,11 +9530,11 @@ class _ResumoEquipamentosState extends State<ResumoEquipamentos> {
                   if (dadosResumo['freezers'] != null &&
                       dadosResumo['freezers'].isNotEmpty)
                     _buildSection(
-                      'Freezers (${dadosResumo['freezers'].length})',
+                      'Conservadores (${dadosResumo['freezers'].length})',
                       List.generate(dadosResumo['freezers'].length, (index) {
                         final freezer = dadosResumo['freezers'][index];
                         return _buildItemCard(
-                          'Freezer ${index + 1}',
+                          'Conservador ${index + 1}',
                           'Modelo: ${freezer['modelo'] ?? 'Não informado'}, Volume: ${freezer['volume'] ?? 'Não informado'} litros, Tipo: ${freezer['tipo'] ?? 'Não selecionado'}',
                         );
                       }),
@@ -9749,7 +9659,7 @@ class Limpeza extends StatelessWidget {
                     );
                   },
                   child: const Text(
-                    'Freezers',
+                    'Conservadores',
                     style: TextStyle(color: Colors.white),
                   ),
                 ),
