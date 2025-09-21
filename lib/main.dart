@@ -148,7 +148,7 @@ class RedeScreen extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => Bahamas(),
+                          builder: (context) => PaginaEmConstrucao(),
                         ),
                       );
                     }),
@@ -156,7 +156,7 @@ class RedeScreen extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => Bahamas(),
+                          builder: (context) => PaginaEmConstrucao(),
                         ),
                       );
                     }),
@@ -249,61 +249,80 @@ class Bahamas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFD2691E),
-        centerTitle: true,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset('assets/images/Logo StockOne.png', height: 32),
-            const SizedBox(width: 8),
-            Image.asset('assets/images/logobahamas.jpg',
-                height: 40), // imagem no lugar do texto
-          ],
-        ),
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFFFE5B4), // topo claro
-              Color(0xFFD29752), // base marrom padaria
+    return WillPopScope(
+      onWillPop: () async {
+        // Botão físico de voltar: fecha o app ou navega para outra tela se quiser
+        return true; // true permite o comportamento padrão (fecha o app)
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: const Color(0xFFD2691E),
+          centerTitle: true,
+          automaticallyImplyLeading:
+              false, // se quiser ícone custom, use leading
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => RedeScreen()),
+              ); // volta para a tela anterior
+            },
+          ),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset('assets/images/Logo StockOne.png', height: 32),
+              const SizedBox(width: 8),
+              Image.asset(
+                'assets/images/logobahamas.jpg',
+                height: 40,
+              ), // imagem no lugar do texto
             ],
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: GridView.count(
-            crossAxisCount: 1, // 1 card por linha (vertical)
-            mainAxisSpacing: 16,
-            crossAxisSpacing: 16,
-            childAspectRatio: 3, // retangular, moderno
-            children: [
-              _menuCard(
-                context,
-                Icons.menu_book, // ícone
-                'RECEITUÁRIO', // texto
-                ReceituarioScreen(),
-                Colors.white,
-              ),
-              _menuCard(
-                context,
-                Icons.list_alt,
-                'CÓDIGOS',
-                Codigos(),
-                Colors.white, // vermelho padaria
-              ),
-              _menuCard(
-                context,
-                Icons.store,
-                'ATENDIMENTO',
-                StoreSelectionScreen(),
-                Colors.white, // cinza
-              ),
-            ],
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFFFFE5B4), // topo claro
+                Color(0xFFD29752), // base marrom padaria
+              ],
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: GridView.count(
+              crossAxisCount: 1, // 1 card por linha
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
+              childAspectRatio: 3,
+              children: [
+                _menuCard(
+                  context,
+                  Icons.menu_book,
+                  'RECEITUÁRIO',
+                  ReceituarioScreen(),
+                  Colors.white,
+                ),
+                _menuCard(
+                  context,
+                  Icons.list_alt,
+                  'CÓDIGOS',
+                  Codigos(),
+                  Colors.white,
+                ),
+                _menuCard(
+                  context,
+                  Icons.store,
+                  'ATENDIMENTO',
+                  StoreSelectionScreen(),
+                  Colors.white,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -346,7 +365,6 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
     await prefs.setStringList('favoriteStores', favoriteStores);
   }
 
-  // Mantém a navegação original sem alterações
   Future<void> _onStoreSelected(BuildContext context, String storeName) async {
     final prefs = await SharedPreferences.getInstance();
     final isFirstLaunch = prefs.getBool('isFirstLaunch_$storeName') ?? true;
@@ -376,100 +394,110 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
       ...stores.where((store) => !favoriteStores.contains(store))
     ];
 
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.blueGrey.shade700,
-        centerTitle: true,
-        automaticallyImplyLeading: false, // Importante
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            // Navega de volta para a RedeScreen
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => Bahamas()),
-            );
-          },
-        ),
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset('assets/images/Logo StockOne.png', height: 32),
-            const SizedBox(width: 8),
-            const Text(
-              "ATENDIMENTO",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Lora',
-              ),
-            ),
-          ],
-        ),
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFEFEFEF), Color(0xFFFDFDFD)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+    return WillPopScope(
+      onWillPop: () async {
+        // Captura o botão físico de voltar do Android
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => Bahamas()),
+        );
+        return false; // impede a ação padrão
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.blueGrey.shade700,
+          centerTitle: true,
+          automaticallyImplyLeading:
+              false, // mantemos falso para usar ícone custom
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => Bahamas()),
+              );
+            },
           ),
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
+              Image.asset('assets/images/Logo StockOne.png', height: 32),
+              const SizedBox(width: 8),
               const Text(
-                "SELECIONE:",
+                "ATENDIMENTO",
                 style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.brown,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
                   fontFamily: 'Lora',
                 ),
               ),
-              const SizedBox(height: 30),
-              ...sortedStores.map((store) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            icon: const Icon(Icons.store),
-                            label: Text(store),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.brown.shade300,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 40,
-                                vertical: 16,
-                              ),
-                              textStyle: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 4,
-                            ),
-                            onPressed: () => _onStoreSelected(context, store),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: Icon(
-                            favoriteStores.contains(store)
-                                ? Icons.star
-                                : Icons.star_border,
-                            color: Colors.amber, // Cor âmbar para estrelas
-                          ),
-                          onPressed: () => _toggleFavorite(store),
-                        ),
-                      ],
-                    ),
-                  )),
             ],
+          ),
+        ),
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFEFEFEF), Color(0xFFFDFDFD)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                const Text(
+                  "SELECIONE:",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.brown,
+                    fontFamily: 'Lora',
+                  ),
+                ),
+                const SizedBox(height: 30),
+                ...sortedStores.map((store) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              icon: const Icon(Icons.store),
+                              label: Text(store),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.brown.shade300,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 40,
+                                  vertical: 16,
+                                ),
+                                textStyle: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 4,
+                              ),
+                              onPressed: () => _onStoreSelected(context, store),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: Icon(
+                              favoriteStores.contains(store)
+                                  ? Icons.star
+                                  : Icons.star_border,
+                              color: Colors.amber,
+                            ),
+                            onPressed: () => _toggleFavorite(store),
+                          ),
+                        ],
+                      ),
+                    )),
+              ],
+            ),
           ),
         ),
       ),
@@ -759,7 +787,7 @@ class _SecondScreenState extends State<SecondScreen> {
                         );
                       }),
                       _padariaCard(
-                          Icons.settings, "Equipamento", Colors.brown.shade400,
+                          Icons.kitchen, "Equipamento", Colors.brown.shade400,
                           () {
                         Navigator.push(
                           context,
@@ -5293,61 +5321,65 @@ ${_formatarRupturas()}
                     color: verdeEscuro),
               ),
               const SizedBox(height: 25),
-Row(
-  children: [
-    // Coluna do input em KG - MAIOR espaço
-    Expanded(
-      flex: 3, // ✅ Da mais espaço para o TextField
-      child: TextField(
-        decoration: const InputDecoration(
-          labelText: 'Pão Francês (kg)',
-          labelStyle: TextStyle(fontSize: 16),
-          border: OutlineInputBorder(),
-        ),
-        keyboardType: TextInputType.number,
-        controller: TextEditingController(text: giroMedio)
-          ..selection = TextSelection.fromPosition(
-            TextPosition(offset: giroMedio.length),
-          ),
-        onChanged: (v) {
-          giroMedio = v;
-          _salvarPreferencias();
+              Row(
+                children: [
+                  // Coluna do input em KG - MAIOR espaço
+                  Expanded(
+                    flex: 4, // ✅ Da mais espaço para o TextField
+                    child: TextField(
+                      decoration: const InputDecoration(
+                        labelText: 'Pão Francês (kg)',
+                        labelStyle: TextStyle(fontSize: 16),
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                      controller: TextEditingController(text: giroMedio)
+                        ..selection = TextSelection.fromPosition(
+                          TextPosition(offset: giroMedio.length),
+                        ),
+                      onChanged: (v) {
+                        giroMedio = v;
+                        _salvarPreferencias();
 
-          final valor = double.tryParse(giroMedio);
-          if (valor != null && valor > 0) {
-            final convertido = (valor / 0.07).toStringAsFixed(0);
-            setState(() {
-              vendamediadiaria = convertido;
-            });
-            _salvarPreferencias();
-          }
-        },
-      ),
-    ),
-    const SizedBox(width: 10), // ✅ Aumentei o espaço entre os campos
-    // Coluna do resultado em UNIDADES - MENOR espaço
-    Expanded(
-      flex: 2, // ✅ Reduz o espaço da caixa de unidades
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade400),
-          borderRadius: BorderRadius.circular(12),
-          color: Colors.white,
-        ),
-        child: Text(
-          vendamediadiaria.isNotEmpty ? '$vendamediadiaria unid' : '0 unid',
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.red,
-          ),
-        ),
-      ),
-    ),
-  ],
-),
+                        final valor = double.tryParse(giroMedio);
+                        if (valor != null && valor > 0) {
+                          final convertido = (valor / 0.07).toStringAsFixed(0);
+                          setState(() {
+                            vendamediadiaria = convertido;
+                          });
+                          _salvarPreferencias();
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(
+                      width: 10), // ✅ Aumentei o espaço entre os campos
+                  // Coluna do resultado em UNIDADES - MENOR espaço
+                  Expanded(
+                    flex: 2, // ✅ Reduz o espaço da caixa de unidades
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 12, horizontal: 8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade400),
+                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.white,
+                      ),
+                      child: Text(
+                        vendamediadiaria.isNotEmpty
+                            ? '$vendamediadiaria unid'
+                            : '0 unid',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 10),
               TextField(
                 decoration: const InputDecoration(
@@ -9899,6 +9931,32 @@ class latas extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class PaginaEmConstrucao extends StatelessWidget {
+  const PaginaEmConstrucao({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Página em Construção"),
+        backgroundColor: Colors.brown,
+        centerTitle: true,
+      ),
+      body: const Center(
+        child: Text(
+          "Página em construção",
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Colors.brown,
+          ),
+          textAlign: TextAlign.center,
+        ),
       ),
     );
   }
