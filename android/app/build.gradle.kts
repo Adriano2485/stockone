@@ -22,28 +22,38 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.StockOne" // altere se quiser outro ID
+        applicationId = "com.example.StockOne"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
-    // 🔑 Configuração de assinatura da keystore
+    // 🔑 Configuração da keystore com validação
     val keystorePropertiesFile = rootProject.file("android/key.properties")
     val keystoreProperties = Properties()
 
     if (keystorePropertiesFile.exists()) {
         keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+        println("✅ key.properties encontrado e carregado")
+    } else {
+        println("⚠️ key.properties NÃO encontrado em ${keystorePropertiesFile.absolutePath}")
     }
 
     signingConfigs {
         create("release") {
             if (keystorePropertiesFile.exists()) {
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
+                val storePath = keystoreProperties["storeFile"] as String
+                val storeFileObj = file(storePath)
+                if (storeFileObj.exists()) {
+                    storeFile = storeFileObj
+                    storePassword = keystoreProperties["storePassword"] as String
+                    keyAlias = keystoreProperties["keyAlias"] as String
+                    keyPassword = keystoreProperties["keyPassword"] as String
+                    println("✅ Keystore encontrada em $storePath")
+                } else {
+                    println("⚠️ Keystore NÃO encontrada em $storePath")
+                }
             }
         }
     }
