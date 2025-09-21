@@ -8,7 +8,8 @@ plugins {
 }
 
 android {
-    namespace = "com.example.StockOne"
+    // Namespace em minúsculas para evitar problemas de ClassNotFound
+    namespace = "com.example.stockone"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -22,7 +23,8 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.StockOne"
+        // ApplicationId também em minúsculas
+        applicationId = "com.example.stockone"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
