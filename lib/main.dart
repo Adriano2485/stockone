@@ -4692,7 +4692,18 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
 
   Future<void> _compartilharRelatorioComImagens() async {
     String texto =
-        """ BOM DIA A TODOS! *Posicionamento: ${widget.storeName} *Data: $dataFormatada *Técnico: $userName *Crachá: ${crachaController.text} *Gerência: ${gerenteController.text} *Encarregado: ${encarregadoController.text} *Colaboradores ativos: $colaboradoresAtivos *Sobras Pão Francês: $sobrasGeladeira telas """;
+        """ BOM DIA A TODOS!
+
+*Posicionamento: ${widget.storeName}
+*Data: $dataFormatada
+*Técnico: $userName
+*Crachá: ${crachaController.text}
+*Gerência: ${gerenteController.text}
+*Encarregado: ${encarregadoController.text}
+*Colaboradores ativos: $colaboradoresAtivos
+*Sobras Pão Francês: $sobrasGeladeira telas
+""";
+
     await Share.share(texto.trim(), subject: 'Relatório Abertura');
   }
 
