@@ -1,103 +1,27 @@
-name: stockone
-description: A new Flutter project.
-publish_to: 'none'
+workflows:
+  build-android:
+    name: Build Android APK
+    max_build_duration: 60
+    environment:
+      flutter: stable
+    scripts:
+      - flutter pub get
+      - flutter build apk --release
+      # Envia o APK para Firebase App Distribution
+      - firebase appdistribution:distribute build/app/outputs/flutter-apk/app-release.apk --app YOUR_FIREBASE_ANDROID_APP_ID --groups Testadores --token $FIREBASE_TOKEN
+    artifacts:
+      - build/app/outputs/flutter-apk/app-release.apk
 
-version: 2.0.0+4
-
-environment:
-  sdk: ^3.0.0
-
-dependencies:
-  flutter:
-    sdk: flutter
-  firebase_core: ^2.27.0
-  firebase_analytics: ^10.6.0
-  shared_preferences: ^2.5.3
-  share_plus: ^7.0.2 
-  printing: 5.14.2
-  pdf: 3.11.3
-  image_picker: ^0.8.7+5
-  intl: 0.20.2
-  path_provider: 2.1.5
-  csv: 6.0.0
-  screenshot: 3.0.0
-  wakelock_plus: ^1.2.4
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: ^5.0.0
-  flutter_launcher_icons: ^0.13.1  # adiciona o launcher icons
-
-flutter:
-  uses-material-design: true
-  assets:
-    - assets/images/logo_ajudai.png
-    - assets/images/paofrances.jpg
-    - assets/images/codigos.png
-    - assets/images/armarios.jpg
-    - assets/images/fornos.jpg
-    - assets/images/freezers.jpg
-    - assets/images/latas.jpg
-    - assets/images/climatica.jpg
-    - assets/images/paobaguete.jpg
-    - assets/images/panhoca.jpg
-    - assets/images/integral.jpg
-    - assets/images/Logo StockOne.png
-    - assets/images/paofrancesqueijo.jpg
-    - assets/images/StockOnesf.png
-    - assets/images/bh.jpg
-    - assets/images/paisefilhos.jpg
-    - assets/images/bahamas.jpg
-    - assets/images/logobahamas.jpg
-    - assets/images/baguetefrancesa.jpg
-    - assets/images/baguetefrancesaqueijo.jpg
-    - assets/images/biscoitodequeijo.jpg
-    - assets/images/biscoitopolvilho.jpg
-    - assets/images/minipaofrancesgergelim.jpg
-    - assets/images/minipaomartarocha.jpg
-    - assets/images/minipaosonho.jpg
-    - assets/images/minipaosonhochocolate.jpg
-    - assets/images/paobaguetefrancesagergelim.jpg
-    - assets/images/paobaguetefrancesaqueijo.jpg
-    - assets/images/paobambino.jpg
-    - assets/images/paocaseirinho.jpg
-    - assets/images/paodealhodacasa.jpg
-    - assets/images/paodealhodacasapicante.jpg
-    - assets/images/paodequeijocoquetel.jpg
-    - assets/images/paodequeijotradicional.jpg
-    - assets/images/paodocecaracol.jpg
-    - assets/images/paodocecomprido.jpg
-    - assets/images/paodoceferradura.jpg
-    - assets/images/paomilho.jpg
-    - assets/images/paopararabanada.jpg
-    - assets/images/paopizza.jpg
-    - assets/images/paosamaritano.jpg
-    - assets/images/paotatu.jpg
-    - assets/images/profiterolesbrigadeiro.jpg
-    - assets/images/profiterolesbrigadeirobranco.jpg
-    - assets/images/profiterolesdocedeleite.jpg
-    - assets/images/rabanadaassada.jpg
-    - assets/images/roscacaseira.jpg
-    - assets/images/roscacaseiracoco.jpg
-    - assets/images/roscacaseiraleiteempo.jpg
-    - assets/images/roscafofinhatemperada.jpg
-    - assets/images/sanduichebahamas.jpg
-    - assets/images/sanduichefofinho.jpg
-    - assets/images/torradacomum.jpg
-    - assets/images/roscacocoequeijo.jpg
-    - assets/images/paofofinho.jpg
-    - assets/images/torradadealho.jpg
-    - assets/images/torradadealhointegral.jpg
-    - assets/images/torradaintegral.jpg
-
-
-
-
-# configuração do flutter_launcher_icons
-flutter_icons:
-  android: true
-  ios: true
-  image_path: "assets/images/iconeapp2.jpg" # seu ícone
-  adaptive_icon_background: "#ffffff" # fundo para Android adaptativo
-  adaptive_icon_foreground: "assets/images/iconeapp2.jpg"
+  build-ios:
+    name: Build iOS IPA
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+    scripts:
+      - flutter pub get
+      - flutter build ios --release --no-codesign
+      # Envia o IPA para Firebase App Distribution
+      - firebase appdistribution:distribute build/ios/ipa/*.ipa --app YOUR_FIREBASE_IOS_APP_ID --groups Testadores --token $FIREBASE_TOKEN
+    artifacts:
+      - build/ios/ipa/*.ipa
