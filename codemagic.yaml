@@ -7,8 +7,6 @@ workflows:
     scripts:
       - flutter pub get
       - flutter build apk --release
-      # Envia o APK para Firebase App Distribution
-      - firebase appdistribution:distribute build/app/outputs/flutter-apk/app-release.apk --app YOUR_FIREBASE_ANDROID_APP_ID --groups Testadores --token $FIREBASE_TOKEN
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk
 
@@ -20,8 +18,7 @@ workflows:
       xcode: latest
     scripts:
       - flutter pub get
+      # Build sem assinatura automática para você assinar manualmente depois
       - flutter build ios --release --no-codesign
-      # Envia o IPA para Firebase App Distribution
-      - firebase appdistribution:distribute build/ios/ipa/*.ipa --app YOUR_FIREBASE_IOS_APP_ID --groups Testadores --token $FIREBASE_TOKEN
     artifacts:
       - build/ios/ipa/*.ipa
