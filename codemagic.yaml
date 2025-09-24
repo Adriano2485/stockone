@@ -7,13 +7,10 @@ workflows:
     scripts:
       - flutter pub get
       - flutter build apk --release
+      # Envia o APK para Firebase App Distribution
+      - firebase appdistribution:distribute build/app/outputs/flutter-apk/app-release.apk --app YOUR_FIREBASE_ANDROID_APP_ID --groups Testadores --token $FIREBASE_TOKEN
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk
-    publishing:
-      firebase_app_distribution:
-        app: YOUR_FIREBASE_ANDROID_APP_ID  # Coloque o App ID do Firebase Android
-        groups: Testadores   # Nome do grupo de testadores no Firebase
-        token: $FIREBASE_TOKEN  # Variável de ambiente com token do Firebase
 
   build-ios:
     name: Build iOS IPA
@@ -24,10 +21,7 @@ workflows:
     scripts:
       - flutter pub get
       - flutter build ios --release --no-codesign
+      # Envia o IPA para Firebase App Distribution
+      - firebase appdistribution:distribute build/ios/ipa/*.ipa --app YOUR_FIREBASE_IOS_APP_ID --groups Testadores --token $FIREBASE_TOKEN
     artifacts:
       - build/ios/ipa/*.ipa
-    publishing:
-      firebase_app_distribution:
-        app: YOUR_FIREBASE_IOS_APP_ID  # Coloque o App ID do Firebase iOS
-        groups: Testadores  # Nome do grupo de testadores no Firebase
-        token: $FIREBASE_TOKEN  # Variável de ambiente com token do Firebase
