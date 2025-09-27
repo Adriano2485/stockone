@@ -13,7 +13,8 @@ plugins {
 android {
     namespace = "com.example.stockone"
     compileSdk = 35
-    ndkVersion = "27.0.12077973" // compatível com todos os plugins
+    buildToolsVersion = "35.0.0"      // 🔹 ADICIONADO para corrigir lStar
+    ndkVersion = "27.0.12077973"      // compatível com todos os plugins
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
