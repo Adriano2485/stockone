@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
+import 'dart:io';
 
 void main() {
   runApp(MyApp());
@@ -148,7 +150,7 @@ class RedeScreen extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => PaginaEmConstrucao(),
+                          builder: (context) => ReportReaderScreen(),
                         ),
                       );
                     }),
@@ -156,7 +158,7 @@ class RedeScreen extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => PaginaEmConstrucao(),
+                          builder: (context) => ReportReaderScreen(),
                         ),
                       );
                     }),
@@ -9947,27 +9949,166 @@ class latas extends StatelessWidget {
   }
 }
 
-class PaginaEmConstrucao extends StatelessWidget {
-  const PaginaEmConstrucao({super.key});
+class LeituraApp extends StatelessWidget {
+  const LeituraApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Leitura de Relatórios',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: const ReportReaderScreen(),
+    );
+  }
+}
+
+class ReportReaderScreen extends StatefulWidget {
+  const ReportReaderScreen({super.key});
+
+  @override
+  State<ReportReaderScreen> createState() => _ReportReaderScreenState();
+}
+
+class _ReportReaderScreenState extends State<ReportReaderScreen> {
+  File? _image;
+  List<Map<String, String>> _reportData = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedData();
+  }
+
+  /// Escolher imagem da câmera ou galeria
+  Future<void> _pickImage(ImageSource source) async {
+    final pickedFile = await ImagePicker().pickImage(source: source);
+    if (pickedFile != null) {
+      setState(() => _image = File(pickedFile.path));
+      await _recognizeText(_image!);
+    }
+  }
+
+  /// Executa OCR e extrai Produto, Qtde, Valor
+  Future<void> _recognizeText(File image) async {
+    final textRecognizer = TextRecognizer();
+    final inputImage = InputImage.fromFile(image);
+    final RecognizedText recognizedText =
+        await textRecognizer.processImage(inputImage);
+
+    List<Map<String, String>> extracted = [];
+
+    // Percorre cada linha de texto detectado
+    for (var block in recognizedText.blocks) {
+      for (var line in block.lines) {
+        String text = line.text;
+
+        // Regex: Produto (texto) + Qtde (número) + Valor (número com vírgula)
+        RegExp regex = RegExp(r"(.+?)\s+(\d+[,\.]?\d*)\s+([\d\.]+,\d{2})$");
+        Match? match = regex.firstMatch(text);
+
+        if (match != null) {
+          String produto = match.group(1) ?? "";
+          String qtde = match.group(2) ?? "";
+          String valor = match.group(3) ?? "";
+
+          extracted.add({
+            "produto": produto.trim(),
+            "qtde": qtde.trim(),
+            "valor": valor.trim(),
+          });
+        }
+      }
+    }
+
+    textRecognizer.close();
+
+    if (extracted.isNotEmpty) {
+      setState(() {
+        _reportData.addAll(extracted);
+      });
+      _saveData();
+    }
+  }
+
+  /// Salva os dados extraídos no SharedPreferences
+  Future<void> _saveData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString("report_data", jsonEncode(_reportData));
+  }
+
+  /// Carrega os dados salvos anteriormente
+  Future<void> _loadSavedData() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? saved = prefs.getString("report_data");
+    if (saved != null) {
+      setState(() {
+        _reportData = List<Map<String, String>>.from(jsonDecode(saved));
+      });
+    }
+  }
+
+  /// Limpar todos os dados
+  Future<void> _clearData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove("report_data");
+    setState(() {
+      _reportData.clear();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Página em Construção"),
-        backgroundColor: Colors.brown,
-        centerTitle: true,
-      ),
-      body: const Center(
-        child: Text(
-          "Página em construção",
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Colors.brown,
+        title: const Text("Leitor de Relatório"),
+        actions: [
+          IconButton(
+            onPressed: _clearData,
+            icon: const Icon(Icons.delete),
+            tooltip: "Limpar dados",
           ),
-          textAlign: TextAlign.center,
-        ),
+        ],
+      ),
+      body: Column(
+        children: [
+          if (_image != null)
+            Image.file(_image!, height: 200, fit: BoxFit.cover),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              ElevatedButton.icon(
+                onPressed: () => _pickImage(ImageSource.camera),
+                icon: const Icon(Icons.camera_alt),
+                label: const Text("Câmera"),
+              ),
+              ElevatedButton.icon(
+                onPressed: () => _pickImage(ImageSource.gallery),
+                icon: const Icon(Icons.image),
+                label: const Text("Galeria"),
+              ),
+            ],
+          ),
+          const Divider(),
+          Expanded(
+            child: _reportData.isEmpty
+                ? const Center(child: Text("Nenhum dado encontrado"))
+                : ListView.builder(
+                    itemCount: _reportData.length,
+                    itemBuilder: (context, index) {
+                      final item = _reportData[index];
+                      return ListTile(
+                        leading: const Icon(Icons.receipt_long),
+                        title: Text(item["produto"] ?? ""),
+                        subtitle: Text(
+                          "Qtde: ${item["qtde"]} | Valor: ${item["valor"]}",
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }
