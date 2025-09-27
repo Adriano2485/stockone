@@ -12,7 +12,7 @@ plugins {
 
 android {
     namespace = "com.example.stockone"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 35
     ndkVersion = "27.0.12077973" // compatível com todos os plugins
 
     compileOptions {
@@ -27,7 +27,7 @@ android {
     defaultConfig {
         applicationId = "com.example.stockone"
         minSdk = 23 // atualizado para compatibilidade Firebase
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
