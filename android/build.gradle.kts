@@ -1,11 +1,11 @@
 // build.gradle.kts (nível do projeto)
 
 plugins {
-    id("com.android.application") apply false
-    id("com.android.library") apply false
-    // Atualizando para versão compatível com AGP 8.9.1 e Firebase
+    id("com.android.application") version "8.9.1" apply false
+    id("com.android.library") version "8.9.1" apply false
     id("com.google.gms.google-services") version "4.4.3" apply false
 }
+
 
 allprojects {
     repositories {
