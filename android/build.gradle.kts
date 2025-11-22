@@ -1,7 +1,8 @@
 // build.gradle.kts (nível do projeto)
 
 plugins {
-    // Plugin do Google Services (necessário para ler o google-services.json)
+    id("com.android.application") version "8.9.1" apply false
+    id("com.android.library") version "8.9.1" apply false
     id("com.google.gms.google-services") version "4.4.3" apply false
 }
 
