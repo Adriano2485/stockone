@@ -10,10 +10,10 @@ plugins {
 
 android {
     namespace = "com.example.stockone"
-    compileSdk = 34
+    compileSdk = 36
+    buildToolsVersion = "36.0.0"
     ndkVersion = "27.0.12077973"
 
-    // 🔥 CONFIGURAÇÃO OBRIGATÓRIA PARA FIREBASE
     buildFeatures {
         buildConfig = true
     }
@@ -30,12 +30,12 @@ android {
     defaultConfig {
         applicationId = "com.example.stockone"
         minSdk = 23
-        targetSdk = 34
-        versionCode = 4  // Se flutter.versionCode não funcionar, use número fixo
-        versionName = "2.0.0"  // Se flutter.versionName não funcionar, use versão fixa
+        targetSdk = 36
+        versionCode = 4
+        versionName = "2.0.0"
     }
 
-    // 🔑 Configuração da keystore
+    // 🔑 Keystore
     val keystorePropertiesFile = file("../key.properties")
     val keystoreProperties = Properties()
 
@@ -81,7 +81,7 @@ flutter {
 }
 
 dependencies {
-    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+    // 🔹 Firebase BoM atualizado
+    implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
     implementation("com.google.firebase:firebase-analytics")
-    
 }
