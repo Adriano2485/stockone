@@ -3,6 +3,7 @@
 plugins {
     id("com.android.application") apply false
     id("com.android.library") apply false
+    // Atualizando para versão compatível com AGP 8.9.1 e Firebase
     id("com.google.gms.google-services") version "4.4.3" apply false
 }
 
@@ -13,17 +14,18 @@ allprojects {
     }
 }
 
+// Redireciona o build para fora do diretório do projeto
 val newBuildDir: Directory = rootProject.layout.buildDirectory.dir("../../build").get()
 rootProject.layout.buildDirectory.value(newBuildDir)
 
 subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
-}
-subprojects {
+    // Garante que os subprojetos (como :app) sejam avaliados corretamente
     project.evaluationDependsOn(":app")
 }
 
+// Tarefa para limpar o build
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
