@@ -1,11 +1,9 @@
 // build.gradle.kts (nível do projeto)
 
 plugins {
-    id("com.android.application") version "8.9.1" apply false
-    id("com.android.library") version "8.9.1" apply false
+    // Plugin do Google Services (necessário para ler o google-services.json)
     id("com.google.gms.google-services") version "4.4.3" apply false
 }
-
 
 allprojects {
     repositories {
@@ -14,18 +12,17 @@ allprojects {
     }
 }
 
-// Redireciona o build para fora do diretório do projeto
 val newBuildDir: Directory = rootProject.layout.buildDirectory.dir("../../build").get()
 rootProject.layout.buildDirectory.value(newBuildDir)
 
 subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
-    // Garante que os subprojetos (como :app) sejam avaliados corretamente
+}
+subprojects {
     project.evaluationDependsOn(":app")
 }
 
-// Tarefa para limpar o build
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
