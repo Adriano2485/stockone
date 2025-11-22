@@ -1,8 +1,9 @@
 name: Build do App
 
 on:
-  push:
-    branches: [ master ]
+  workflow_dispatch:  # ⬅️ AGORA SÓ FUNCIONA MANUALMENTE
+  # push:             # ⬅️ COMENTADO - não builda automaticamente
+  #   branches: [ master ]  # ⬅️ COMENTADO
 
 jobs:
   build:
