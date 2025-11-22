@@ -3,17 +3,24 @@ import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
+    id("kotlin-android")
     id("com.google.gms.google-services")
 }
 
 android {
     namespace = "com.example.stockone"
-    compileSdk = 36
-    ndkVersion = "27.0.12077973"
+    compileSdk = 34  // SDK estável e menos suscetível a erros
+
+    defaultConfig {
+        applicationId = "com.example.stockone"
+        minSdk = 23
+        targetSdk = 34
+        versionCode = 4
+        versionName = "2.0.0"
+    }
 
     buildFeatures {
-        buildConfig = true // necessário para Firebase
+        buildConfig = true
     }
 
     compileOptions {
@@ -25,38 +32,24 @@ android {
         jvmTarget = JavaVersion.VERSION_11.toString()
     }
 
-    defaultConfig {
-        applicationId = "com.example.stockone"
-        minSdk = 23
-        targetSdk = 36
-        versionCode = 4 // se quiser, pode usar flutter.versionCode
-        versionName = "2.0.0" // se quiser, pode usar flutter.versionName
-    }
-
-    // Configuração da keystore
+    // 🔑 Configuração da keystore
     val keystorePropertiesFile = file("../key.properties")
     val keystoreProperties = Properties()
-
     if (keystorePropertiesFile.exists()) {
         keystoreProperties.load(FileInputStream(keystorePropertiesFile))
         println("✅ key.properties encontrado e carregado")
-    } else {
-        println("⚠️ key.properties NÃO encontrado em ${keystorePropertiesFile.absolutePath}")
     }
 
     signingConfigs {
         create("release") {
             if (keystorePropertiesFile.exists()) {
-                val storePath = keystoreProperties["storeFile"] as String
-                val storeFileObj = file(storePath)
+                val storeFileObj = file(keystoreProperties["storeFile"] as String)
                 if (storeFileObj.exists()) {
                     storeFile = storeFileObj
                     storePassword = keystoreProperties["storePassword"] as String
                     keyAlias = keystoreProperties["keyAlias"] as String
                     keyPassword = keystoreProperties["keyPassword"] as String
-                    println("✅ Keystore encontrada em $storePath")
-                } else {
-                    println("⚠️ Keystore NÃO encontrada em $storePath")
+                    println("✅ Keystore encontrada em ${storeFileObj.absolutePath}")
                 }
             }
         }
@@ -79,9 +72,7 @@ flutter {
 }
 
 dependencies {
-    // 🔹 Firebase BoM para alinhar versões compatíveis
-    implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
-    
-    // 🔹 Firebase Analytics (opcional)
-    implementation("com.google.firebase:firebase-analytics")
+    implementation(platform("com.google.firebase:firebase-bom:34.3.0")) // Firebase BOM
+    implementation("com.google.firebase:firebase-analytics")            // Firebase Analytics
+    implementation("com.google.firebase:firebase-core")                 // Core Firebase
 }
