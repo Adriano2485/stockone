@@ -1,78 +1,67 @@
-import java.util.Properties
-import java.io.FileInputStream
-
+// build.gradle.kts (módulo app)
 plugins {
     id("com.android.application")
-    id("kotlin-android")
+    id("org.jetbrains.kotlin.android")
     id("com.google.gms.google-services")
 }
 
 android {
     namespace = "com.example.stockone"
-    compileSdk = 34  // SDK estável e menos suscetível a erros
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.example.stockone"
-        minSdk = 23
+        minSdk = 24
         targetSdk = 34
         versionCode = 4
         versionName = "2.0.0"
-    }
-
-    buildFeatures {
-        buildConfig = true
-    }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
-    }
-
-    // 🔑 Configuração da keystore
-    val keystorePropertiesFile = file("../key.properties")
-    val keystoreProperties = Properties()
-    if (keystorePropertiesFile.exists()) {
-        keystoreProperties.load(FileInputStream(keystorePropertiesFile))
-        println("✅ key.properties encontrado e carregado")
+        multiDexEnabled = true
     }
 
     signingConfigs {
         create("release") {
-            if (keystorePropertiesFile.exists()) {
-                val storeFileObj = file(keystoreProperties["storeFile"] as String)
-                if (storeFileObj.exists()) {
-                    storeFile = storeFileObj
-                    storePassword = keystoreProperties["storePassword"] as String
-                    keyAlias = keystoreProperties["keyAlias"] as String
-                    keyPassword = keystoreProperties["keyPassword"] as String
-                    println("✅ Keystore encontrada em ${storeFileObj.absolutePath}")
-                }
-            }
+            val props = java.util.Properties()
+            file("../key.properties").inputStream().use { props.load(it) }
+            keyAlias = props.getProperty("keyAlias")
+            keyPassword = props.getProperty("keyPassword")
+            storeFile = file(props.getProperty("storeFile"))
+            storePassword = props.getProperty("storePassword")
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             isShrinkResources = false
+            signingConfig = signingConfigs.getByName("release")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
-        debug {
-            signingConfig = signingConfigs.getByName("debug")
-        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    buildFeatures {
+        viewBinding = true
     }
 }
 
-flutter {
-    source = "../.."
-}
-
 dependencies {
-    implementation(platform("com.google.firebase:firebase-bom:34.3.0")) // Firebase BOM
-    implementation("com.google.firebase:firebase-analytics")            // Firebase Analytics
-    implementation("com.google.firebase:firebase-core")                 // Core Firebase
+    implementation(platform("com.google.firebase:firebase-bom:32.2.2"))
+    implementation("com.google.firebase:firebase-analytics-ktx")
+    implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation("androidx.core:core-ktx:1.10.1")
+    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("com.google.android.material:material:1.9.0")
+    implementation("androidx.constraintlayout:constraintlayout:2.2.0")
+    implementation("androidx.multidex:multidex:2.0.1")
 }
