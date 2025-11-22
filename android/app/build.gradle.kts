@@ -27,7 +27,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.stockone"
+        applicationId = "com.dusso40.stockone"
         minSdk = 23
         targetSdk = 36
         versionCode = 4 // se quiser, pode usar flutter.versionCode
