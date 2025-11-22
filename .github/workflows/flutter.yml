@@ -17,6 +17,9 @@ jobs:
       with:
         flutter-version: '3.38.3'
         
+    - name: Limpar cache das dependências  # ⬅️ NOVO PASSO
+      run: flutter pub cache repair
+        
     - name: Instalar dependências
       run: flutter pub get
     
