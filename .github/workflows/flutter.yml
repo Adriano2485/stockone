@@ -24,21 +24,14 @@ jobs:
         flutter.sdk=$FLUTTER_ROOT
         EOF
         
-    - name: Limpar cache do Gradle
-      run: |
-        cd android
-        chmod +x ./gradlew
-        ./gradlew clean
-        cd ..
-        
     - name: Instalar dependências
       run: flutter pub get
     
     - name: Build APK
-      run: flutter build apk --release
+      run: flutter build apk --release --no-build-config-cache  # ⬅️ NOVO PARÂMETRO
       
     - name: Build AAB
-      run: flutter build appbundle --release
+      run: flutter build appbundle --release --no-build-config-cache  # ⬅️ NOVO PARÂMETRO
       
     - name: 📱 Fazer upload do APK
       uses: actions/upload-artifact@v4
