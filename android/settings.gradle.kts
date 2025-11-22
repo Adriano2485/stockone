@@ -18,8 +18,13 @@ pluginManagement {
 
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
-    id("com.android.application") version "8.7.0" apply false
-    id("org.jetbrains.kotlin.android") version "2.1.0" apply false
+    // Atualizado para 8.9.1 para compatibilidade com dependências recentes
+    id("com.android.application") version "8.9.1" apply false
+    id("com.android.library") version "8.9.1" apply false
+    // Atualizado para Kotlin 1.9.24
+    id("org.jetbrains.kotlin.android") version "1.9.24" apply false
+    // Google Services para Firebase
+    id("com.google.gms.google-services") version "4.4.3" apply false
 }
 
 include(":app")
