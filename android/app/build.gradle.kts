@@ -9,7 +9,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.stockone"
+    namespace = "com.dusso40.stockone"
     compileSdk = 36
     ndkVersion = "27.0.12077973"
 
