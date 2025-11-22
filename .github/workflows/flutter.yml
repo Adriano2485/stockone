@@ -1,0 +1,27 @@
+name: Build do App
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Baixar código
+      uses: actions/checkout@v4
+    
+    - name: Configurar Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.22.0'
+        
+    - name: Instalar dependências
+      run: flutter pub get
+    
+    - name: Build APK
+      run: flutter build apk --release
+      
+    - name: Build AAB
+      run: flutter build appbundle --release
