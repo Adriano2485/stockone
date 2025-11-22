@@ -17,8 +17,11 @@ jobs:
       with:
         flutter-version: '3.38.3'
         
-    - name: Limpar cache das dependências  # ⬅️ NOVO PASSO
-      run: flutter pub cache repair
+    - name: Limpar cache do Gradle
+      run: |
+        cd android
+        ./gradlew clean
+        cd ..
         
     - name: Instalar dependências
       run: flutter pub get
@@ -28,3 +31,17 @@ jobs:
       
     - name: Build AAB
       run: flutter build appbundle --release
+      
+    - name: 📱 Fazer upload do APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: StockOne-APK
+        path: build/app/outputs/flutter-apk/app-release.apk
+        retention-days: 30
+        
+    - name: 📦 Fazer upload do AAB
+      uses: actions/upload-artifact@v4
+      with:
+        name: StockOne-AAB
+        path: build/app/outputs/bundle/release/app.aab
+        retention-days: 30
