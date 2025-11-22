@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:567717670633:android:38a8b7bb27f00a06f24a78",
+        "mobilesdk_app_id": "1:567717670633:android:3a2752327b194182f24a78",
         "android_client_info": {
-          "package_name": "com.example.stockone"
+          "package_name": "com.dusso40.stockone"
         }
       },
       "oauth_client": [],
