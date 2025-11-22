@@ -1,29 +1,42 @@
-// build.gradle.kts (nível do projeto)
 plugins {
-    id("com.android.application") version "8.9.1" apply false
-    id("com.android.library") version "8.9.1" apply false
-    id("org.jetbrains.kotlin.android") version "1.9.10" apply false
-    id("com.google.gms.google-services") version "4.4.3" apply false
+    id("com.android.application")
+    id("kotlin-android")
+    id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.gms.google-services")
 }
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
+android {
+    namespace = "com.example.stockone"
+    compileSdk = 34
+    defaultConfig {
+        applicationId = "com.example.stockone"
+        minSdk = 23
+        targetSdk = 34
+        versionCode = 4
+        versionName = "2.0.0"
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_11.toString()
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            isShrinkResources = false
+            signingConfig = signingConfigs.getByName("release")
+        }
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
     }
 }
 
-// Redireciona a pasta build fora do diretório do projeto
-val newBuildDir: Directory = rootProject.layout.buildDirectory.dir("../../build").get()
-rootProject.layout.buildDirectory.value(newBuildDir)
-
-subprojects {
-    val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
-    project.layout.buildDirectory.value(newSubprojectBuildDir)
-    project.evaluationDependsOn(":app")
-}
-
-// Tarefa para limpar o build
-tasks.register<Delete>("clean") {
-    delete(rootProject.layout.buildDirectory)
+dependencies {
+    implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
+    implementation("com.google.firebase:firebase-analytics")
 }
