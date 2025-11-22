@@ -13,6 +13,11 @@ android {
     compileSdk = 34
     ndkVersion = "27.0.12077973"
 
+    // 🔥 ADICIONE ESTAS LINHAS 🔥
+    buildFeatures {
+        buildConfig = true
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -30,7 +35,7 @@ android {
         versionName = flutter.versionName
     }
 
-    // 🔑 Configuração da keystore
+    // 🔑 Configuração da keystore (mantenha igual)
     val keystorePropertiesFile = file("../key.properties")
     val keystoreProperties = Properties()
 
