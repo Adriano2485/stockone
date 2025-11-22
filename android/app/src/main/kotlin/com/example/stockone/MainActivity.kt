@@ -1,4 +1,4 @@
-package com.example.stockone
+package com.dusso40.stockone
 
 import io.flutter.embedding.android.FlutterActivity
 
