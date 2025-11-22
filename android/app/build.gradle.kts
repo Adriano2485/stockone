@@ -5,15 +5,13 @@ plugins {
     id("com.android.application")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
-
-    // Plugin do Google Services para Firebase
     id("com.google.gms.google-services")
 }
 
 android {
     namespace = "com.example.stockone"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.0.12077973" // compatível com todos os plugins
+    compileSdk = 34
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -26,8 +24,8 @@ android {
 
     defaultConfig {
         applicationId = "com.example.stockone"
-        minSdk = 23 // atualizado para compatibilidade Firebase
-        targetSdk = flutter.targetSdkVersion
+        minSdk = 23
+        targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -78,9 +76,6 @@ flutter {
 }
 
 dependencies {
-    // 🔹 Firebase BoM para alinhar versões compatíveis
-    implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
-
-    // 🔹 Firebase Analytics (opcional)
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
     implementation("com.google.firebase:firebase-analytics")
 }
