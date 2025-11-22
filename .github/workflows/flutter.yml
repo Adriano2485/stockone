@@ -27,11 +27,14 @@ jobs:
     - name: Instalar dependências
       run: flutter pub get
     
+    - name: 🔥 LIMPAR TUDO
+      run: flutter clean
+    
     - name: Build APK
-      run: flutter build apk --release --no-build-config-cache  # ⬅️ NOVO PARÂMETRO
+      run: flutter build apk --release  # ⬅️ CORRETO
       
     - name: Build AAB
-      run: flutter build appbundle --release --no-build-config-cache  # ⬅️ NOVO PARÂMETRO
+      run: flutter build appbundle --release  # ⬅️ CORRETO
       
     - name: 📱 Fazer upload do APK
       uses: actions/upload-artifact@v4
