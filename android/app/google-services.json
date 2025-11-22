@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "567717670633",
+    "project_id": "stockone-1c804",
+    "storage_bucket": "stockone-1c804.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:567717670633:android:38a8b7bb27f00a06f24a78",
+        "android_client_info": {
+          "package_name": "com.example.stockone"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAhJpsaQIluMCOj53RPqFocdxvWH65zEhE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
