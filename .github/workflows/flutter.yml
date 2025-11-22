@@ -15,7 +15,7 @@ jobs:
     - name: Configurar Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.22.0'
+        flutter-version: '3.38.3'
         
     - name: Instalar dependências
       run: flutter pub get
