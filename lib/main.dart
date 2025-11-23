@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:dio/dio.dart';
@@ -6015,12 +6016,36 @@ class _DocumentosState extends State<Documentos> {
     {
       'label': 'Baixas Motivo (23,71)',
       'url':
-          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/requisi%C3%A7%C3%A3o%20motivos%2023%2C71.pdf?alt=media&token=57e4e0ff-ac8b-487e-82e6-76e837efbf1e'
+          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/requisi%C3%A7%C3%A3o%20motivos%2071%20e%2023.pdf?alt=media&token=0de3aebe-9c87-45df-8fb2-3942b7852d6d'
     },
     {
       'label': 'Etiqueta Validade',
       'url':
-          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/etiqueta%20de%20validade.pdf?alt=media&token=d25a38d2-52a5-4d2e-bb5e-d3772558e2d6'
+          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/ETIQUETA%20DE%20VALIDADE%20%20PADARIA.pdf?alt=media&token=f5ec2a1e-e9bb-48ea-b7b9-cf5506a9a05b'
+    },
+
+    {
+      'label': 'Validade Insumos',
+      'url':
+          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/Validade%20insumos.pdf?alt=media&token=402e7150-c245-4b47-80a1-badd9f60333d'
+    },
+
+    {
+      'label': 'Relação Pedido',
+      'url':
+          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/Pedido%20Bahamas.pdf?alt=media&token=e5bfb923-76f1-4ce2-872c-a96913f13e45'
+    },
+
+    {
+      'label': 'Calendário Pedidos',
+      'url':
+          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/calend%C3%A1rio%20pedido.pdf?alt=media&token=c8243eed-d7ab-43f7-b5e0-0657f3091f64'
+    },
+
+    {
+      'label': 'Catálogo de Códigos CX-OPERADOR',
+      'url':
+          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/catalogo%20codigo%20caixa-operador.pdf?alt=media&token=412537c0-a780-4f30-b7a1-0c0799f91bc1'
     },
   ];
 
@@ -6188,13 +6213,6 @@ class _DocumentosState extends State<Documentos> {
                 fontFamily: 'Nunito ExtraBold',
               ),
               textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            _buildOptionButton(
-              context,
-              icon: Icons.visibility,
-              text: 'Visualizar',
-              onTap: () => _viewDocument(context, url),
             ),
             _buildOptionButton(
               context,
