@@ -1,14 +1,14 @@
 workflows:
   build-android:
-    name: Build Android APK
+    name: Build Android AAB
     max_build_duration: 60
     environment:
       flutter: stable
     scripts:
       - flutter pub get
-      - flutter build apk --release
+      - flutter build appbundle --release
     artifacts:
-      - build/app/outputs/flutter-apk/app-release.apk
+      - build/app/outputs/bundle/release/app-release.aab
 
   build-ios:
     name: Build iOS IPA
