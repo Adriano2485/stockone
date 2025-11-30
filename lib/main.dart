@@ -87,13 +87,160 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class RedeScreen extends StatelessWidget {
+class RedeScreen extends StatefulWidget {
   const RedeScreen({super.key});
+
+  @override
+  State<RedeScreen> createState() => _RedeScreenState();
+}
+
+class _RedeScreenState extends State<RedeScreen> {
+  bool _checking = false;
+
+  Future<void> _onCardTap(String rede, Widget destino) async {
+    if (_checking) return;
+    setState(() => _checking = true);
+    try {
+      print("DEBUG: clique em '$rede' recebido");
+
+      // Verifica se Firebase foi inicializado (evita erro silencioso)
+      try {
+        final apps = Firebase.apps;
+        print("DEBUG: Firebase.apps.length = ${apps.length}");
+        if (apps.isEmpty) {
+          _showError("Firebase não inicializado. Verifique main.dart.");
+          return;
+        }
+      } catch (e) {
+        _showError("Firebase inacessível: $e");
+        return;
+      }
+
+      // Busca documento no Firestore
+      final doc =
+          await FirebaseFirestore.instance.collection('redes').doc(rede).get();
+
+      if (!doc.exists) {
+        _showError("Rede '$rede' não encontrada no Firestore.");
+        return;
+      }
+
+      final senhaFirebase = doc.data()?['senha'];
+      if (senhaFirebase == null) {
+        _showError("Campo 'senha' ausente em '$rede'.");
+        return;
+      }
+
+      // Verifica senha salva localmente
+      final prefs = await SharedPreferences.getInstance();
+      final chave = "senha_$rede";
+      final senhaLocal = prefs.getString(chave);
+      print("DEBUG: senhaLocal='$senhaLocal' | senhaFirebase='$senhaFirebase'");
+
+      if (senhaLocal == senhaFirebase) {
+        // já validado: entra direto
+        if (!mounted) return;
+        Navigator.push(context, MaterialPageRoute(builder: (_) => destino));
+        return;
+      }
+
+      // Caso não validado, solicitar senha
+      final aceita = await _mostrarDialogSenha(rede, senhaFirebase);
+      if (aceita == true) {
+        await prefs.setString(chave, senhaFirebase);
+        if (!mounted) return;
+        Navigator.push(context, MaterialPageRoute(builder: (_) => destino));
+      } else {
+        print("DEBUG: usuário cancelou ou falhou na senha para '$rede'");
+      }
+    } catch (e, st) {
+      print("DEBUG: erro inesperado em _onCardTap -> $e\n$st");
+      _showError("Erro inesperado: ${e.toString()}");
+    } finally {
+      if (mounted) setState(() => _checking = false);
+    }
+  }
+
+  Future<bool?> _mostrarDialogSenha(String rede, String senhaCorreta) {
+    final controller = TextEditingController();
+
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text("Senha $rede"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: "Digite a senha",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text("Cancelar"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final digitada = controller.text.trim();
+                if (digitada == senhaCorreta) {
+                  Navigator.pop(ctx, true);
+                } else {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(
+                      content: Text("Senha incorreta"),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              child: const Text("Entrar"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showError(String mensagem) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(mensagem), backgroundColor: Colors.red),
+      );
+    }
+    print("DEBUG: showError -> $mensagem");
+  }
+
+  Widget _card(String imgPath, String rede, Widget destino) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _onCardTap(rede, destino),
+        borderRadius: BorderRadius.circular(16),
+        child: Ink(
+          height: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            image:
+                DecorationImage(image: AssetImage(imgPath), fit: BoxFit.cover),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF8F0), // fundo aconchegante
+      backgroundColor: const Color(0xFFFFF8F0),
       appBar: AppBar(
         backgroundColor: const Color(0xFFD2691E),
         elevation: 4,
@@ -106,95 +253,54 @@ class RedeScreen extends StatelessWidget {
           ],
         ),
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFFFE5B4), // topo claro
-              Color(0xFFD29752), // marrom padaria
-            ],
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              const Text(
-                "Escolha a Rede:",
-                style: TextStyle(
-                  fontSize: 28,
-                  fontStyle: FontStyle.italic,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF5D4037),
-                  fontFamily: 'Roboto',
-                ),
-                textAlign: TextAlign.center,
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFFFFE5B4), Color(0xFFD29752)],
               ),
-              const SizedBox(height: 24),
-              // Grid de opções
-              Expanded(
-                child: GridView.count(
-                  crossAxisCount: 2, // duas colunas
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 1.2, // altura proporcional
-                  children: [
-                    _padariaCard("assets/images/bahamas.jpg", () {
-                      Navigator.push(
-                        // ✅ Alterado para push (em vez de pushReplacement)
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => Bahamas(),
-                        ),
-                      );
-                    }),
-                    _padariaCard("assets/images/paisefilhos.jpg", () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => Bahamas(),
-                        ),
-                      );
-                    }),
-                    _padariaCard("assets/images/bh.jpg", () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => Bahamas(),
-                        ),
-                      );
-                    }),
-                  ],
+            ),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                const Text(
+                  "Escolha a Rede:",
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontStyle: FontStyle.italic,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF5D4037),
+                    fontFamily: 'Roboto',
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _padariaCard(String imagePath, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Card(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        clipBehavior: Clip.antiAlias,
-        elevation: 4,
-        child: Container(
-          decoration: BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage(imagePath),
-              fit: BoxFit.cover, // preenche todo o card
+                const SizedBox(height: 24),
+                Expanded(
+                  child: GridView.count(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 1.2,
+                    children: [
+                      _card("assets/images/bahamas.jpg", "bahamas",
+                          const Bahamas()),
+                      _card("assets/images/paisefilhos.jpg", "paisefilhos",
+                          const PaiseFilhos()),
+                      _card("assets/images/bh.jpg", "bh", const BH()),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-          height: 150,
-          width: double.infinity,
-        ),
+          if (_checking)
+            Container(
+              color: Colors.black45,
+              child: const Center(child: CircularProgressIndicator()),
+            ),
+        ],
       ),
     );
   }
@@ -202,6 +308,292 @@ class RedeScreen extends StatelessWidget {
 
 class Bahamas extends StatelessWidget {
   const Bahamas({super.key});
+
+  // 🔹 Card estilo Android
+  Widget _menuCard(
+    BuildContext context,
+    IconData icon, // novo parâmetro
+    String label,
+    Widget destination,
+    Color color,
+  ) {
+    return Card(
+      color: color,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 4,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        splashColor: Colors.brown.withOpacity(0.3),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => destination),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 28,
+                color: const Color(0xFF5D4037),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  fontFamily: 'Roboto',
+                  color: Color(0xFF5D4037),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return WillPopScope(
+      onWillPop: () async {
+        // Botão físico de voltar: fecha o app ou navega para outra tela se quiser
+        return true; // true permite o comportamento padrão (fecha o app)
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: const Color(0xFFD2691E),
+          centerTitle: true,
+          automaticallyImplyLeading:
+              false, // se quiser ícone custom, use leading
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => RedeScreen()),
+              ); // volta para a tela anterior
+            },
+          ),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset('assets/images/Logo StockOne.png', height: 32),
+              const SizedBox(width: 8),
+              Image.asset(
+                'assets/images/logobahamas.jpg',
+                height: 40,
+              ), // imagem no lugar do texto
+            ],
+          ),
+        ),
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFFFFE5B4), // topo claro
+                Color(0xFFD29752), // base marrom padaria
+              ],
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: GridView.count(
+              crossAxisCount: 1, // 1 card por linha
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
+              childAspectRatio: 3,
+              children: [
+                _menuCard(
+                  context,
+                  Icons.menu_book,
+                  'RECEITUÁRIO',
+                  ReceituarioScreen(),
+                  Colors.white,
+                ),
+                _menuCard(
+                  context,
+                  Icons.folder,
+                  'DOCUMENTOS',
+                  Documentos(),
+                  Colors.white,
+                ),
+                _menuCard(
+                  context,
+                  Icons.list_alt,
+                  'CÓDIGOS',
+                  Codigos(),
+                  Colors.white,
+                ),
+                _menuCard(
+                  context,
+                  Icons.store,
+                  'ATENDIMENTO',
+                  StoreSelectionScreen(),
+                  Colors.white,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class BH extends StatelessWidget {
+  const BH({super.key});
+
+  // 🔹 Card estilo Android
+  Widget _menuCard(
+    BuildContext context,
+    IconData icon, // novo parâmetro
+    String label,
+    Widget destination,
+    Color color,
+  ) {
+    return Card(
+      color: color,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 4,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        splashColor: Colors.brown.withOpacity(0.3),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => destination),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 28,
+                color: const Color(0xFF5D4037),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  fontFamily: 'Roboto',
+                  color: Color(0xFF5D4037),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return WillPopScope(
+      onWillPop: () async {
+        // Botão físico de voltar: fecha o app ou navega para outra tela se quiser
+        return true; // true permite o comportamento padrão (fecha o app)
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: const Color(0xFFD2691E),
+          centerTitle: true,
+          automaticallyImplyLeading:
+              false, // se quiser ícone custom, use leading
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => RedeScreen()),
+              ); // volta para a tela anterior
+            },
+          ),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset('assets/images/Logo StockOne.png', height: 32),
+              const SizedBox(width: 8),
+              Image.asset(
+                'assets/images/logobahamas.jpg',
+                height: 40,
+              ), // imagem no lugar do texto
+            ],
+          ),
+        ),
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFFFFE5B4), // topo claro
+                Color(0xFFD29752), // base marrom padaria
+              ],
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: GridView.count(
+              crossAxisCount: 1, // 1 card por linha
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
+              childAspectRatio: 3,
+              children: [
+                _menuCard(
+                  context,
+                  Icons.menu_book,
+                  'RECEITUÁRIO',
+                  ReceituarioScreen(),
+                  Colors.white,
+                ),
+                _menuCard(
+                  context,
+                  Icons.folder,
+                  'DOCUMENTOS',
+                  Documentos(),
+                  Colors.white,
+                ),
+                _menuCard(
+                  context,
+                  Icons.list_alt,
+                  'CÓDIGOS',
+                  Codigos(),
+                  Colors.white,
+                ),
+                _menuCard(
+                  context,
+                  Icons.store,
+                  'ATENDIMENTO',
+                  StoreSelectionScreen(),
+                  Colors.white,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class PaiseFilhos extends StatelessWidget {
+  const PaiseFilhos({super.key});
 
   // 🔹 Card estilo Android
   Widget _menuCard(
@@ -428,10 +820,23 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
 
   Future<bool> _checkDeviceAuthorization(String storeName) async {
     try {
-      // Verificar se temos um token válido para esta loja neste dispositivo
-      String? deviceToken =
+      // 1) Ler token salvo no dispositivo
+      String? savedToken =
           await _secureStorage.read(key: '${storeName}_auth_token');
-      return deviceToken != null;
+
+      if (savedToken == null) return false;
+
+      // 2) Buscar senha atual do Firestore
+      final doc = await _firestore.collection('stores').doc(storeName).get();
+
+      if (!doc.exists) return false;
+
+      String? currentPassword = doc.data()?['password'];
+
+      if (currentPassword == null) return false;
+
+      // 3) Se a senha mudou -> FORÇA novo login
+      return savedToken == currentPassword;
     } catch (e) {
       return false;
     }
@@ -561,7 +966,6 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
     );
   }
 }
-
 class FirstTimeScreen extends StatefulWidget {
   final String storeName;
   const FirstTimeScreen({required this.storeName});
