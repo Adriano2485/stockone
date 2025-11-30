@@ -30,8 +30,8 @@ android {
         applicationId = "com.dusso40.stockone"
         minSdk = 23
         targetSdk = 36
-        versionCode = 5 // se quiser, pode usar flutter.versionCode
-        versionName = "2.0.0" // se quiser, pode usar flutter.versionName
+        versionCode = 6 // se quiser, pode usar flutter.versionCode
+        versionName = "2.0.1" // se quiser, pode usar flutter.versionName
     }
 
     // Configuração da keystore
