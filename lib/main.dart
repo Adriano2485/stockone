@@ -97,13 +97,47 @@ class RedeScreen extends StatefulWidget {
 class _RedeScreenState extends State<RedeScreen> {
   bool _checking = false;
 
+  // ===== NOVO: Função para abrir vídeo =====
+  void _mostrarAjuda() async {
+    final resposta = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text("Ajuda"),
+          content: const Text("Assistir vídeo explicativo?"),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text("Não")
+            ),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text("Sim")
+            ),
+          ],
+        );
+      },
+    );
+
+    if (resposta == true) {
+      final url = "https://youtu.be/Jf6SqKmItZg";
+      if (await canLaunchUrl(Uri.parse(url))) {
+        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Não foi possível abrir o vídeo")),
+        );
+      }
+    }
+  }
+  // =========================================
+
   Future<void> _onCardTap(String rede, Widget destino) async {
     if (_checking) return;
     setState(() => _checking = true);
     try {
       print("DEBUG: clique em '$rede' recebido");
 
-      // Verifica se Firebase foi inicializado (evita erro silencioso)
       try {
         final apps = Firebase.apps;
         print("DEBUG: Firebase.apps.length = ${apps.length}");
@@ -116,7 +150,6 @@ class _RedeScreenState extends State<RedeScreen> {
         return;
       }
 
-      // Busca documento no Firestore
       final doc =
           await FirebaseFirestore.instance.collection('redes').doc(rede).get();
 
@@ -131,20 +164,17 @@ class _RedeScreenState extends State<RedeScreen> {
         return;
       }
 
-      // Verifica senha salva localmente
       final prefs = await SharedPreferences.getInstance();
       final chave = "senha_$rede";
       final senhaLocal = prefs.getString(chave);
       print("DEBUG: senhaLocal='$senhaLocal' | senhaFirebase='$senhaFirebase'");
 
       if (senhaLocal == senhaFirebase) {
-        // já validado: entra direto
         if (!mounted) return;
         Navigator.push(context, MaterialPageRoute(builder: (_) => destino));
         return;
       }
 
-      // Caso não validado, solicitar senha
       final aceita = await _mostrarDialogSenha(rede, senhaFirebase);
       if (aceita == true) {
         await prefs.setString(chave, senhaFirebase);
@@ -216,7 +246,6 @@ class _RedeScreenState extends State<RedeScreen> {
         SnackBar(content: Text(mensagem), backgroundColor: Colors.red),
       );
     }
-    print("DEBUG: showError -> $mensagem");
   }
 
   Widget _card(String imgPath, String rede, Widget destino) {
@@ -252,7 +281,17 @@ class _RedeScreenState extends State<RedeScreen> {
             const SizedBox(width: 12),
           ],
         ),
+
+        // ======== ÍCONE DE AJUDA AQUI ========
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline, color: Colors.white),
+            onPressed: _mostrarAjuda,
+          ),
+        ],
+        // =====================================
       ),
+
       body: Stack(
         children: [
           Container(
@@ -1137,9 +1176,12 @@ class _PasswordScreenState extends State<PasswordScreen> {
       final doc =
           await _firestore.collection('stores').doc(widget.storeName).get();
 
-      if (doc.exists && doc.data()?['password'] == _passwordController.text) {
-        // Senha correta - autorizar este dispositivo
-        await _authorizeThisDevice();
+      String? storedPassword = doc.data()?['password'];
+
+      // Verifica se a senha existe e se está correta
+      if (doc.exists && storedPassword == _passwordController.text) {
+        // Salva a senha ATUAL no SecureStorage para liberar acesso automático
+        await _authorizeThisDevice(storedPassword!);
 
         Navigator.pushReplacement(
           context,
@@ -1161,11 +1203,12 @@ class _PasswordScreenState extends State<PasswordScreen> {
     }
   }
 
-  Future<void> _authorizeThisDevice() async {
-    String deviceToken =
-        '${DateTime.now().millisecondsSinceEpoch}_${widget.storeName}_authorized';
+  /// Salva **a senha atual** da loja no SecureStorage
+  Future<void> _authorizeThisDevice(String correctPassword) async {
     await _secureStorage.write(
-        key: '${widget.storeName}_auth_token', value: deviceToken);
+      key: '${widget.storeName}_auth_token',
+      value: correctPassword, // senha real atual, usada para comparar depois
+    );
   }
 
   void _goBack() {
@@ -1213,6 +1256,8 @@ class _PasswordScreenState extends State<PasswordScreen> {
               style: const TextStyle(fontSize: 16, color: Colors.grey),
             ),
             const SizedBox(height: 30),
+
+            // CAMPO SENHA
             TextField(
               controller: _passwordController,
               obscureText: true,
@@ -1222,7 +1267,10 @@ class _PasswordScreenState extends State<PasswordScreen> {
                 prefixIcon: Icon(Icons.lock),
               ),
             ),
+
             const SizedBox(height: 30),
+
+            // BOTÃO CONFIRMAR
             _isLoading
                 ? const CircularProgressIndicator()
                 : ElevatedButton(
@@ -1239,7 +1287,9 @@ class _PasswordScreenState extends State<PasswordScreen> {
                       backgroundColor: Colors.brown.shade400,
                     ),
                   ),
+
             const SizedBox(height: 20),
+
             if (!widget.isFirstTime)
               TextButton(
                 onPressed: _goBack,
@@ -6420,7 +6470,7 @@ class _DocumentosState extends State<Documentos> {
     {
       'label': 'Baixas Motivo (23,71)',
       'url':
-          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/requisi%C3%A7%C3%A3o%20motivos%2071%20e%2023.pdf?alt=media&token=0de3aebe-9c87-45df-8fb2-3942b7852d6d'
+          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/motivo%2071%20e%2023.pdf?alt=media&token=afbf42b8-adb9-4e0d-8712-4beec098bdd6'
     },
     {
       'label': 'Etiqueta Validade',
