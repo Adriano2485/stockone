@@ -345,6 +345,7 @@ class _RedeScreenState extends State<RedeScreen> {
   }
 }
 
+
 class Bahamas extends StatelessWidget {
   const Bahamas({super.key});
 
@@ -1005,6 +1006,7 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
     );
   }
 }
+
 class FirstTimeScreen extends StatefulWidget {
   final String storeName;
   const FirstTimeScreen({required this.storeName});
@@ -1947,10 +1949,10 @@ class _ThirdScreenState extends State<ThirdScreen> {
             (valorMensal * 0.33 * 1.20 / diasDeGiro! / 3.3) * deliveries;
         break;
       case 'Rabanada Assada':
-        estoqueMax = (valorMensal / 0.8 * 1.20 / diasDeGiro! / 30) * deliveries;
+        estoqueMax = (valorMensal / 0.8 * 1.20 / diasDeGiro! / 10) * deliveries;
         break;
       case 'Pão P/ Rabanada':
-        estoqueMax = (valorMensal * 1.20 / diasDeGiro! / 30) * deliveries;
+        estoqueMax = (valorMensal * 1.20 / diasDeGiro! / 10) * deliveries;
         break;
       case 'Pão Doce Comprido':
         estoqueMax = (valorMensal * 1.20 / diasDeGiro! / 3.3) * deliveries;
@@ -2834,7 +2836,7 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
 
   // Produtos em unidades com quantidade por pacote
   final Map<String, int> produtosUnidade = {
-    'Massa Pão Para Rabanada': 30,
+    'Massa Pão Para Rabanada': 10,
     'Massa Baguete 330g': 10,
   };
 
@@ -4021,10 +4023,10 @@ class _FourthScreenState extends State<FourthScreen> {
               ((vendaMensalPaoParaRabanada) +
                   (vendaMensalRabanadaAssada * 0.8) * 1.20 / diasDeGiro! / 30));
       resultadoPedido = estoqueCalculado < 0
-          ? (estoqueMaxPaoParaRabanada + estoqueMaxRabanadaAssada) / 2
+          ? (estoqueMaxPaoParaRabanada + estoqueMaxRabanadaAssada) / 6
           : ((estoqueMaxPaoParaRabanada + estoqueMaxRabanadaAssada) -
                   estoqueCalculado) /
-              2;
+              6;
       if (estoqueCalculado < 0)
         _showInsufficientStockAlert(produto);
       else
@@ -6449,7 +6451,6 @@ class ReceituarioScreen extends StatelessWidget {
   }
 }
 
-
 class Documentos extends StatefulWidget {
   const Documentos({super.key});
 
@@ -6477,25 +6478,21 @@ class _DocumentosState extends State<Documentos> {
       'url':
           'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/ETIQUETA%20DE%20VALIDADE%20%20PADARIA.pdf?alt=media&token=f5ec2a1e-e9bb-48ea-b7b9-cf5506a9a05b'
     },
-
     {
       'label': 'Validade Insumos',
       'url':
           'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/Validade%20insumos.pdf?alt=media&token=402e7150-c245-4b47-80a1-badd9f60333d'
     },
-
     {
       'label': 'Relação Pedido',
       'url':
           'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/Pedido%20Bahamas.pdf?alt=media&token=e5bfb923-76f1-4ce2-872c-a96913f13e45'
     },
-
     {
       'label': 'Calendário Pedidos',
       'url':
           'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/calend%C3%A1rio%20pedido.pdf?alt=media&token=c8243eed-d7ab-43f7-b5e0-0657f3091f64'
     },
-
     {
       'label': 'Catálogo de Códigos CX-OPERADOR',
       'url':
@@ -6725,117 +6722,116 @@ class _DocumentosState extends State<Documentos> {
   // CARD
   // ---------------------------------------------------------------------------
   Widget _padariaCard(
-  BuildContext context,
-  int index,
-  String label,
-  String url,
-) {
-  final bool selected = _selectedItems[index];
+    BuildContext context,
+    int index,
+    String label,
+    String url,
+  ) {
+    final bool selected = _selectedItems[index];
 
-  return InkWell(
-    onTap: () {
-      if (_selectionMode) {
-        setState(() => _selectedItems[index] = !selected);
-      } else {
-        _showOptionsModal(context, label, url);
-      }
-    },
-    onLongPress: () {
-      setState(() {
-        _selectionMode = true;
-        _selectedItems[index] = true;
-      });
-    },
-    borderRadius: BorderRadius.circular(18),
-    child: Stack(
-      children: [
-        // ---- CARD EM FORMA DE PAPEL ----
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          decoration: BoxDecoration(
-            color: selected
-                ? const Color(0xFFFFF7E6) // papel selecionado
-                : const Color(0xFFFFFCF6), // papel normal
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
+    return InkWell(
+      onTap: () {
+        if (_selectionMode) {
+          setState(() => _selectedItems[index] = !selected);
+        } else {
+          _showOptionsModal(context, label, url);
+        }
+      },
+      onLongPress: () {
+        setState(() {
+          _selectionMode = true;
+          _selectedItems[index] = true;
+        });
+      },
+      borderRadius: BorderRadius.circular(18),
+      child: Stack(
+        children: [
+          // ---- CARD EM FORMA DE PAPEL ----
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            decoration: BoxDecoration(
               color: selected
-                  ? const Color(0xFFD2691E)
-                  : const Color(0xFFB9B5AA),
-              width: selected ? 3 : 2,
-            ),
-            boxShadow: [
-              // sombra leve igual folha solta na mesa
-              BoxShadow(
-                color: Colors.black.withOpacity(0.15),
-                blurRadius: 8,
-                offset: const Offset(2, 4),
+                  ? const Color(0xFFFFF7E6) // papel selecionado
+                  : const Color(0xFFFFFCF6), // papel normal
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: selected
+                    ? const Color(0xFFD2691E)
+                    : const Color(0xFFB9B5AA),
+                width: selected ? 3 : 2,
               ),
-            ],
-          ),
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (selected)
-                const Icon(Icons.check_circle,
-                    color: Color(0xFFD2691E), size: 22),
+              boxShadow: [
+                // sombra leve igual folha solta na mesa
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 8,
+                  offset: const Offset(2, 4),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (selected)
+                  const Icon(Icons.check_circle,
+                      color: Color(0xFFD2691E), size: 22),
 
-              const SizedBox(height: 10),
+                const SizedBox(height: 10),
 
-              // ---- Texto do nome do documento ----
-              Expanded(
-                child: Center(
-                  child: Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      fontFamily: 'Nunito ExtraBold',
-                      color: Color(0xFF5D4037),
-                      height: 1.2,
+                // ---- Texto do nome do documento ----
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        fontFamily: 'Nunito ExtraBold',
+                        color: Color(0xFF5D4037),
+                        height: 1.2,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
 
-        // ---- DOBRA NO CANTO SUPERIOR DIREITO ----
-        Positioned(
-          right: 0,
-          top: 0,
-          child: ClipPath(
-            clipper: _FoldedClipper(),
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: const BoxDecoration(
-                color: Color(0xFFEADBC8), // cor estilo papel dobrado
+          // ---- DOBRA NO CANTO SUPERIOR DIREITO ----
+          Positioned(
+            right: 0,
+            top: 0,
+            child: ClipPath(
+              clipper: _FoldedClipper(),
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFEADBC8), // cor estilo papel dobrado
+                ),
               ),
             ),
           ),
-        ),
 
-        // Linha diagonal da dobra (estilo folha real)
-        Positioned(
-          right: 3,
-          top: 3,
-          child: Transform.rotate(
-            angle: -0.75,
-            child: Container(
-              width: 40,
-              height: 1.2,
-              color: const Color(0xFFB9A999),
+          // Linha diagonal da dobra (estilo folha real)
+          Positioned(
+            right: 3,
+            top: 3,
+            child: Transform.rotate(
+              angle: -0.75,
+              child: Container(
+                width: 40,
+                height: 1.2,
+                color: const Color(0xFFB9A999),
+              ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
-}
-
+        ],
+      ),
+    );
+  }
 
   // ---------------------------------------------------------------------------
   // BUILD
@@ -6996,8 +6992,7 @@ class PaoFrancesScreen extends StatelessWidget {
             top: 40,
             left: 20,
             child: IconButton(
-              icon: const Icon(Icons.arrow_back,
-                  color: Colors.white, size: 30),
+              icon: const Icon(Icons.arrow_back, color: Colors.white, size: 30),
               onPressed: () {
                 Navigator.pop(context);
               },
