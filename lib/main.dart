@@ -2551,248 +2551,281 @@ class LayoutDistribuicaoScreen extends StatefulWidget {
 }
 
 class _LayoutDistribuicaoScreenState extends State<LayoutDistribuicaoScreen> {
-  List<Map<String, dynamic>> freezersData = [];
-  bool faltaEspaco = false;
-  Map<String, int> massasFaltantes = {};
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  // Configurações da aplicação
+  static const _VOLUME_FATORES = {
+    'Massa Pão Francês': 0.0557,
+    'Massa Biscoito Polvilho': 0.318,
+  };
 
-  final List<String> listaMassas = [
-    'Massa Pão Francês',
-    'Massa Cervejinha',
-    'Massa Pão Francês Fibras',
-    'Massa Mini Baguete 80g',
-    'Massa Mini Pão Francês',
-    'Massa Mini Baguete 40g',
-    'Massa Baguete 330g',
-    'Massa Pão Queijo Tradicional',
-    'Massa Pão Queijo Coquetel',
-    'Massa Biscoito Queijo',
-    'Massa Biscoito Polvilho',
-    'Massa Pão Doce Comprido',
-    'Massa Pão Fofinho',
-    'Massa Pão Tatu',
-    'Massa Mini Marta Rocha',
-    'Massa Bambino',
-    'Massa Pão Doce Caracol',
-    'Massa Pão Doce Ferradura',
+  static const _VOLUME_PADRAO = {
+    'Horizontal': 0.187,
+    'Vertical': 0.113,
+  };
+
+  // Ordem EXATA de distribuição (pedido do usuário)
+  final List<String> _listaMassas = [
     'Massa Rosca 330g',
+    'Massa Pão Doce Ferradura',
+    'Massa Pão Doce Caracol',
+    'Massa Bambino',
+    'Massa Mini Marta Rocha',
+    'Massa Pão Tatu',
+    'Massa Pão Fofinho',
+    'Massa Pão Doce Comprido',
+    'Massa Biscoito Polvilho',
+    'Massa Biscoito Queijo',
+    'Massa Pão Queijo Coquetel',
+    'Massa Pão Queijo Tradicional',
+    'Massa Baguete 330g',
+    'Massa Mini Baguete 40g',
+    'Massa Mini Pão Francês',
+    'Massa Mini Baguete 80g',
+    'Massa Pão Francês Fibras',
+    'Massa Cervejinha',
     'Massa Pão Rabanada 330g',
+    'Massa Pão Francês',
   ];
+
+  List<Map<String, dynamic>> _freezersData = [];
+  Map<int, Map<String, int>> _distribuicao = {};
+  Map<String, int> _massasFaltantes = {};
+  bool _faltaEspaco = false;
+
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
     super.initState();
-    _loadFreezersData();
+    _carregarDadosFreezers();
   }
 
-  Future<void> _loadFreezersData() async {
+  // =====================================
+  // CARREGAMENTO DOS FREEZERS
+  // =====================================
+
+  Future<void> _carregarDadosFreezers() async {
     try {
-      final doc =
+      final snapshot =
           await _firestore.collection('stores').doc(widget.storeName).get();
-      if (doc.exists) {
-        final data = doc.data() ?? {};
-        final freezersList = data['freezers'] ?? [];
 
-        if (freezersList is List && freezersList.isEmpty) {
-          showDialog(
-            context: context,
-            builder: (_) => AlertDialog(
-              title: const Text('Atenção'),
-              content: const Text(
-                  'Por favor cadastrar conservadores na tela de equipamentos.'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('OK'),
-                )
-              ],
-            ),
-          );
-          return;
-        }
-
-        setState(() {
-          freezersData = List<Map<String, dynamic>>.from(freezersList);
-        });
-
-        _distribuirMassas();
-      } else {
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('Atenção'),
-            content: const Text(
-                'Por favor cadastrar conservadores na tela de equipamentos.'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
-              )
-            ],
-          ),
-        );
+      if (!snapshot.exists || !_validarFreezers(snapshot)) {
+        _mostrarDialogoAtencao();
+        return;
       }
+
+      final data = snapshot.data() as Map<String, dynamic>;
+      final freezersList = data['freezers'] as List<dynamic>? ?? [];
+
+      setState(() {
+        _freezersData =
+            freezersList.map((item) => item as Map<String, dynamic>).toList();
+      });
+
+      _distribuirMassas();
     } catch (e) {
       print('Erro ao carregar freezers: $e');
     }
   }
 
-  Map<int, Map<String, int>> distribuicao = {};
+  bool _validarFreezers(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    return (data['freezers'] as List?)?.isNotEmpty ?? false;
+  }
+
+  // =====================================
+  // LÓGICA DE DISTRIBUIÇÃO
+  // =====================================
 
   void _distribuirMassas() {
-    freezersData.sort((a, b) {
-      if (a['tipo'] == b['tipo']) return 0;
-      return a['tipo'] == 'Vertical' ? -1 : 1;
-    });
+    _ordenarFreezersHorizontaisPrimeiro();
+    _inicializarDistribuicao();
 
-    distribuicao = Map.fromIterable(
-      List.generate(freezersData.length, (i) => i),
-      value: (_) => {},
-    );
+    final volumes = _calcularVolumesFreezers();
+    final volumeOcupado = List.filled(_freezersData.length, 0.0);
 
-    massasFaltantes = {};
+    for (final massa in _listaMassas) {
+      int qtdRestante = widget.estoqueMassas[massa] ?? 0;
 
-    List<double> volumesFreezers = freezersData.map((freezer) {
-      return double.tryParse(freezer['volume'] ?? '0') ?? 0.0;
-    }).toList();
-
-    List<double> volumeOcupado = List.generate(freezersData.length, (_) => 0.0);
-
-    faltaEspaco = false;
-
-    List<String> ordemMassas = ['Massa Pão Francês'] +
-        listaMassas.where((m) => m != 'Massa Pão Francês').toList();
-
-    for (String massa in ordemMassas) {
-      // ✅ MUDANÇA: Acessar como int diretamente, sem parse
-      int quantidade = widget.estoqueMassas[massa] ?? 0;
-
-      for (int i = 0; i < freezersData.length && quantidade > 0; i++) {
-        String tipo = freezersData[i]['tipo'] ?? 'Horizontal';
-        double fatorMassa = _getFatorPorMassa(massa, tipo);
-
-        double volumePorPacote = 1.0 / fatorMassa;
-        double volumeDisponivel = volumesFreezers[i] - volumeOcupado[i];
-        int maxPacotes = (volumeDisponivel * fatorMassa).floor();
-
-        if (maxPacotes > 0) {
-          int paraAlocar = quantidade <= maxPacotes ? quantidade : maxPacotes;
-
-          distribuicao[i]![massa] = (distribuicao[i]![massa] ?? 0) + paraAlocar;
-          volumeOcupado[i] += paraAlocar * volumePorPacote;
-          quantidade -= paraAlocar;
-        }
+      for (int i = 0; i < _freezersData.length && qtdRestante > 0; i++) {
+        qtdRestante = _alocar(
+          massa,
+          qtdRestante,
+          i,
+          volumes[i],
+          volumeOcupado,
+        );
       }
 
-      if (quantidade > 0) {
-        faltaEspaco = true;
-        massasFaltantes[massa] = quantidade;
+      if (qtdRestante > 0) {
+        _massasFaltantes[massa] = qtdRestante;
+        _faltaEspaco = true;
       }
     }
 
     setState(() {});
   }
 
-  double _getFatorPorMassa(String massa, String tipo) {
-    if (massa == 'Massa Pão Francês') return 0.0557;
-    if (massa == 'Massa Biscoito Polvilho') return 0.053;
-    if (massa == 'Massa Pão Rabanada 330g') return 0.064;
+  void _ordenarFreezersHorizontaisPrimeiro() {
+    _freezersData.sort((a, b) {
+      final tipoA = a['tipo'] ?? 'Horizontal';
+      final tipoB = b['tipo'] ?? 'Horizontal';
 
-    return tipo == 'Horizontal' ? 0.187 : 0.113;
+      if (tipoA == 'Horizontal' && tipoB != 'Horizontal') return -1;
+      if (tipoA != 'Horizontal' && tipoB == 'Horizontal') return 1;
+      return 0;
+    });
+  }
+
+  void _inicializarDistribuicao() {
+    _distribuicao = {};
+    for (int i = 0; i < _freezersData.length; i++) {
+      _distribuicao[i] = {};
+    }
+    _massasFaltantes = {};
+    _faltaEspaco = false;
+  }
+
+  List<double> _calcularVolumesFreezers() {
+    return _freezersData.map((freezer) {
+      return double.tryParse(freezer['volume'].toString()) ?? 0.0;
+    }).toList();
+  }
+
+  int _alocar(
+    String massa,
+    int quantidade,
+    int index,
+    double volumeFreezer,
+    List<double> volumeOcupado,
+  ) {
+    final tipo = _freezersData[index]['tipo'] ?? 'Horizontal';
+    final fator = _VOLUME_FATORES[massa] ?? _VOLUME_PADRAO[tipo]!;
+    final volumePorPacote = 1 / fator;
+
+    final disponivel = volumeFreezer - volumeOcupado[index];
+    final max = (disponivel * fator).floor();
+
+    if (max <= 0) return quantidade;
+
+    final alocar = quantidade <= max ? quantidade : max;
+
+    _distribuicao[index]![massa] = (_distribuicao[index]![massa] ?? 0) + alocar;
+    volumeOcupado[index] += alocar * volumePorPacote;
+
+    return quantidade - alocar;
+  }
+
+  // =====================================
+  // UI
+  // =====================================
+
+  void _mostrarDialogoAtencao() {
+    showDialog(
+      barrierDismissible: false,
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Atenção'),
+        content: const Text(
+            'Por favor cadastrar conservadores na tela de equipamentos.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          )
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Distribuição Pacotes')),
-      body: freezersData.isEmpty
+      body: _freezersData.isEmpty
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  ElevatedButton(
-                    onPressed: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => Freezer(storeName: widget.storeName),
-                        ),
-                      );
-                      _loadFreezersData();
-                    },
-                    child: const Text(
-                      'Conservadores',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ...List.generate(freezersData.length, (i) {
-                    Map<String, dynamic> freezer = freezersData[i];
-                    Map<String, int> massas = distribuicao[i] ?? {};
-
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      color: Colors.blue[50],
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${freezer['modelo'] ?? 'Freezer'} (${freezer['tipo'] ?? 'N/A'}) - ${freezer['volume'] ?? '0'} litros',
-                              style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 8),
-                            ...massas.entries.map((e) {
-                              return Text(
-                                  '${e.key.replaceFirst("Massa ", "")}: ${e.value} pacotes');
-                            }).toList(),
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
-                  if (faltaEspaco)
-                    Card(
-                      color: Colors.red[300],
-                      margin: const EdgeInsets.only(top: 16),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'ATENÇÃO: Freezers insuficientes para armazenar todas as massas!',
-                              style: TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 8),
-                            if (massasFaltantes.isNotEmpty) ...[
-                              const Text(
-                                'Massas que não couberam:',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 4),
-                              ...massasFaltantes.entries.map((e) {
-                                return Text(
-                                  '• ${e.key.replaceFirst("Massa ", "")}: ${e.value} pacotes',
-                                  style: const TextStyle(fontSize: 14),
-                                );
-                              }).toList(),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+          : _buildBody(),
     );
   }
-}
 
+  Widget _buildBody() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          ElevatedButton(
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => Freezer(storeName: widget.storeName),
+                ),
+              );
+              _carregarDadosFreezers();
+            },
+            child: const Text('Conservadores',
+                style: TextStyle(color: Colors.white)),
+          ),
+          const SizedBox(height: 16),
+          ..._buildCardsFreezers(),
+          if (_faltaEspaco) _buildAlertaMassas(),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildCardsFreezers() {
+    return List.generate(_freezersData.length, (index) {
+      final freezer = _freezersData[index];
+      final massas = _distribuicao[index]!;
+
+      return Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        color: Colors.blue[50],
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "${freezer['modelo']} (${freezer['tipo']}) - ${freezer['volume']} litros",
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ...massas.entries.map(
+                  (e) => Text("${_limparNome(e.key)}: ${e.value} pacotes")),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _buildAlertaMassas() {
+    return Card(
+      margin: const EdgeInsets.only(top: 16),
+      color: Colors.red[300],
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'ATENÇÃO: Freezers insuficientes!',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            ..._massasFaltantes.entries.map((e) {
+              return Text("• ${_limparNome(e.key)}: ${e.value} pacotes");
+            })
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _limparNome(String nome) => nome.replaceFirst("Massa ", "");
+}
 class StockAdjustmentScreen extends StatefulWidget {
   final String storeName;
   const StockAdjustmentScreen({
