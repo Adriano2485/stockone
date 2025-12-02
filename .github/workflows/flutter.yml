@@ -4,6 +4,9 @@ on:
   push:
     branches: [ master ]
 
+permissions:
+  contents: write    # 👈 OBRIGATÓRIO PARA PERMITIR PUBLICAR NO GITHUB PAGES
+
 jobs:
 
   # -----------------------------
@@ -60,7 +63,7 @@ jobs:
   # -----------------------------
   deploy_web:
     runs-on: ubuntu-latest
-    needs: build_android    # Espera o build Android terminar (pode remover se quiser rodar em paralelo)
+    needs: build_android
 
     steps:
     - name: Baixar código
