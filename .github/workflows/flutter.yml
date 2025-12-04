@@ -80,9 +80,11 @@ jobs:
     - name: Instalar dependências
       run: flutter pub get
 
+    # 👇 ALTERADO: Adicionado --base-href
     - name: Build Flutter Web
-      run: flutter build web --release
+      run: flutter build web --release --base-href "/stockone/"
 
+    # 👇 ALTERADO: Usando peaceiris/actions-gh-pages@v3
     - name: Deploy no GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
       with:
