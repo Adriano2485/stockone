@@ -1,92 +1,62 @@
-name: Build do App + Deploy Web
+name: Build do App
 
 on:
   push:
     branches: [ master ]
 
-permissions:
-  contents: write    # 👈 OBRIGATÓRIO PARA PERMITIR PUBLICAR NO GITHUB PAGES
-
 jobs:
-
-  # -----------------------------
-  # JOB 1 – Build Android (APK + AAB)
-  # -----------------------------
-  build_android:
+  build:
     runs-on: ubuntu-latest
 
     steps:
     - name: Baixar código
       uses: actions/checkout@v4
-    
+
     - name: Configurar Flutter
       uses: subosito/flutter-action@v2
       with:
         flutter-version: '3.38.3'
-        
+
     - name: Criar local.properties
       run: |
         cat > android/local.properties << EOF
         sdk.dir=$ANDROID_HOME
         flutter.sdk=$FLUTTER_ROOT
         EOF
-        
+
     - name: Instalar dependências
       run: flutter pub get
-    
+
     - name: 🔥 LIMPAR TUDO
       run: flutter clean
-    
+
+    # ---------------- MOBILE ----------------
     - name: Build APK
       run: flutter build apk --release
-      
+
     - name: Build AAB
       run: flutter build appbundle --release
-      
-    - name: 📱 Fazer upload do APK
+
+    - name: 📱 Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: StockOne-APK
         path: build/app/outputs/flutter-apk/app-release.apk
         retention-days: 30
-        
-    - name: 📦 Fazer upload do AAB
+
+    - name: 📦 Upload AAB
       uses: actions/upload-artifact@v4
       with:
         name: StockOne-AAB
         path: build/app/outputs/bundle/release/app-release.aab
         retention-days: 30
 
+    # ---------------- WEB ----------------
+    - name: 🌐 Build Web
+      run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
 
-  # -----------------------------
-  # JOB 2 – Build Web + Deploy no GitHub Pages
-  # -----------------------------
-  deploy_web:
-    runs-on: ubuntu-latest
-    needs: build_android
-
-    steps:
-    - name: Baixar código
-      uses: actions/checkout@v4
-
-    - name: Configurar Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: '3.38.3'
-
-    - name: Ativar suporte Web
-      run: flutter config --enable-web
-
-    - name: Instalar dependências
-      run: flutter pub get
-
-    # 👇 LINHA CRÍTICA - VERSÃO CORRIGIDA
-    - name: Build Flutter Web
-      run: flutter build web --release --base-href "/stockone/" --web-renderer html --no-tree-shake-icons --dart-define=FLUTTER_WEB_USE_SKIA=true --no-sound-null-safety
-
-    # 👇 ALTERADO: Usando peaceiris/actions-gh-pages@v3
-    - name: Deploy no GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
+    - name: 🚀 Deploy Web no GitHub Pages
+      uses: peaceiris/actions-gh-pages@v4
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./build/web
+        publish_dir: build/web
