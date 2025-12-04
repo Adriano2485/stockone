@@ -1,4 +1,5 @@
 
+
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:dio/dio.dart';
@@ -6,7 +7,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart'; // ← IMPORTANTE!
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -26,9 +29,14 @@ import 'package:flutter/services.dart';
 import 'dart:io';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // ← CORREÇÃO AQUI
-  await Firebase.initializeApp();
-  runApp(MyApp());
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // >>> CONFIGURAÇÃO CORRETA PARA WEB / ANDROID / IOS <<<
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  runApp(const MyApp());
 }
 
 const verdeEscuro = Color(0xFF006400);
@@ -38,6 +46,7 @@ const preto = Color(0xff0e0101);
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -86,7 +95,6 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
 class RedeScreen extends StatefulWidget {
   const RedeScreen({super.key});
 
