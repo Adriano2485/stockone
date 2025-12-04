@@ -1,5 +1,3 @@
-
-
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:dio/dio.dart';
@@ -95,6 +93,7 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
 class RedeScreen extends StatefulWidget {
   const RedeScreen({super.key});
 
@@ -116,12 +115,10 @@ class _RedeScreenState extends State<RedeScreen> {
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: const Text("Não")
-            ),
+                child: const Text("Não")),
             TextButton(
                 onPressed: () => Navigator.pop(ctx, true),
-                child: const Text("Sim")
-            ),
+                child: const Text("Sim")),
           ],
         );
       },
@@ -299,7 +296,6 @@ class _RedeScreenState extends State<RedeScreen> {
         ],
         // =====================================
       ),
-
       body: Stack(
         children: [
           Container(
@@ -352,7 +348,6 @@ class _RedeScreenState extends State<RedeScreen> {
     );
   }
 }
-
 
 class Bahamas extends StatelessWidget {
   const Bahamas({super.key});
@@ -2834,6 +2829,7 @@ class _LayoutDistribuicaoScreenState extends State<LayoutDistribuicaoScreen> {
 
   String _limparNome(String nome) => nome.replaceFirst("Massa ", "");
 }
+
 class StockAdjustmentScreen extends StatefulWidget {
   final String storeName;
   const StockAdjustmentScreen({
@@ -5539,6 +5535,9 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   late TextEditingController gerenteController;
   late TextEditingController encarregadoController;
 
+  // Controller fixo pra Pão Francês (evita recriação no build)
+  late TextEditingController giroMedioController;
+
   String resultadoInteiro = '';
   String vendamediadiaria = '';
   String userName = '';
@@ -5625,6 +5624,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     crachaController = TextEditingController();
     gerenteController = TextEditingController();
     encarregadoController = TextEditingController();
+    giroMedioController = TextEditingController();
 
     // Inicializa os mapas para cada produto
     rupturasSelecionadas = {for (var p in produtos) p: false};
@@ -5646,34 +5646,69 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         final data = doc.data() ?? {};
         final relatorioData = data['relatorioFinal'] ?? {};
 
+        // Extrair valores temporariamente
+        final fetchedCracha = data['cracha'] ?? '';
+        final fetchedGerente = data['gerente'] ?? '';
+        final fetchedEncarregado = data['encarregado'] ?? '';
+
+        final fetchedColaboradores = relatorioData['colaboradoresAtivos'] ?? 0;
+        final fetchedRotinaSelecionadas =
+            List<String>.from(relatorioData['rotinaSelecionadas'] ?? []);
+        final fetchedRotinaOutros = relatorioData['rotinaOutros'] ?? '';
+        final fetchedTrabalhoRealizado =
+            relatorioData['trabalhoRealizado'] ?? '';
+        final fetchedGiroMedio = relatorioData['giroMedio'] ?? '';
+        final fetchedQtdRetirada = relatorioData['qtdRetirada'] ?? '';
+        final fetchedLotesRetirados = relatorioData['lotesRetirados'] ?? '';
+        final fetchedQtdSobra = relatorioData['qtdSobra'] ?? '';
+        final fetchedUserName = data['userName'] ?? '';
+        final fetchedResultadoInteiro = relatorioData['resultadoInteiro'] ?? '';
+
+        // Carregar vendas do Firebase para calcular resultadoInteiro
+        final vendasData = data['vendas'] ?? {};
+        final vendaMensalPaoFrances =
+            (vendasData['Pão Francês'] ?? 0).toDouble();
+        final diasDeGiro = data['diasGiro'] ?? 1;
+        final resultado = (diasDeGiro != 0)
+            ? (vendaMensalPaoFrances / diasDeGiro / 0.07)
+            : 0.0;
+        final calcResultadoInteiro = resultado.ceil().toString();
+
+        // Carregar rupturas e motivos
+        final rupturasData = relatorioData['rupturas'] ?? {};
+
+        // Atualizar estado uma única vez
         setState(() {
           // Carregar dados compartilhados do nível principal
-          crachaController.text = data['cracha'] ?? '';
-          gerenteController.text = data['gerente'] ?? '';
-          encarregadoController.text = data['encarregado'] ?? '';
+          crachaController.text = fetchedCracha;
+          gerenteController.text = fetchedGerente;
+          encarregadoController.text = fetchedEncarregado;
 
-          colaboradoresAtivos = relatorioData['colaboradoresAtivos'] ?? 0;
-          rotinaSelecionadas =
-              List<String>.from(relatorioData['rotinaSelecionadas'] ?? []);
-          rotinaOutros = relatorioData['rotinaOutros'] ?? '';
-          trabalhoRealizado = relatorioData['trabalhoRealizado'] ?? '';
-          giroMedio = relatorioData['giroMedio'] ?? '';
-          qtdRetirada = relatorioData['qtdRetirada'] ?? '';
-          lotesRetirados = relatorioData['lotesRetirados'] ?? '';
-          qtdSobra = relatorioData['qtdSobra'] ?? '';
-          userName = data['userName'] ?? '';
-          resultadoInteiro = relatorioData['resultadoInteiro'] ?? '';
+          colaboradoresAtivos = fetchedColaboradores;
+          rotinaSelecionadas = fetchedRotinaSelecionadas;
+          rotinaOutros = fetchedRotinaOutros;
+          trabalhoRealizado = fetchedTrabalhoRealizado;
+          giroMedio = fetchedGiroMedio;
+          qtdRetirada = fetchedQtdRetirada;
+          lotesRetirados = fetchedLotesRetirados;
+          qtdSobra = fetchedQtdSobra;
+          userName = fetchedUserName;
 
-          // Carregar vendas do Firebase para calcular resultado
-          final vendasData = data['vendas'] ?? {};
-          final vendaMensalPaoFrances =
-              (vendasData['Pão Francês'] ?? 0).toDouble();
-          final diasDeGiro = data['diasGiro'] ?? 1;
-          final resultado = vendaMensalPaoFrances / diasDeGiro / 0.07;
-          resultadoInteiro = resultado.ceil().toString();
+          // resultadoInteiro calculado a partir das vendas e dias de giro
+          resultadoInteiro = calcResultadoInteiro;
+
+          // atualiza controller do campo de KG do Pão Francês
+          giroMedioController.text = giroMedio;
+
+          // calcula vendamediadiaria a partir do giroMedio (se houver)
+          final parsedGiro = double.tryParse(giroMedio);
+          if (parsedGiro != null && parsedGiro > 0) {
+            vendamediadiaria = (parsedGiro / 0.07).toStringAsFixed(0);
+          } else {
+            vendamediadiaria = '';
+          }
 
           // Carregar rupturas e motivos
-          final rupturasData = relatorioData['rupturas'] ?? {};
           for (var produto in produtos) {
             final produtoData = rupturasData[produto] ?? {};
             rupturasSelecionadas[produto] = produtoData['selecionado'] ?? false;
@@ -5773,7 +5808,7 @@ ${rotinaSelecionadas.join(', ')}${rotinaSelecionadas.contains('outros') ? ' ($ro
 
 $trabalhoRealizado
 
-*Vendas Do Dia:
+*Vendas Do Dia Anterior:
 
 #Pão Francês: 
 $vendamediadiaria unidades
@@ -5811,6 +5846,7 @@ ${_formatarRupturas()}
     crachaController.dispose();
     gerenteController.dispose();
     encarregadoController.dispose();
+    giroMedioController.dispose();
     super.dispose();
   }
 
@@ -5920,7 +5956,7 @@ ${_formatarRupturas()}
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Venda Pão Francês/Dia:',
+                          'Venda Média Pão Francês/Dia:',
                           style: TextStyle(fontSize: 23, color: verdeEscuro),
                         ),
                         const SizedBox(height: 8),
@@ -6024,7 +6060,7 @@ ${_formatarRupturas()}
               ),
               const SizedBox(height: 20),
               const Text(
-                'Vendas do Dia:',
+                'Vendas do Dia Anterior:',
                 style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 23,
@@ -6043,22 +6079,24 @@ ${_formatarRupturas()}
                         border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
-                      controller: TextEditingController(text: giroMedio)
-                        ..selection = TextSelection.fromPosition(
-                          TextPosition(offset: giroMedio.length),
-                        ),
+                      controller: giroMedioController,
                       onChanged: (v) {
                         giroMedio = v;
-                        _salvarPreferencias();
-
+                        // recalcula vendamediadiaria conforme o que o usuário digita
                         final valor = double.tryParse(giroMedio);
                         if (valor != null && valor > 0) {
                           final convertido = (valor / 0.07).toStringAsFixed(0);
                           setState(() {
                             vendamediadiaria = convertido;
                           });
-                          _salvarPreferencias();
+                        } else {
+                          setState(() {
+                            vendamediadiaria = '';
+                          });
                         }
+
+                        // salva o giroMedio e vendamediadiaria (resultado não altera resultadoInteiro)
+                        _salvarPreferencias();
                       },
                     ),
                   ),
