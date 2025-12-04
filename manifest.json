@@ -1,11 +1,11 @@
 {
-    "name": "StockOne",
-    "short_name": "StockOne",
+    "name": "material3_counter",
+    "short_name": "material3_counter",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#ffffff",
+    "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "StockOne - Gestão de estoque e pedidos.",
+    "description": "A new Flutter project.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

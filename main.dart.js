@@ -104412,7 +104412,7 @@ $1(a){return!0},
 $S:31}
 A.TI.prototype={
 E(a){var s=null,r=A.aZ(4294965488),q=A.aWF(s,s,new A.fw(4,A.cs(12),B.M),s,s,s,s,s,s,s,s,s,s,B.H,!0,s,s,s,s,s,s,s,s,s,s,s,s,s,s,s,s,s,s,s,s,s,s,s,s)
-return new A.EW(new A.mm(s),"Ajuda\xed",A.zb(s,s,new A.x1(A.dR(s,s,A.aZ(4292323438),s,s,s,5,s,s,B.H,s,s,new A.aj(24,16,24,16),s,new A.ce(A.cs(12),B.M),s,s,s,B.ji,s)),"Lora",q,B.bQ,r,B.aU4,s),!1,s)}}
+return new A.EW(new A.mm(s),"StockOne",A.zb(s,s,new A.x1(A.dR(s,s,A.aZ(4292323438),s,s,s,5,s,s,B.H,s,s,new A.aj(24,16,24,16),s,new A.ce(A.cs(12),B.M),s,s,s,B.ji,s)),"Lora",q,B.bQ,r,B.aU4,s),!1,s)}}
 A.mm.prototype={
 a6(){return new A.LG()}}
 A.LG.prototype={
