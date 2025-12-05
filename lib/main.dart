@@ -5597,9 +5597,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     'Pão Milho',
     'Pão de Alho da Casa',
     'Pão de Alho da Casa Picante',
-    'Pão de Alho da Casa Refri.',
-    'Profiteroles Brigadeiro Branco',
-    'Profiteroles Doce de Leite',
+    
   ];
 
   final motivos = [
@@ -5797,7 +5795,7 @@ BOA TARDE A TODOS!
 *Gerência: ${gerenteController.text}
 *Encarregado: ${encarregadoController.text}
 *Colaboradores no dia: $colaboradoresAtivos
-*Venda Pão Francês/dia: 
+*Venda Média Pão Francês/dia: 
 $resultadoInteiro unidades
 
 *Motivo: 
