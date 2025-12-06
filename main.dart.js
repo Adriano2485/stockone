@@ -107375,7 +107375,7 @@ A.aIj.prototype={
 $0(){return this.a.w=this.b},
 $S:0}
 A.GK.prototype={
-a6(){var s,r,q=new A.cL(Date.now(),0,!1),p=t.s,o=A.b(["rotina","inaugura\xe7\xe3o","cobrir falta de funcion\xe1rios","outros"],p),n=A.b([],p),m=A.b(["P\xe3o Franc\xeas","P\xe3o Franc\xeas integral","P\xe3o Franc\xeas Panhoca","P\xe3o Franc\xeas com Queijo","P\xe3o Baguete Francesa Queijo","P\xe3o Baguete Francesa","P\xe3o Baguete Francesa Gergelim","Mini P\xe3o Franc\xeas Gergelim","Baguete Francesa Queijo","Baguete Francesa","P\xe3o Queijo Tradicional","P\xe3o Queijo Coquetel","Biscoito Queijo","Biscoito Polvilho","P\xe3o Samaritano","P\xe3o Pizza","P\xe3o Tatu","Mini P\xe3o Sonho","Mini P\xe3o Sonho Chocolate","P\xe3o Bambino","Mini Marta Rocha","P\xe3o Doce Ferradura","P\xe3o Doce Caracol","Rosca Caseira","Rosca Caseira C\xf4co","Rosca Caseira Leite em P\xf3","Rosca C\xf4co/Queijo","Sandu\xedche Bahamas","Rabanada Assada","P\xe3o Fofinho","Sandu\xedche Fofinho","Rosca Fofinha Temperada","Caseirinho","P\xe3o P/ Rabanada","P\xe3o Doce Comprido","P\xe3o Milho","P\xe3o de Alho da Casa","P\xe3o de Alho da Casa Picante","P\xe3o de Alho da Casa Refri.","Profiteroles Brigadeiro Branco","Profiteroles Doce de Leite"],p)
+a6(){var s,r,q=new A.cL(Date.now(),0,!1),p=t.s,o=A.b(["rotina","inaugura\xe7\xe3o","cobrir falta de funcion\xe1rios","outros"],p),n=A.b([],p),m=A.b(["P\xe3o Franc\xeas","P\xe3o Franc\xeas integral","P\xe3o Franc\xeas Panhoca","P\xe3o Franc\xeas com Queijo","P\xe3o Baguete Francesa Queijo","P\xe3o Baguete Francesa","P\xe3o Baguete Francesa Gergelim","Mini P\xe3o Franc\xeas Gergelim","Baguete Francesa Queijo","Baguete Francesa","P\xe3o Queijo Tradicional","P\xe3o Queijo Coquetel","Biscoito Queijo","Biscoito Polvilho","P\xe3o Samaritano","P\xe3o Pizza","P\xe3o Tatu","Mini P\xe3o Sonho","Mini P\xe3o Sonho Chocolate","P\xe3o Bambino","Mini Marta Rocha","P\xe3o Doce Ferradura","P\xe3o Doce Caracol","Rosca Caseira","Rosca Caseira C\xf4co","Rosca Caseira Leite em P\xf3","Rosca C\xf4co/Queijo","Sandu\xedche Bahamas","Rabanada Assada","P\xe3o Fofinho","Sandu\xedche Fofinho","Rosca Fofinha Temperada","Caseirinho","P\xe3o P/ Rabanada","P\xe3o Doce Comprido","P\xe3o Milho","P\xe3o de Alho da Casa","P\xe3o de Alho da Casa Picante"],p)
 p=A.b(["aguardando fermenta\xe7\xe3o","n\xe3o foi retirado","aguardando acabamento","ruptura em estoque","aguardando forneamento","outros"],p)
 s=$.br
 r=(s==null?$.br=$.db():s).cY("[DEFAULT]")
@@ -107391,13 +107391,13 @@ m.r=new A.aK(B.X,s)
 m.w=new A.aK(B.X,s)
 s=t.N
 r=A.o(s,t.y)
-for(q=m.dx,p=0;p<41;++p)r.m(0,q[p],!1)
+for(q=m.dx,p=0;p<38;++p)r.m(0,q[p],!1)
 m.fr=r
 r=A.o(s,s)
-for(o=m.dy,p=0;p<41;++p)r.m(0,q[p],o[0])
+for(o=m.dy,p=0;p<38;++p)r.m(0,q[p],o[0])
 m.fx=r
 s=A.o(s,s)
-for(p=0;p<41;++p)s.m(0,q[p],"")
+for(p=0;p<38;++p)s.m(0,q[p],"")
 m.fy=s
 n=new A.cL(Date.now(),0,!1)
 m.as=B.r.d9(B.v.k(A.d8(n)),2,"0")+"/"+B.r.d9(B.v.k(A.bF(n)),2,"0")+"/"+A.by(n)
@@ -107489,7 +107489,7 @@ e.toString
 s=6
 return A.r(i.a.ds(0,e,f),$async$dT)
 case 6:n=A.o(d,c)
-for(i=o.dx,h=t.K,g=o.dy,b=0;b<41;++b){m=i[b]
+for(i=o.dx,h=t.K,g=o.dy,b=0;b<38;++b){m=i[b]
 f=o.fr
 f===$&&A.a()
 f=f.h(0,m)
@@ -107525,7 +107525,7 @@ case 5:return A.u(null,r)
 case 1:return A.t(p.at(-1),r)}})
 return A.v($async$dT,r)},
 agu(){var s,r,q,p,o,n,m=this,l=new A.dH("")
-for(s=m.dx,r=0;r<41;++r){q=s[r]
+for(s=m.dx,r=0;r<38;++r){q=s[r]
 p=m.fr
 p===$&&A.a()
 if(p.h(0,q)===!0){p=m.fx
@@ -107565,7 +107565,7 @@ k=q.Q
 j=q.x
 i=B.l.aR(q.ax,", ")
 h=B.l.p(q.ax,"outros")?" ("+q.ay+")":""
-h=B.r.it("BOA TARDE A TODOS!\n\n*T\xe9rmino de visita: "+g+"\n*Data: "+f+"\n*Hor\xe1rio: "+p+"\n*T\xe9cnico(s): "+n+" \n*Crach\xe1: "+o+"\n*Ger\xeancia: "+m+"\n*Encarregado: "+l+"\n*Colaboradores no dia: "+k+"\n*Venda P\xe3o Franc\xeas/dia: \n"+j+" unidades\n\n*Motivo: \n\n"+i+h+"\n\n*Trabalho Realizado No Setor:\n\n"+q.ch+"\n\n*Vendas Do Dia Anterior:\n\n#P\xe3o Franc\xeas: \n"+q.y+" unidades\n#P\xe3o de Queijo Tradicional: \n"+q.cx+" Kilos\n#P\xe3o de Queijo Coquetel: \n"+q.cy+" Kilos\n#Biscoito de Queijo: \n"+q.db+" Kilos\n\n*Rupturas: \n\n"+q.agu()+"\n\n")
+h=B.r.it("BOA TARDE A TODOS!\n\n*T\xe9rmino de visita: "+g+"\n*Data: "+f+"\n*Hor\xe1rio: "+p+"\n*T\xe9cnico(s): "+n+" \n*Crach\xe1: "+o+"\n*Ger\xeancia: "+m+"\n*Encarregado: "+l+"\n*Colaboradores no dia: "+k+"\n*Venda M\xe9dia P\xe3o Franc\xeas/dia: \n"+j+" unidades\n\n*Motivo: \n\n"+i+h+"\n\n*Trabalho Realizado No Setor:\n\n"+q.ch+"\n\n*Vendas Do Dia Anterior:\n\n#P\xe3o Franc\xeas: \n"+q.y+" unidades\n#P\xe3o de Queijo Tradicional: \n"+q.cx+" Kilos\n#P\xe3o de Queijo Coquetel: \n"+q.cy+" Kilos\n#Biscoito de Queijo: \n"+q.db+" Kilos\n\n*Rupturas: \n\n"+q.agu()+"\n\n")
 s=2
 return A.r($.a8T().nv(0,h,null,"Relat\xf3rio Final"),$async$Ao)
 case 2:return A.u(null,r)}})
@@ -107685,7 +107685,7 @@ p.scU(0,f)
 s=A.eu(g.CW)
 if(s!=null&&s>0)g.y=B.n.a9(s/0.07,0)
 else g.y=""
-for(f=g.dx,p=h.ax,o=J.a8(p),n=t.z,m=g.dy,l=0;l<41;++l){r=f[l]
+for(f=g.dx,p=h.ax,o=J.a8(p),n=t.z,m=g.dy,l=0;l<38;++l){r=f[l]
 k=o.h(p,r)
 q=k==null?A.o(n,n):k
 j=g.fr
