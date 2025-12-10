@@ -3,11 +3,9 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart'; // ← IMPORTANTE!
+import 'firebase_options.dart'; //
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -303,7 +301,10 @@ class _RedeScreenState extends State<RedeScreen> {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0xFFFFE5B4), Color(0xFFD29752)],
+                colors: [
+                  Color(0xFF009739), // Verde bandeira
+                  Color(0xFF4CAF50), // Verde mais claro
+                ],
               ),
             ),
             padding: const EdgeInsets.all(16),
@@ -5557,6 +5558,10 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   String qtdRetirada = '';
   String lotesRetirados = '';
   String qtdSobra = '';
+  String rabanadaassada = '';
+  String paopararabanada = '';
+  String paodealhodacasapicante = '';
+  String paodealhodacasa = '';
 
   final List<String> produtos = [
     'Pão Francês',
@@ -5597,8 +5602,9 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     'Pão Milho',
     'Pão de Alho da Casa',
     'Pão de Alho da Casa Picante',
-    
-  
+    'Pão de Alho da Casa Refri.',
+    'Profiteroles Brigadeiro Branco',
+    'Profiteroles Doce de Leite',
   ];
 
   final motivos = [
@@ -5659,6 +5665,10 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         final fetchedGiroMedio = relatorioData['giroMedio'] ?? '';
         final fetchedQtdRetirada = relatorioData['qtdRetirada'] ?? '';
         final fetchedLotesRetirados = relatorioData['lotesRetirados'] ?? '';
+        final fetchedrabanadaassada = relatorioData['rabanadaassada'] ?? '';
+        final fetchedpaopararabanada = relatorioData['paopararabanada'] ?? '';
+        final fetchedpaodealhodacasa = relatorioData['paodealhodacasa'] ?? '';
+        final fetchedpaodealhodacasapicante = relatorioData['paodealhodacasapicante'] ?? '';
         final fetchedQtdSobra = relatorioData['qtdSobra'] ?? '';
         final fetchedUserName = data['userName'] ?? '';
         final fetchedResultadoInteiro = relatorioData['resultadoInteiro'] ?? '';
@@ -5692,6 +5702,14 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
           lotesRetirados = fetchedLotesRetirados;
           qtdSobra = fetchedQtdSobra;
           userName = fetchedUserName;
+          paopararabanada = fetchedpaopararabanada;
+          rabanadaassada = fetchedrabanadaassada;
+          paodealhodacasapicante = fetchedpaodealhodacasapicante;
+          paodealhodacasa = fetchedpaodealhodacasa;
+          lotesRetirados = fetchedLotesRetirados;
+          qtdSobra = fetchedQtdSobra;
+          userName = fetchedUserName;
+
 
           // resultadoInteiro calculado a partir das vendas e dias de giro
           resultadoInteiro = calcResultadoInteiro;
@@ -5752,6 +5770,10 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         'qtdSobra': qtdSobra,
         'resultadoInteiro': resultadoInteiro,
         'rupturas': rupturasData,
+        'rabanadaassada': rabanadaassada ,
+        'paopararabanada': paopararabanada ,
+        'paodealhodacasa': paodealhodacasa ,
+        'paodealhodacasapicante': paodealhodacasapicante ,
       };
 
       await _firestore.collection('stores').doc(widget.storeName).set({
@@ -5796,7 +5818,7 @@ BOA TARDE A TODOS!
 *Gerência: ${gerenteController.text}
 *Encarregado: ${encarregadoController.text}
 *Colaboradores no dia: $colaboradoresAtivos
-*Venda Média Pão Francês/dia: 
+*Venda Pão Francês/dia: 
 $resultadoInteiro unidades
 
 *Motivo: 
@@ -5817,6 +5839,14 @@ $qtdRetirada Kilos
 $lotesRetirados Kilos
 #Biscoito de Queijo: 
 $qtdSobra Kilos
+#Pão de Alho da Casa: 
+$paodealhodacasa Unidades
+#Pão de Alho da Casa Picante: 
+$paodealhodacasapicante Unidades
+#Pão Para Rabanada: 
+$paopararabanada Unidades
+#Rabanada Assada: 
+$rabanadaassada Kilos
 
 *Rupturas: 
 
@@ -6175,6 +6205,71 @@ ${_formatarRupturas()}
                   _salvarPreferencias();
                 },
               ),
+              const SizedBox(height: 10),
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Pão Para Rabanada (Unid)',
+                  labelStyle: TextStyle(fontSize: 16),
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+                controller: TextEditingController(text: paopararabanada)
+                  ..selection = TextSelection.fromPosition(
+                      TextPosition(offset: paopararabanada.length)),
+                onChanged: (v) {
+                  paopararabanada = v;
+                  _salvarPreferencias();
+                },
+              ),
+               const SizedBox(height: 10),
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Rabanada Assada (Kg)',
+                  labelStyle: TextStyle(fontSize: 16),
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+                controller: TextEditingController(text: rabanadaassada)
+                  ..selection = TextSelection.fromPosition(
+                      TextPosition(offset: rabanadaassada.length)),
+                onChanged: (v) {
+                  rabanadaassada = v;
+                  _salvarPreferencias();
+                },
+              ),
+               const SizedBox(height: 10),
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Pão de Alho da Casa (Unid)',
+                  labelStyle: TextStyle(fontSize: 16),
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+                controller: TextEditingController(text: paodealhodacasa)
+                  ..selection = TextSelection.fromPosition(
+                      TextPosition(offset: paodealhodacasa.length)),
+                onChanged: (v) {
+                  paodealhodacasa = v;
+                  _salvarPreferencias();
+                },
+              ),
+               const SizedBox(height: 10),
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Pão de Alho da Casa Picante (Unid)',
+                  labelStyle: TextStyle(fontSize: 16),
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+                controller: TextEditingController(text: paodealhodacasapicante)
+                  ..selection = TextSelection.fromPosition(
+                      TextPosition(offset: paodealhodacasapicante.length)),
+                onChanged: (v) {
+                  paodealhodacasapicante = v;
+                  _salvarPreferencias();
+                },
+              ),
+               
               const SizedBox(height: 20),
               const Text(
                 'Rupturas:',
