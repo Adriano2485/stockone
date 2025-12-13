@@ -27,10 +27,10 @@ import 'dart:io';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // >>> CONFIGURAÇÃO CORRETA PARA WEB / ANDROID / IOS <<<
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // 🔥 FIREBASE APENAS ANDROID
+  if (Platform.isAndroid) {
+    await Firebase.initializeApp();
+  }
 
   runApp(const MyApp());
 }
