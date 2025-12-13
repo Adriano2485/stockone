@@ -1,4 +1,4 @@
-name: Build do App
+name: Build do App (AAB)
 
 on:
   push:
@@ -9,40 +9,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Baixar código
+    - name: 📥 Baixar código
       uses: actions/checkout@v4
 
-    - name: Configurar Flutter
+    - name: 🐦 Configurar Flutter
       uses: subosito/flutter-action@v2
       with:
         flutter-version: '3.38.3'
 
-    - name: Criar local.properties
+    - name: ⚙️ Criar local.properties
       run: |
         cat > android/local.properties << EOF
         sdk.dir=$ANDROID_HOME
         flutter.sdk=$FLUTTER_ROOT
         EOF
 
-    - name: Instalar dependências
+    - name: 📦 Instalar dependências
       run: flutter pub get
 
-    - name: 🔥 LIMPAR TUDO
+    - name: 🧹 Limpar build
       run: flutter clean
 
-    # ---------------- MOBILE ----------------
-    - name: Build APK
-      run: flutter build apk --release
-
-    - name: Build AAB
+    # ---------------- ANDROID ----------------
+    - name: 🤖 Build AAB (Release)
       run: flutter build appbundle --release
-
-    - name: 📱 Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: StockOne-APK
-        path: build/app/outputs/flutter-apk/app-release.apk
-        retention-days: 30
 
     - name: 📦 Upload AAB
       uses: actions/upload-artifact@v4
@@ -50,13 +40,3 @@ jobs:
         name: StockOne-AAB
         path: build/app/outputs/bundle/release/app-release.aab
         retention-days: 30
-
-    # ---------------- WEB ----------------
-    - name: 🌐 Build Web
-      run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
-
-    - name: 🚀 Deploy Web no GitHub Pages
-      uses: peaceiris/actions-gh-pages@v4
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: build/web
