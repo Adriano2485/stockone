@@ -1,36 +1,35 @@
-import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'dart:io';
-import 'package:dio/dio.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart'; //
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
-import 'package:wakelock_plus/wakelock_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:pdf/pdf.dart';
+import 'package:csv/csv.dart';
+import 'package:dio/dio.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:csv/csv.dart';
-import 'dart:convert';
-import 'package:flutter/services.dart';
-import 'dart:io';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
+
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 🔥 FIREBASE APENAS ANDROID
-  if (Platform.isAndroid) {
-    await Firebase.initializeApp();
-  }
+  // >>> CONFIGURAÇÃO CORRETA PARA WEB / ANDROID / IOS <<<
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   runApp(const MyApp());
 }
@@ -302,8 +301,8 @@ class _RedeScreenState extends State<RedeScreen> {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Color(0xFF009739), // Verde bandeira
-                  Color(0xFF4CAF50), // Verde mais claro
+                  Color(0xff4dcd7e), // Verde bandeira
+                  Color(0xff094e0b), // Verde mais claro
                 ],
               ),
             ),
@@ -5602,9 +5601,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     'Pão Milho',
     'Pão de Alho da Casa',
     'Pão de Alho da Casa Picante',
-    'Pão de Alho da Casa Refri.',
-    'Profiteroles Brigadeiro Branco',
-    'Profiteroles Doce de Leite',
+  
   ];
 
   final motivos = [
