@@ -23,6 +23,8 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import 'firebase_options.dart';
 import 'package:flutter/foundation.dart';
+import 'package:in_app_update/in_app_update.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -95,10 +97,52 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: RedeScreen(),
+      home: UpdateGate(
+  child: RedeScreen(),
+),
+
     );
   }
 }
+class UpdateGate extends StatefulWidget {
+  final Widget child;
+  const UpdateGate({super.key, required this.child});
+
+  @override
+  State<UpdateGate> createState() => _UpdateGateState();
+}
+
+class _UpdateGateState extends State<UpdateGate> {
+  @override
+  void initState() {
+    super.initState();
+    _checkForUpdate();
+  }
+
+  Future<void> _checkForUpdate() async {
+    // ❌ Web não suporta In-App Update
+    if (kIsWeb) return;
+
+    try {
+      final info = await InAppUpdate.checkForUpdate();
+
+      if (info.updateAvailability ==
+              UpdateAvailability.updateAvailable &&
+          info.immediateUpdateAllowed) {
+        // 🔥 FORÇA ATUALIZAÇÃO
+        await InAppUpdate.performImmediateUpdate();
+      }
+    } catch (e) {
+      // erro silencioso (não trava o app)
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return widget.child;
+  }
+}
+
 
 class RedeScreen extends StatefulWidget {
   const RedeScreen({super.key});
