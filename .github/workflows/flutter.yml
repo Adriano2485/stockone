@@ -1,4 +1,4 @@
-name: Build Web (Flutter)
+name: Build Web
 
 on:
   push:
@@ -24,12 +24,11 @@ jobs:
       run: flutter clean
 
     # ---------------- WEB ----------------
-    - name: 🌐 Build Web (Release)
-      run: flutter build web --release
+    - name: 🌐 Build Web
+      run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
 
-    - name: 📦 Upload Web Build
-      uses: actions/upload-artifact@v4
+    - name: 🚀 Deploy Web no GitHub Pages
+      uses: peaceiris/actions-gh-pages@v4
       with:
-        name: StockOne-Web
-        path: build/web
-        retention-days: 30
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: build/web
