@@ -22,14 +22,23 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import 'firebase_options.dart';
+import 'package:flutter/foundation.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // >>> CONFIGURAÇÃO CORRETA PARA WEB / ANDROID / IOS <<<
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  try {
+    if (kIsWeb) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.web,
+      );
+    } else {
+      // Android / iOS usam os arquivos nativos
+      await Firebase.initializeApp();
+    }
+  } catch (e) {
+    debugPrint('Erro Firebase: $e');
+  }
 
   runApp(const MyApp());
 }
@@ -5601,7 +5610,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     'Pão Milho',
     'Pão de Alho da Casa',
     'Pão de Alho da Casa Picante',
-  
   ];
 
   final motivos = [
@@ -5665,7 +5673,8 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         final fetchedrabanadaassada = relatorioData['rabanadaassada'] ?? '';
         final fetchedpaopararabanada = relatorioData['paopararabanada'] ?? '';
         final fetchedpaodealhodacasa = relatorioData['paodealhodacasa'] ?? '';
-        final fetchedpaodealhodacasapicante = relatorioData['paodealhodacasapicante'] ?? '';
+        final fetchedpaodealhodacasapicante =
+            relatorioData['paodealhodacasapicante'] ?? '';
         final fetchedQtdSobra = relatorioData['qtdSobra'] ?? '';
         final fetchedUserName = data['userName'] ?? '';
         final fetchedResultadoInteiro = relatorioData['resultadoInteiro'] ?? '';
@@ -5706,7 +5715,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
           lotesRetirados = fetchedLotesRetirados;
           qtdSobra = fetchedQtdSobra;
           userName = fetchedUserName;
-
 
           // resultadoInteiro calculado a partir das vendas e dias de giro
           resultadoInteiro = calcResultadoInteiro;
@@ -5767,10 +5775,10 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         'qtdSobra': qtdSobra,
         'resultadoInteiro': resultadoInteiro,
         'rupturas': rupturasData,
-        'rabanadaassada': rabanadaassada ,
-        'paopararabanada': paopararabanada ,
-        'paodealhodacasa': paodealhodacasa ,
-        'paodealhodacasapicante': paodealhodacasapicante ,
+        'rabanadaassada': rabanadaassada,
+        'paopararabanada': paopararabanada,
+        'paodealhodacasa': paodealhodacasa,
+        'paodealhodacasapicante': paodealhodacasapicante,
       };
 
       await _firestore.collection('stores').doc(widget.storeName).set({
@@ -6218,7 +6226,7 @@ ${_formatarRupturas()}
                   _salvarPreferencias();
                 },
               ),
-               const SizedBox(height: 10),
+              const SizedBox(height: 10),
               TextField(
                 decoration: const InputDecoration(
                   labelText: 'Rabanada Assada (Kg)',
@@ -6234,7 +6242,7 @@ ${_formatarRupturas()}
                   _salvarPreferencias();
                 },
               ),
-               const SizedBox(height: 10),
+              const SizedBox(height: 10),
               TextField(
                 decoration: const InputDecoration(
                   labelText: 'Pão de Alho da Casa (Unid)',
@@ -6250,7 +6258,7 @@ ${_formatarRupturas()}
                   _salvarPreferencias();
                 },
               ),
-               const SizedBox(height: 10),
+              const SizedBox(height: 10),
               TextField(
                 decoration: const InputDecoration(
                   labelText: 'Pão de Alho da Casa Picante (Unid)',
@@ -6266,7 +6274,6 @@ ${_formatarRupturas()}
                   _salvarPreferencias();
                 },
               ),
-               
               const SizedBox(height: 20),
               const Text(
                 'Rupturas:',
