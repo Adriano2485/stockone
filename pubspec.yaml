@@ -3,7 +3,7 @@ name: stockone
 description: A new Flutter project.
 publish_to: 'none'
 
-version: 2.0.0+12
+version: 2.0.0+13
 
 environment:
   sdk: ">=3.7.0-0 <4.0.0"
