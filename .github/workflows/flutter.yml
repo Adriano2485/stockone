@@ -1,4 +1,4 @@
-name: Build Web + AAB
+name: Build do App (AAB)
 
 on:
   push:
@@ -17,13 +17,20 @@ jobs:
       with:
         flutter-version: '3.38.3'
 
+    - name: ⚙️ Criar local.properties
+      run: |
+        cat > android/local.properties << EOF
+        sdk.dir=$ANDROID_HOME
+        flutter.sdk=$FLUTTER_ROOT
+        EOF
+
     - name: 📦 Instalar dependências
       run: flutter pub get
 
     - name: 🧹 Limpar build
       run: flutter clean
 
-    # ---------------- ANDROID (AAB) ----------------
+    # ---------------- ANDROID ----------------
     - name: 🤖 Build AAB (Release)
       run: flutter build appbundle --release
 
@@ -33,13 +40,3 @@ jobs:
         name: StockOne-AAB
         path: build/app/outputs/bundle/release/app-release.aab
         retention-days: 30
-
-    # ---------------- WEB ----------------
-    - name: 🌐 Build Web
-      run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
-
-    - name: 🚀 Deploy Web no GitHub Pages
-      uses: peaceiris/actions-gh-pages@v4
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: build/web
