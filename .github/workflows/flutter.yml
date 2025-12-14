@@ -1,4 +1,4 @@
-name: Build do App (AAB)
+name: Build Web (Flutter)
 
 on:
   push:
@@ -17,26 +17,19 @@ jobs:
       with:
         flutter-version: '3.38.3'
 
-    - name: ⚙️ Criar local.properties
-      run: |
-        cat > android/local.properties << EOF
-        sdk.dir=$ANDROID_HOME
-        flutter.sdk=$FLUTTER_ROOT
-        EOF
-
     - name: 📦 Instalar dependências
       run: flutter pub get
 
     - name: 🧹 Limpar build
       run: flutter clean
 
-    # ---------------- ANDROID ----------------
-    - name: 🤖 Build AAB (Release)
-      run: flutter build appbundle --release
+    # ---------------- WEB ----------------
+    - name: 🌐 Build Web (Release)
+      run: flutter build web --release
 
-    - name: 📦 Upload AAB
+    - name: 📦 Upload Web Build
       uses: actions/upload-artifact@v4
       with:
-        name: StockOne-AAB
-        path: build/app/outputs/bundle/release/app-release.aab
+        name: StockOne-Web
+        path: build/web
         retention-days: 30
