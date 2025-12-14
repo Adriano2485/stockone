@@ -3,7 +3,7 @@ name: stockone
 description: A new Flutter project.
 publish_to: 'none'
 
-version: 2.0.3+11
+version: 2.0.0+12
 
 environment:
   sdk: ">=3.7.0-0 <4.0.0"
@@ -27,6 +27,8 @@ dependencies:
   url_launcher: ^6.1.11
   wakelock_plus: ^1.2.4
   flutter_secure_storage: ^8.0.0
+  in_app_update: ^4.2.2
+
 
 dev_dependencies:
   flutter_test:
