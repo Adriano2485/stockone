@@ -1,4 +1,4 @@
-name: Build Web
+name: Build Web + AAB
 
 on:
   push:
@@ -22,6 +22,17 @@ jobs:
 
     - name: 🧹 Limpar build
       run: flutter clean
+
+    # ---------------- ANDROID (AAB) ----------------
+    - name: 🤖 Build AAB (Release)
+      run: flutter build appbundle --release
+
+    - name: 📦 Upload AAB
+      uses: actions/upload-artifact@v4
+      with:
+        name: StockOne-AAB
+        path: build/app/outputs/bundle/release/app-release.aab
+        retention-days: 30
 
     # ---------------- WEB ----------------
     - name: 🌐 Build Web
