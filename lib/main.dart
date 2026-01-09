@@ -25,7 +25,6 @@ import 'firebase_options.dart';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_update/in_app_update.dart';
 
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -98,12 +97,12 @@ class MyApp extends StatelessWidget {
         ),
       ),
       home: UpdateGate(
-  child: RedeScreen(),
-),
-
+        child: RedeScreen(),
+      ),
     );
   }
 }
+
 class UpdateGate extends StatefulWidget {
   final Widget child;
   const UpdateGate({super.key, required this.child});
@@ -126,8 +125,7 @@ class _UpdateGateState extends State<UpdateGate> {
     try {
       final info = await InAppUpdate.checkForUpdate();
 
-      if (info.updateAvailability ==
-              UpdateAvailability.updateAvailable &&
+      if (info.updateAvailability == UpdateAvailability.updateAvailable &&
           info.immediateUpdateAllowed) {
         // 🔥 FORÇA ATUALIZAÇÃO
         await InAppUpdate.performImmediateUpdate();
@@ -142,7 +140,6 @@ class _UpdateGateState extends State<UpdateGate> {
     return widget.child;
   }
 }
-
 
 class RedeScreen extends StatefulWidget {
   const RedeScreen({super.key});
@@ -6718,6 +6715,11 @@ class _DocumentosState extends State<Documentos> {
       'label': 'Catálogo de Códigos CX-OPERADOR',
       'url':
           'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/catalogo%20codigo%20caixa-operador.pdf?alt=media&token=412537c0-a780-4f30-b7a1-0c0799f91bc1'
+    },
+    {
+      'label': 'Última atualização de baixas Bahamas',
+      'url':
+          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/baixas%20padaria%2C%20inclus%C3%A3o%20e%20perda%20d%C3%A1gua.xlsx?alt=media&token=3a55e276-2250-4544-b49d-00179bedd479'
     },
   ];
 
