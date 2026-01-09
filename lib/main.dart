@@ -6769,7 +6769,7 @@ class _DocumentosState extends State<Documentos> {
   void _shareDocument(String url, String title) async {
     try {
       final tempDir = await getTemporaryDirectory();
-      final filePath = '${tempDir.path}/$title.pdf';
+      final filePath = '${tempDir.path}/$title';
 
       // Baixar o PDF
       final response = await Dio().download(url, filePath);
