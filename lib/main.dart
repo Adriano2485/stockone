@@ -6719,7 +6719,7 @@ class _DocumentosState extends State<Documentos> {
     {
       'label': 'Última atualização de baixas Bahamas',
       'url':
-          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/baixas%20padaria%2C%20inclus%C3%A3o%20e%20perda%20d%C3%A1gua.xlsx?alt=media&token=3a55e276-2250-4544-b49d-00179bedd479'
+          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/baixas%20padaria%2C%20inclus%C3%A3o%20e%20perda%20d%C3%A1gua.pdf?alt=media&token=9f38b83f-decc-4a6e-b749-6c2aacc44e89'
     },
   ];
 
@@ -6769,7 +6769,7 @@ class _DocumentosState extends State<Documentos> {
   void _shareDocument(String url, String title) async {
     try {
       final tempDir = await getTemporaryDirectory();
-      final filePath = '${tempDir.path}/$title.pdf';
+      final filePath = '${tempDir.path}/$title';
 
       // Baixar o PDF
       final response = await Dio().download(url, filePath);
