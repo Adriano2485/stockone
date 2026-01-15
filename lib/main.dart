@@ -1231,12 +1231,23 @@ class _PasswordScreenState extends State<PasswordScreen> {
       final doc =
           await _firestore.collection('stores').doc(widget.storeName).get();
 
-      String? storedPassword = doc.data()?['password'];
+      if (!doc.exists) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Loja não encontrada!")),
+        );
+        return;
+      }
 
-      // Verifica se a senha existe e se está correta
-      if (doc.exists && storedPassword == _passwordController.text) {
-        // Salva a senha ATUAL no SecureStorage para liberar acesso automático
-        await _authorizeThisDevice(storedPassword!);
+      final data = doc.data()!;
+      final String? storedPassword = data['password'];
+      final String? masterPassword = data['masterPassword'];
+      final String inputPassword = _passwordController.text.trim();
+
+      // SENHA NORMAL OU SENHA MESTRA
+      if (inputPassword == storedPassword ||
+          (masterPassword != null && inputPassword == masterPassword)) {
+        // Autoriza o dispositivo
+        await _authorizeThisDevice(inputPassword);
 
         Navigator.pushReplacement(
           context,
@@ -1258,11 +1269,11 @@ class _PasswordScreenState extends State<PasswordScreen> {
     }
   }
 
-  /// Salva **a senha atual** da loja no SecureStorage
-  Future<void> _authorizeThisDevice(String correctPassword) async {
+  /// Salva a senha usada (normal ou mestra) para liberar acesso automático
+  Future<void> _authorizeThisDevice(String passwordUsed) async {
     await _secureStorage.write(
       key: '${widget.storeName}_auth_token',
-      value: correctPassword, // senha real atual, usada para comparar depois
+      value: passwordUsed,
     );
   }
 
@@ -1279,12 +1290,12 @@ class _PasswordScreenState extends State<PasswordScreen> {
       appBar: AppBar(
         backgroundColor: Colors.blueGrey.shade700,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: _goBack,
         ),
         title: Text(
           widget.storeName,
-          style: TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.white),
         ),
       ),
       body: Padding(
@@ -1316,9 +1327,9 @@ class _PasswordScreenState extends State<PasswordScreen> {
             TextField(
               controller: _passwordController,
               obscureText: true,
-              decoration: InputDecoration(
-                labelText: widget.isFirstTime ? "Criar Senha" : "Senha",
-                border: const OutlineInputBorder(),
+              decoration: const InputDecoration(
+                labelText: "Senha",
+                border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.lock),
               ),
             ),
@@ -1330,16 +1341,14 @@ class _PasswordScreenState extends State<PasswordScreen> {
                 ? const CircularProgressIndicator()
                 : ElevatedButton(
                     onPressed: _verifyPassword,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
-                      child: Text(
-                        widget.isFirstTime ? "Criar Senha" : "Acessar Loja",
-                        style: TextStyle(fontSize: 16),
-                      ),
-                    ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.brown.shade400,
+                      backgroundColor: Colors.brown,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 14),
+                    ),
+                    child: Text(
+                      widget.isFirstTime ? "Criar Senha" : "Acessar Loja",
+                      style: const TextStyle(fontSize: 16),
                     ),
                   ),
 
@@ -1359,6 +1368,7 @@ class _PasswordScreenState extends State<PasswordScreen> {
     );
   }
 }
+
 
 class SecondScreen extends StatefulWidget {
   final String storeName;
