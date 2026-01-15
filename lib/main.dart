@@ -9404,12 +9404,11 @@ class Cadastro extends StatelessWidget {
                         vertical: 14, horizontal: 24),
                     textStyle: const TextStyle(fontSize: 19),
                   ),
-                  onPressed: () {
+                 onPressed: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) =>
-                            ResumoEquipamentos(storeName: storeName),
+                        builder: (_) => const ResumoEquipamentos(),
                       ),
                     );
                   },
@@ -10645,17 +10644,19 @@ class _FreezerState extends State<Freezer> {
 }
 
 class ResumoEquipamentos extends StatefulWidget {
-  final String storeName;
-  const ResumoEquipamentos({super.key, required this.storeName});
+  const ResumoEquipamentos({super.key});
 
   @override
   State<ResumoEquipamentos> createState() => _ResumoEquipamentosState();
 }
 
 class _ResumoEquipamentosState extends State<ResumoEquipamentos> {
-  Map<String, dynamic> dadosResumo = {};
-  bool isLoading = true;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  bool isLoading = true;
+
+  /// Lista com todas as lojas
+  List<Map<String, dynamic>> lojasResumo = [];
 
   @override
   void initState() {
@@ -10663,141 +10664,143 @@ class _ResumoEquipamentosState extends State<ResumoEquipamentos> {
     _carregarTodosDados();
   }
 
+  int _numeroLoja(String nome) {
+    final match = RegExp(r'\d+').firstMatch(nome);
+    return match != null ? int.parse(match.group(0)!) : 0;
+  }
+
   Future<void> _carregarTodosDados() async {
     try {
-      final doc =
-          await _firestore.collection('stores').doc(widget.storeName).get();
-      if (doc.exists) {
-        final data = doc.data() ?? {};
+      final snapshot = await _firestore.collection('stores').get();
 
-        if (mounted) {
-          setState(() {
-            dadosResumo = {
-              'fornos': data['fornos'] ?? [],
-              'armarios': data['armarios'] ?? [],
-              'esqueletos': data['esqueletos'] ?? [],
-              'esteiras': data['esteiras'] ?? [],
-              'assadeiras': data['assadeiras'] ?? [],
-              'climaticas': data['climaticas'] ?? [],
-              'freezers': data['freezers'] ?? [],
-            };
-            isLoading = false;
-          });
-        }
-      } else {
-        if (mounted) setState(() => isLoading = false);
+      final List<Map<String, dynamic>> temp = [];
+
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+
+        temp.add({
+          'storeName': doc.id,
+          'dados': {
+            'fornos': data['fornos'] ?? [],
+            'armarios': data['armarios'] ?? [],
+            'esqueletos': data['esqueletos'] ?? [],
+            'esteiras': data['esteiras'] ?? [],
+            'assadeiras': data['assadeiras'] ?? [],
+            'climaticas': data['climaticas'] ?? [],
+            'freezers': data['freezers'] ?? [],
+          }
+        });
+      }
+
+      temp.sort((a, b) =>
+          _numeroLoja(a['storeName']).compareTo(_numeroLoja(b['storeName'])));
+
+      if (mounted) {
+        setState(() {
+          lojasResumo = temp;
+          isLoading = false;
+        });
       }
     } catch (e) {
-      print('Erro ao carregar dados: $e');
+      debugPrint('Erro ao carregar dados: $e');
       if (mounted) setState(() => isLoading = false);
     }
   }
+
+  // ===================== PDF =====================
 
   Future<Uint8List> _gerarPdf() async {
     final pdf = pw.Document();
 
     pdf.addPage(
       pw.MultiPage(
-        build: (context) => [
-          pw.Center(
-            child: pw.Text(
-              'Inventário de Equipamentos - ${widget.storeName}',
-              style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
-            ),
-          ),
-          pw.SizedBox(height: 20),
-          if (dadosResumo['fornos'] != null &&
-              dadosResumo['fornos'].isNotEmpty) ...[
-            pw.Text('Fornos:',
-                style:
-                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-            ...List.generate(dadosResumo['fornos'].length, (i) {
-              final forno = dadosResumo['fornos'][i];
-              return pw.Bullet(
-                  text:
-                      "Forno ${i + 1} - Modelo: ${forno['modelo'] ?? 'N/I'}, Tipo: ${forno['tipo'] ?? 'N/I'}, Suportes: ${forno['suportes'] ?? 0}");
-            }),
-            pw.SizedBox(height: 10),
-          ],
-          if (dadosResumo['armarios'] != null &&
-              dadosResumo['armarios'].isNotEmpty) ...[
-            pw.Text('Armários:',
-                style:
-                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-            ...List.generate(dadosResumo['armarios'].length, (i) {
-              final armario = dadosResumo['armarios'][i];
-              return pw.Bullet(
-                  text:
-                      "Armário ${i + 1} - Tipo: ${armario['tipo'] ?? 'N/I'}, Suportes: ${armario['suportes'] ?? 0}");
-            }),
-            pw.SizedBox(height: 10),
-          ],
-          if (dadosResumo['esqueletos'] != null &&
-              dadosResumo['esqueletos'].isNotEmpty) ...[
-            pw.Text('Esqueletos:',
-                style:
-                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-            ...List.generate(dadosResumo['esqueletos'].length, (i) {
-              final esqueleto = dadosResumo['esqueletos'][i];
-              return pw.Bullet(
-                  text:
-                      "Esqueleto ${i + 1} - Tipo: ${esqueleto['tipo'] ?? 'N/I'}, Suportes: ${esqueleto['suportes'] ?? 0}");
-            }),
-            pw.SizedBox(height: 10),
-          ],
-          if (dadosResumo['esteiras'] != null &&
-              (dadosResumo['esteiras'] as List).isNotEmpty) ...[
-            pw.Text('Esteiras:',
-                style:
-                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-            ...List.generate((dadosResumo['esteiras'] as List).length, (i) {
-              final esteira = dadosResumo['esteiras'][i];
-              return pw.Bullet(
-                  text:
-                      "Esteira Tipo ${i + 1} - Tipo: ${esteira['tipo'] ?? 'N/I'}, Quantidade: ${esteira['quantidade'] ?? 0}");
-            }),
-            pw.SizedBox(height: 10),
-          ],
-          if (dadosResumo['assadeiras'] != null &&
-              (dadosResumo['assadeiras'] as List).isNotEmpty) ...[
-            pw.Text('Assadeiras:',
-                style:
-                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-            ...List.generate((dadosResumo['assadeiras'] as List).length, (i) {
-              final assadeira = dadosResumo['assadeiras'][i];
-              return pw.Bullet(
-                  text:
-                      "Assadeira Tipo ${i + 1} - Tipo: ${assadeira['tipo'] ?? 'N/I'}, Quantidade: ${assadeira['quantidade'] ?? 0}");
-            }),
-            pw.SizedBox(height: 10),
-          ],
-          if (dadosResumo['climaticas'] != null &&
-              dadosResumo['climaticas'].isNotEmpty) ...[
-            pw.Text('Climáticas:',
-                style:
-                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-            ...List.generate(dadosResumo['climaticas'].length, (i) {
-              final clim = dadosResumo['climaticas'][i];
-              return pw.Bullet(
-                  text:
-                      "Climática ${i + 1} - Modelo: ${clim['modelo'] ?? 'N/I'}, Suportes: ${clim['suportes'] ?? 0}");
-            }),
-            pw.SizedBox(height: 10),
-          ],
-          if (dadosResumo['freezers'] != null &&
-              dadosResumo['freezers'].isNotEmpty) ...[
-            pw.Text('Conservadores:',
-                style:
-                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-            ...List.generate(dadosResumo['freezers'].length, (i) {
-              final freezer = dadosResumo['freezers'][i];
-              return pw.Bullet(
-                  text:
-                      "Conservador ${i + 1} - Modelo: ${freezer['modelo'] ?? 'N/I'}, Volume: ${freezer['volume'] ?? 'N/I'}L, Tipo: ${freezer['tipo'] ?? 'N/I'}");
-            }),
-            pw.SizedBox(height: 10),
-          ],
-        ],
+        build: (context) {
+          final List<pw.Widget> widgets = [];
+
+          for (final loja in lojasResumo) {
+            final dadosResumo = loja['dados'];
+
+            widgets.add(
+              pw.Center(
+                child: pw.Text(
+                  'Inventário de Equipamentos - ${loja['storeName']}',
+                  style: pw.TextStyle(
+                      fontSize: 20, fontWeight: pw.FontWeight.bold),
+                ),
+              ),
+            );
+
+            widgets.add(pw.SizedBox(height: 20));
+
+            void addSection(
+                String title, List lista, String Function(int, Map) fn) {
+              if (lista.isEmpty) return;
+              widgets.add(
+                pw.Text(title,
+                    style: pw.TextStyle(
+                        fontSize: 16, fontWeight: pw.FontWeight.bold)),
+              );
+              for (int i = 0; i < lista.length; i++) {
+                widgets.add(pw.Bullet(text: fn(i, lista[i])));
+              }
+              widgets.add(pw.SizedBox(height: 10));
+            }
+
+            addSection(
+              'Fornos:',
+              dadosResumo['fornos'],
+              (i, f) =>
+                  'Forno ${i + 1} - Modelo: ${f['modelo'] ?? 'N/I'}, Tipo: ${f['tipo'] ?? 'N/I'}, Suportes: ${f['suportes'] ?? 0}',
+            );
+
+            addSection(
+              'Armários:',
+              dadosResumo['armarios'],
+              (i, a) =>
+                  'Armário ${i + 1} - Tipo: ${a['tipo'] ?? 'N/I'}, Suportes: ${a['suportes'] ?? 0}',
+            );
+
+            addSection(
+              'Esqueletos:',
+              dadosResumo['esqueletos'],
+              (i, e) =>
+                  'Esqueleto ${i + 1} - Tipo: ${e['tipo'] ?? 'N/I'}, Suportes: ${e['suportes'] ?? 0}',
+            );
+
+            addSection(
+              'Esteiras:',
+              dadosResumo['esteiras'],
+              (i, e) =>
+                  'Esteira ${i + 1} - Tipo: ${e['tipo'] ?? 'N/I'}, Quantidade: ${e['quantidade'] ?? 0}',
+            );
+
+            addSection(
+              'Assadeiras:',
+              dadosResumo['assadeiras'],
+              (i, a) =>
+                  'Assadeira ${i + 1} - Tipo: ${a['tipo'] ?? 'N/I'}, Quantidade: ${a['quantidade'] ?? 0}',
+            );
+
+            addSection(
+              'Climáticas:',
+              dadosResumo['climaticas'],
+              (i, c) =>
+                  'Climática ${i + 1} - Modelo: ${c['modelo'] ?? 'N/I'}, Suportes: ${c['suportes'] ?? 0}',
+            );
+
+            addSection(
+              'Conservadores:',
+              dadosResumo['freezers'],
+              (i, f) =>
+                  'Conservador ${i + 1} - Modelo: ${f['modelo'] ?? 'N/I'}, Volume: ${f['volume'] ?? 'N/I'}L, Tipo: ${f['tipo'] ?? 'N/I'}',
+            );
+
+            widgets.add(pw.SizedBox(height: 30));
+            widgets.add(pw.SizedBox(height: 30));
+          }
+
+          return widgets;
+        },
       ),
     );
 
@@ -10805,12 +10808,14 @@ class _ResumoEquipamentosState extends State<ResumoEquipamentos> {
   }
 
   Future<void> _compartilharPdf() async {
-    final pdfBytes = await _gerarPdf();
+    final bytes = await _gerarPdf();
     await Printing.sharePdf(
-      bytes: pdfBytes,
-      filename: "Inventário Equipamentos_${widget.storeName}.pdf",
+      bytes: bytes,
+      filename: 'Inventario_Equipamentos_Todas_Lojas.pdf',
     );
   }
+
+  // ===================== UI =====================
 
   Widget _buildSection(String title, List<Widget> children) {
     return Card(
@@ -10842,7 +10847,6 @@ class _ResumoEquipamentosState extends State<ResumoEquipamentos> {
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
               child: Column(
@@ -10870,9 +10874,6 @@ class _ResumoEquipamentosState extends State<ResumoEquipamentos> {
       );
     }
 
-    final hasData = dadosResumo.isNotEmpty &&
-        dadosResumo.values.any((value) => value != null && value.isNotEmpty);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Inventário'),
@@ -10885,105 +10886,104 @@ class _ResumoEquipamentosState extends State<ResumoEquipamentos> {
           ),
         ],
       ),
-      body: !hasData
-          ? const Center(
-              child: Text('Nenhum dado cadastrado',
-                  style: TextStyle(fontSize: 18, color: Colors.grey)),
-            )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (dadosResumo['fornos'] != null &&
-                      dadosResumo['fornos'].isNotEmpty)
-                    _buildSection(
-                      'Fornos (${dadosResumo['fornos'].length})',
-                      List.generate(dadosResumo['fornos'].length, (index) {
-                        final forno = dadosResumo['fornos'][index];
-                        return _buildItemCard(
-                          'Forno ${index + 1}',
-                          'Modelo: ${forno['modelo'] ?? 'Não informado'}, Tipo: ${forno['tipo'] ?? 'Não selecionado'}, Suportes: ${forno['suportes'] ?? 0}',
-                        );
-                      }),
-                    ),
-                  if (dadosResumo['armarios'] != null &&
-                      dadosResumo['armarios'].isNotEmpty)
-                    _buildSection(
-                      'Armários (${dadosResumo['armarios'].length})',
-                      List.generate(dadosResumo['armarios'].length, (index) {
-                        final armario = dadosResumo['armarios'][index];
-                        return _buildItemCard(
-                          'Armário ${index + 1}',
-                          'Tipo: ${armario['tipo'] ?? 'Não selecionado'}, Suportes: ${armario['suportes'] ?? 0}',
-                        );
-                      }),
-                    ),
-                  if (dadosResumo['esqueletos'] != null &&
-                      dadosResumo['esqueletos'].isNotEmpty)
-                    _buildSection(
-                      'Esqueletos (${dadosResumo['esqueletos'].length})',
-                      List.generate(dadosResumo['esqueletos'].length, (index) {
-                        final esqueleto = dadosResumo['esqueletos'][index];
-                        return _buildItemCard(
-                          'Esqueleto ${index + 1}',
-                          'Tipo: ${esqueleto['tipo'] ?? 'Não selecionado'}, Suportes: ${esqueleto['suportes'] ?? 0}',
-                        );
-                      }),
-                    ),
-                  if (dadosResumo['esteiras'] != null &&
-                      (dadosResumo['esteiras'] as List).isNotEmpty)
-                    _buildSection(
-                      'Esteiras',
-                      List.generate((dadosResumo['esteiras'] as List).length,
-                          (index) {
-                        final esteira = dadosResumo['esteiras'][index];
-                        return _buildItemCard(
-                          'Esteira Tipo ${index + 1}',
-                          'Tipo: ${esteira['tipo'] ?? 'Não selecionado'}, Quantidade: ${esteira['quantidade'] ?? 0}',
-                        );
-                      }),
-                    ),
-                  if (dadosResumo['assadeiras'] != null &&
-                      (dadosResumo['assadeiras'] as List).isNotEmpty)
-                    _buildSection(
-                      'Assadeiras',
-                      List.generate((dadosResumo['assadeiras'] as List).length,
-                          (index) {
-                        final assadeira = dadosResumo['assadeiras'][index];
-                        return _buildItemCard(
-                          'Assadeira Tipo ${index + 1}',
-                          'Tipo: ${assadeira['tipo'] ?? 'Não selecionado'}, Quantidade: ${assadeira['quantidade'] ?? 0}',
-                        );
-                      }),
-                    ),
-                  if (dadosResumo['climaticas'] != null &&
-                      dadosResumo['climaticas'].isNotEmpty)
-                    _buildSection(
-                      'Climáticas (${dadosResumo['climaticas'].length})',
-                      List.generate(dadosResumo['climaticas'].length, (index) {
-                        final climatica = dadosResumo['climaticas'][index];
-                        return _buildItemCard(
-                          'Climática ${index + 1}',
-                          'Modelo: ${climatica['modelo'] ?? 'Não informado'}, Suportes: ${climatica['suportes'] ?? 0}',
-                        );
-                      }),
-                    ),
-                  if (dadosResumo['freezers'] != null &&
-                      dadosResumo['freezers'].isNotEmpty)
-                    _buildSection(
-                      'Conservadores (${dadosResumo['freezers'].length})',
-                      List.generate(dadosResumo['freezers'].length, (index) {
-                        final freezer = dadosResumo['freezers'][index];
-                        return _buildItemCard(
-                          'Conservador ${index + 1}',
-                          'Modelo: ${freezer['modelo'] ?? 'Não informado'}, Volume: ${freezer['volume'] ?? 'Não informado'} litros, Tipo: ${freezer['tipo'] ?? 'Não selecionado'}',
-                        );
-                      }),
-                    ),
-                ],
-              ),
-            ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: lojasResumo.map((loja) {
+            final dadosResumo = loja['dados'];
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  loja['storeName'],
+                  style: const TextStyle(
+                      fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                if (dadosResumo['fornos'].isNotEmpty)
+                  _buildSection(
+                    'Fornos (${dadosResumo['fornos'].length})',
+                    List.generate(dadosResumo['fornos'].length, (i) {
+                      final f = dadosResumo['fornos'][i];
+                      return _buildItemCard(
+                        'Forno ${i + 1}',
+                        'Modelo: ${f['modelo']}, Tipo: ${f['tipo']}, Suportes: ${f['suportes']}',
+                      );
+                    }),
+                  ),
+                if (dadosResumo['armarios'].isNotEmpty)
+                  _buildSection(
+                    'Armários (${dadosResumo['armarios'].length})',
+                    List.generate(dadosResumo['armarios'].length, (i) {
+                      final a = dadosResumo['armarios'][i];
+                      return _buildItemCard(
+                        'Armário ${i + 1}',
+                        'Tipo: ${a['tipo']}, Suportes: ${a['suportes']}',
+                      );
+                    }),
+                  ),
+                if (dadosResumo['esqueletos'].isNotEmpty)
+                  _buildSection(
+                    'Esqueletos (${dadosResumo['esqueletos'].length})',
+                    List.generate(dadosResumo['esqueletos'].length, (i) {
+                      final e = dadosResumo['esqueletos'][i];
+                      return _buildItemCard(
+                        'Esqueleto ${i + 1}',
+                        'Tipo: ${e['tipo']}, Suportes: ${e['suportes']}',
+                      );
+                    }),
+                  ),
+                if (dadosResumo['esteiras'].isNotEmpty)
+                  _buildSection(
+                    'Esteiras (${dadosResumo['esteiras'].length})',
+                    List.generate(dadosResumo['esteiras'].length, (i) {
+                      final e = dadosResumo['esteiras'][i];
+                      return _buildItemCard(
+                        'Esteira ${i + 1}',
+                        'Tipo: ${e['tipo']}, Quantidade: ${e['quantidade']}',
+                      );
+                    }),
+                  ),
+                if (dadosResumo['assadeiras'].isNotEmpty)
+                  _buildSection(
+                    'Assadeiras (${dadosResumo['assadeiras'].length})',
+                    List.generate(dadosResumo['assadeiras'].length, (i) {
+                      final a = dadosResumo['assadeiras'][i];
+                      return _buildItemCard(
+                        'Assadeira ${i + 1}',
+                        'Tipo: ${a['tipo']}, Quantidade: ${a['quantidade']}',
+                      );
+                    }),
+                  ),
+                if (dadosResumo['climaticas'].isNotEmpty)
+                  _buildSection(
+                    'Climáticas (${dadosResumo['climaticas'].length})',
+                    List.generate(dadosResumo['climaticas'].length, (i) {
+                      final c = dadosResumo['climaticas'][i];
+                      return _buildItemCard(
+                        'Climática ${i + 1}',
+                        'Modelo: ${c['modelo']}, Suportes: ${c['suportes']}',
+                      );
+                    }),
+                  ),
+                if (dadosResumo['freezers'].isNotEmpty)
+                  _buildSection(
+                    'Conservadores (${dadosResumo['freezers'].length})',
+                    List.generate(dadosResumo['freezers'].length, (i) {
+                      final f = dadosResumo['freezers'][i];
+                      return _buildItemCard(
+                        'Conservador ${i + 1}',
+                        'Modelo: ${f['modelo']}, Volume: ${f['volume']}L, Tipo: ${f['tipo']}',
+                      );
+                    }),
+                  ),
+                const SizedBox(height: 32),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 }
