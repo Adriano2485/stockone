@@ -10002,6 +10002,7 @@ class _AssadeirasState extends State<Assadeiras> {
     'Flandre',
     'Ferro Fundido'
   ];
+
   final List<int> quantidades = List.generate(120, (index) => index + 1);
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -10011,19 +10012,59 @@ class _AssadeirasState extends State<Assadeiras> {
     _loadData();
   }
 
+  // ================== LOAD ==================
+  Future<void> _loadData() async {
+    try {
+      final doc =
+          await _firestore.collection('stores').doc(widget.storeName).get();
+
+      if (!doc.exists) return;
+
+      final data = doc.data() as Map<String, dynamic>;
+
+      final List esteirasList = (data['esteiras'] as List?) ?? [];
+      final List assadeirasList = (data['assadeiras'] as List?) ?? [];
+
+      setState(() {
+        tiposEsteiras = esteirasList
+            .map<String>((e) => (e as Map)['tipo']?.toString() ?? '')
+            .toList();
+
+        quantidadesEsteiras = esteirasList
+            .map<int>((e) => (e as Map)['quantidade'] as int? ?? 0)
+            .toList();
+
+        tiposAssadeiras = assadeirasList
+            .map<String>((e) => (e as Map)['tipo']?.toString() ?? '')
+            .toList();
+
+        quantidadesAssadeiras = assadeirasList
+            .map<int>((e) => (e as Map)['quantidade'] as int? ?? 0)
+            .toList();
+      });
+    } catch (e) {
+      debugPrint('Erro ao carregar esteiras/assadeiras: $e');
+    }
+  }
+
+  // ================== SAVE ==================
   Future<void> _saveData() async {
     try {
       final esteirasData = List.generate(
-          tiposEsteiras.length,
-          (i) =>
-              {'tipo': tiposEsteiras[i], 'quantidade': quantidadesEsteiras[i]});
+        tiposEsteiras.length,
+        (i) => {
+          'tipo': tiposEsteiras[i],
+          'quantidade': quantidadesEsteiras[i],
+        },
+      );
 
       final assadeirasData = List.generate(
-          tiposAssadeiras.length,
-          (i) => {
-                'tipo': tiposAssadeiras[i],
-                'quantidade': quantidadesAssadeiras[i]
-              });
+        tiposAssadeiras.length,
+        (i) => {
+          'tipo': tiposAssadeiras[i],
+          'quantidade': quantidadesAssadeiras[i],
+        },
+      );
 
       await _firestore.collection('stores').doc(widget.storeName).set({
         'esteiras': esteirasData,
@@ -10031,40 +10072,11 @@ class _AssadeirasState extends State<Assadeiras> {
         'lastUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (e) {
-      print('Erro ao salvar esteiras/assadeiras: $e');
+      debugPrint('Erro ao salvar esteiras/assadeiras: $e');
     }
   }
 
-  Future<void> _loadData() async {
-    try {
-      final doc =
-          await _firestore.collection('stores').doc(widget.storeName).get();
-      if (doc.exists) {
-        final data = doc.data() ?? {};
-
-        // Esteiras
-        final esteirasList = data['esteiras'] ?? [];
-        setState(() {
-          tiposEsteiras =
-              esteirasList.map((e) => e['tipo'] as String? ?? '').toList();
-          quantidadesEsteiras =
-              esteirasList.map((e) => e['quantidade'] as int? ?? 0).toList();
-        });
-
-        // Assadeiras
-        final assadeirasList = data['assadeiras'] ?? [];
-        setState(() {
-          tiposAssadeiras =
-              assadeirasList.map((e) => e['tipo'] as String? ?? '').toList();
-          quantidadesAssadeiras =
-              assadeirasList.map((e) => e['quantidade'] as int? ?? 0).toList();
-        });
-      }
-    } catch (e) {
-      print('Erro ao carregar esteiras/assadeiras: $e');
-    }
-  }
-
+  // ================== AÇÕES ==================
   void _adicionarEsteira() {
     setState(() {
       tiposEsteiras.add('');
@@ -10097,9 +10109,9 @@ class _AssadeirasState extends State<Assadeiras> {
     _saveData();
   }
 
+  // ================== CARD ==================
   Widget _buildCard({
     required String title,
-    required int index,
     required String tipo,
     required int quantidade,
     required void Function(String?) onTipoChanged,
@@ -10119,13 +10131,12 @@ class _AssadeirasState extends State<Assadeiras> {
               value: tipo.isNotEmpty ? tipo : null,
               hint: const Text('Tipo de material'),
               items: tiposMaterial
-                  .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                  .map((t) =>
+                      DropdownMenuItem(value: t, child: Text(t)))
                   .toList(),
               onChanged: onTipoChanged,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
             ),
             const SizedBox(height: 8),
@@ -10133,14 +10144,14 @@ class _AssadeirasState extends State<Assadeiras> {
               value: quantidade > 0 ? quantidade : null,
               hint: const Text('Quantidade'),
               items: quantidades
-                  .map((q) =>
-                      DropdownMenuItem(value: q, child: Text(q.toString())))
+                  .map((q) => DropdownMenuItem(
+                        value: q,
+                        child: Text(q.toString()),
+                      ))
                   .toList(),
               onChanged: onQtdChanged,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
             ),
             Align(
@@ -10156,6 +10167,7 @@ class _AssadeirasState extends State<Assadeiras> {
     );
   }
 
+  // ================== UI ==================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -10168,63 +10180,59 @@ class _AssadeirasState extends State<Assadeiras> {
             const Text('Esteiras:',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
+
             ...List.generate(tiposEsteiras.length, (index) {
               return _buildCard(
-                title: 'Esteira Tipo ${index + 1}',
-                index: index,
+                title: 'Esteira ${index + 1}',
                 tipo: tiposEsteiras[index],
                 quantidade: quantidadesEsteiras[index],
-                onTipoChanged: (value) {
-                  setState(() {
-                    tiposEsteiras[index] = value ?? '';
-                    _saveData();
-                  });
+                onTipoChanged: (v) {
+                  setState(() => tiposEsteiras[index] = v ?? '');
+                  _saveData();
                 },
-                onQtdChanged: (value) {
-                  setState(() {
-                    quantidadesEsteiras[index] = value ?? 0;
-                    _saveData();
-                  });
+                onQtdChanged: (v) {
+                  setState(() => quantidadesEsteiras[index] = v ?? 0);
+                  _saveData();
                 },
                 onRemove: () => _removerEsteira(index),
               );
             }),
+
             Center(
               child: IconButton(
-                icon:
-                    const Icon(Icons.add_circle, size: 40, color: Colors.green),
+                icon: const Icon(Icons.add_circle,
+                    size: 40, color: Colors.green),
                 onPressed: _adicionarEsteira,
               ),
             ),
+
             const SizedBox(height: 30),
+
             const Text('Assadeiras:',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
+
             ...List.generate(tiposAssadeiras.length, (index) {
               return _buildCard(
-                title: 'Assadeira Tipo ${index + 1}',
-                index: index,
+                title: 'Assadeira ${index + 1}',
                 tipo: tiposAssadeiras[index],
                 quantidade: quantidadesAssadeiras[index],
-                onTipoChanged: (value) {
-                  setState(() {
-                    tiposAssadeiras[index] = value ?? '';
-                    _saveData();
-                  });
+                onTipoChanged: (v) {
+                  setState(() => tiposAssadeiras[index] = v ?? '');
+                  _saveData();
                 },
-                onQtdChanged: (value) {
-                  setState(() {
-                    quantidadesAssadeiras[index] = value ?? 0;
-                    _saveData();
-                  });
+                onQtdChanged: (v) {
+                  setState(() => quantidadesAssadeiras[index] = v ?? 0);
+                  _saveData();
                 },
                 onRemove: () => _removerAssadeira(index),
               );
             }),
+
             Center(
               child: IconButton(
-                icon:
-                    const Icon(Icons.add_circle, size: 40, color: Colors.green),
+                icon: const Icon(Icons.add_circle,
+                    size: 40, color: Colors.green),
                 onPressed: _adicionarAssadeira,
               ),
             ),
