@@ -11734,7 +11734,7 @@ class _ComodatosState extends State<Comodatos> {
         controller: _scrollController,
         thumbVisibility: true,
         trackVisibility: true,
-        thickness: 10,
+        thickness: 20,
         radius: const Radius.circular(12),
         child: SingleChildScrollView(
           controller: _scrollController,
