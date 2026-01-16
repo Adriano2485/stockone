@@ -5907,7 +5907,6 @@ found in the LICENSE file.
 --------------------------------------------------------------------------------
 flutter
 tonic
-url_launcher_web
 
 Copyright 2013 The Flutter Authors. All rights reserved.
 
@@ -21498,6 +21497,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 --------------------------------------------------------------------------------
 image_picker
+url_launcher_web
 
 Copyright 2013 The Flutter Authors
 
