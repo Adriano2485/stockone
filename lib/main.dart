@@ -11738,7 +11738,7 @@ class _ComodatosState extends State<Comodatos> {
         radius: const Radius.circular(12),
         child: SingleChildScrollView(
           controller: _scrollController,
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: lojasResumo.map((loja) {
