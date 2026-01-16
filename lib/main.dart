@@ -11465,7 +11465,6 @@ class _ComodatosState extends State<Comodatos> {
 
   bool isLoading = true;
 
-  /// Lista com todas as lojas
   List<Map<String, dynamic>> lojasResumo = [];
 
   @override
@@ -11492,7 +11491,6 @@ class _ComodatosState extends State<Comodatos> {
 
       for (final doc in snapshot.docs) {
         final data = doc.data();
-
         temp.add({
           'storeName': doc.id,
           'dados': {
@@ -11730,114 +11728,139 @@ class _ComodatosState extends State<Comodatos> {
           ),
         ],
       ),
-      body: Scrollbar(
-        controller: _scrollController,
-        thumbVisibility: true,
-        trackVisibility: true,
-        thickness: 20,
-        radius: const Radius.circular(12),
-        child: SingleChildScrollView(
-          controller: _scrollController,
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: lojasResumo.map((loja) {
-              final dadosResumo = loja['dados'];
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            controller: _scrollController,
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: lojasResumo.map((loja) {
+                final dadosResumo = loja['dados'];
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    loja['storeName'],
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      loja['storeName'],
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  if (dadosResumo['fornos'].isNotEmpty)
-                    _buildSection(
-                      'Fornos (${dadosResumo['fornos'].length})',
-                      List.generate(dadosResumo['fornos'].length, (i) {
-                        final f = dadosResumo['fornos'][i];
-                        return _buildItemCard(
-                          'Forno ${i + 1}',
-                          'Modelo: ${f['modelo']}, Tipo: ${f['tipo']}, Suportes: ${f['suportes']}',
-                        );
-                      }),
-                    ),
-                  if (dadosResumo['armarios'].isNotEmpty)
-                    _buildSection(
-                      'Armários (${dadosResumo['armarios'].length})',
-                      List.generate(dadosResumo['armarios'].length, (i) {
-                        final a = dadosResumo['armarios'][i];
-                        return _buildItemCard(
-                          'Armário ${i + 1}',
-                          'Tipo: ${a['tipo']}, Suportes: ${a['suportes']}',
-                        );
-                      }),
-                    ),
-                  if (dadosResumo['esqueletos'].isNotEmpty)
-                    _buildSection(
-                      'Esqueletos (${dadosResumo['esqueletos'].length})',
-                      List.generate(dadosResumo['esqueletos'].length, (i) {
-                        final e = dadosResumo['esqueletos'][i];
-                        return _buildItemCard(
-                          'Esqueleto ${i + 1}',
-                          'Tipo: ${e['tipo']}, Suportes: ${e['suportes']}',
-                        );
-                      }),
-                    ),
-                  if (dadosResumo['esteiras'].isNotEmpty)
-                    _buildSection(
-                      'Esteiras (${dadosResumo['esteiras'].length})',
-                      List.generate(dadosResumo['esteiras'].length, (i) {
-                        final e = dadosResumo['esteiras'][i];
-                        return _buildItemCard(
-                          'Esteira ${i + 1}',
-                          'Tipo: ${e['tipo']}, Quantidade: ${e['quantidade']}',
-                        );
-                      }),
-                    ),
-                  if (dadosResumo['assadeiras'].isNotEmpty)
-                    _buildSection(
-                      'Assadeiras (${dadosResumo['assadeiras'].length})',
-                      List.generate(dadosResumo['assadeiras'].length, (i) {
-                        final a = dadosResumo['assadeiras'][i];
-                        return _buildItemCard(
-                          'Assadeira ${i + 1}',
-                          'Tipo: ${a['tipo']}, Quantidade: ${a['quantidade']}',
-                        );
-                      }),
-                    ),
-                  if (dadosResumo['climaticas'].isNotEmpty)
-                    _buildSection(
-                      'Climáticas (${dadosResumo['climaticas'].length})',
-                      List.generate(dadosResumo['climaticas'].length, (i) {
-                        final c = dadosResumo['climaticas'][i];
-                        return _buildItemCard(
-                          'Climática ${i + 1}',
-                          'Modelo: ${c['modelo']}, Suportes: ${c['suportes']}',
-                        );
-                      }),
-                    ),
-                  if (dadosResumo['freezers'].isNotEmpty)
-                    _buildSection(
-                      'Conservadores (${dadosResumo['freezers'].length})',
-                      List.generate(dadosResumo['freezers'].length, (i) {
-                        final f = dadosResumo['freezers'][i];
-                        return _buildItemCard(
-                          'Conservador ${i + 1}',
-                          'Modelo: ${f['modelo']}, Volume: ${f['volume']}L, Tipo: ${f['tipo']}',
-                        );
-                      }),
-                    ),
-                  const SizedBox(height: 32),
-                ],
-              );
-            }).toList(),
+                    const SizedBox(height: 16),
+                    if (dadosResumo['fornos'].isNotEmpty)
+                      _buildSection(
+                        'Fornos (${dadosResumo['fornos'].length})',
+                        List.generate(dadosResumo['fornos'].length, (i) {
+                          final f = dadosResumo['fornos'][i];
+                          return _buildItemCard(
+                            'Forno ${i + 1}',
+                            'Modelo: ${f['modelo']}, Tipo: ${f['tipo']}, Suportes: ${f['suportes']}',
+                          );
+                        }),
+                      ),
+                    if (dadosResumo['armarios'].isNotEmpty)
+                      _buildSection(
+                        'Armários (${dadosResumo['armarios'].length})',
+                        List.generate(dadosResumo['armarios'].length, (i) {
+                          final a = dadosResumo['armarios'][i];
+                          return _buildItemCard(
+                            'Armário ${i + 1}',
+                            'Tipo: ${a['tipo']}, Suportes: ${a['suportes']}',
+                          );
+                        }),
+                      ),
+                    if (dadosResumo['esqueletos'].isNotEmpty)
+                      _buildSection(
+                        'Esqueletos (${dadosResumo['esqueletos'].length})',
+                        List.generate(dadosResumo['esqueletos'].length, (i) {
+                          final e = dadosResumo['esqueletos'][i];
+                          return _buildItemCard(
+                            'Esqueleto ${i + 1}',
+                            'Tipo: ${e['tipo']}, Suportes: ${e['suportes']}',
+                          );
+                        }),
+                      ),
+                    if (dadosResumo['esteiras'].isNotEmpty)
+                      _buildSection(
+                        'Esteiras (${dadosResumo['esteiras'].length})',
+                        List.generate(dadosResumo['esteiras'].length, (i) {
+                          final e = dadosResumo['esteiras'][i];
+                          return _buildItemCard(
+                            'Esteira ${i + 1}',
+                            'Tipo: ${e['tipo']}, Quantidade: ${e['quantidade']}',
+                          );
+                        }),
+                      ),
+                    if (dadosResumo['assadeiras'].isNotEmpty)
+                      _buildSection(
+                        'Assadeiras (${dadosResumo['assadeiras'].length})',
+                        List.generate(dadosResumo['assadeiras'].length, (i) {
+                          final a = dadosResumo['assadeiras'][i];
+                          return _buildItemCard(
+                            'Assadeira ${i + 1}',
+                            'Tipo: ${a['tipo']}, Quantidade: ${a['quantidade']}',
+                          );
+                        }),
+                      ),
+                    if (dadosResumo['climaticas'].isNotEmpty)
+                      _buildSection(
+                        'Climáticas (${dadosResumo['climaticas'].length})',
+                        List.generate(dadosResumo['climaticas'].length, (i) {
+                          final c = dadosResumo['climaticas'][i];
+                          return _buildItemCard(
+                            'Climática ${i + 1}',
+                            'Modelo: ${c['modelo']}, Suportes: ${c['suportes']}',
+                          );
+                        }),
+                      ),
+                    if (dadosResumo['freezers'].isNotEmpty)
+                      _buildSection(
+                        'Conservadores (${dadosResumo['freezers'].length})',
+                        List.generate(dadosResumo['freezers'].length, (i) {
+                          final f = dadosResumo['freezers'][i];
+                          return _buildItemCard(
+                            'Conservador ${i + 1}',
+                            'Modelo: ${f['modelo']}, Volume: ${f['volume']}L, Tipo: ${f['tipo']}',
+                          );
+                        }),
+                      ),
+                    const SizedBox(height: 32),
+                  ],
+                );
+              }).toList(),
+            ),
           ),
-        ),
+
+          // Fast lane lateral para scroll rápido
+          Positioned(
+            right: 4,
+            top: 0,
+            bottom: 0,
+            child: GestureDetector(
+              onVerticalDragUpdate: (details) {
+                final maxScroll = _scrollController.position.maxScrollExtent;
+                final newOffset = _scrollController.offset +
+                    details.delta.dy * 4; // velocidade
+                _scrollController.jumpTo(newOffset.clamp(0.0, maxScroll));
+              },
+              child: Container(
+                width: 20,
+                color: Colors.blue.withOpacity(0.3),
+                alignment: Alignment.center,
+                child: Container(
+                  width: 12,
+                  decoration: BoxDecoration(
+                    color: Colors.blueAccent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
