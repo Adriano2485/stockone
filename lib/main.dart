@@ -1,4 +1,4 @@
-
+import 'package:stockone/helpers/app_task.dart';
 
 import 'package:firebase_storage/firebase_storage.dart';
 
@@ -47,14 +47,12 @@ void main() async {
       persistenceEnabled: true,
       cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
     );
-
   } catch (e) {
     debugPrint('Erro Firebase: $e');
   }
 
   runApp(const MyApp());
 }
-
 
 const verdeEscuro = Color(0xFF006400);
 const vermelhoEscuro = Color(0xFF8B0000);
@@ -9550,7 +9548,6 @@ class Cadastro extends StatelessWidget {
   }
 }
 
-
 class Forno extends StatefulWidget {
   final String storeName;
   const Forno({super.key, required this.storeName});
@@ -9602,21 +9599,39 @@ class _FornoState extends State<Forno> {
   // ===================== FOTO =====================
 
   Future<void> _selecionarFoto(int index) async {
-    final image = await _picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 70,
-    );
-    if (image == null) return;
+    try {
+      final image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+      );
+      if (image == null) return;
 
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child('stores/${widget.storeName}/fornos/forno_$index.jpg');
+      final file = File(image.path);
 
-    await ref.putFile(File(image.path));
-    final url = await ref.getDownloadURL();
+      // Cria referência no Storage
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('stores/${widget.storeName}/fornos/forno_$index.jpg');
 
-    setState(() => fotosForno[index] = url);
-    _saveFornoData();
+      // Faz upload e espera terminar
+      final uploadTask = ref.putFile(file);
+      await uploadTask.whenComplete(() {});
+
+      // Pega URL da foto
+      final url = await ref.getDownloadURL();
+
+      setState(() => fotosForno[index] = url);
+
+      // Salva dados no Firestore
+      _saveFornoData();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Foto enviada com sucesso!')));
+    } catch (e) {
+      print('Erro upload Storage: $e');
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Erro ao enviar foto: $e')));
+    }
   }
 
   Future<void> _excluirFoto(int index) async {
@@ -9756,13 +9771,11 @@ class _FornoState extends State<Forno> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        mainAxisAlignment:
-                            MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text('Forno ${index + 1}',
                               style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold)),
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
                           Row(
                             children: [
                               IconButton(
@@ -9776,10 +9789,9 @@ class _FornoState extends State<Forno> {
                                     : () => _abrirMenuFoto(index),
                               ),
                               IconButton(
-                                icon: const Icon(Icons.delete,
-                                    color: Colors.red),
-                                onPressed: () =>
-                                    _removerForno(index),
+                                icon:
+                                    const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () => _removerForno(index),
                               ),
                             ],
                           )
@@ -9788,8 +9800,7 @@ class _FornoState extends State<Forno> {
                       const SizedBox(height: 12),
                       TextField(
                         controller: modeloControllers[index],
-                        decoration:
-                            const InputDecoration(labelText: 'Modelo'),
+                        decoration: const InputDecoration(labelText: 'Modelo'),
                         onChanged: (_) => _saveFornoData(),
                       ),
                       const SizedBox(height: 12),
@@ -9814,8 +9825,8 @@ class _FornoState extends State<Forno> {
                                   _saveFornoData();
                                 });
                               },
-                              decoration:
-                                  const InputDecoration(border: OutlineInputBorder()),
+                              decoration: const InputDecoration(
+                                  border: OutlineInputBorder()),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -9837,8 +9848,9 @@ class _FornoState extends State<Forno> {
                                   _saveFornoData();
                                 });
                               },
-                              decoration:
-                                  const InputDecoration(labelText: 'Suportes', border: OutlineInputBorder()),
+                              decoration: const InputDecoration(
+                                  labelText: 'Suportes',
+                                  border: OutlineInputBorder()),
                             ),
                           ),
                         ],
@@ -9850,8 +9862,8 @@ class _FornoState extends State<Forno> {
             }),
             Center(
               child: IconButton(
-                icon: const Icon(Icons.add_circle,
-                    color: Colors.green, size: 36),
+                icon:
+                    const Icon(Icons.add_circle, color: Colors.green, size: 36),
                 onPressed: _adicionarForno,
               ),
             ),
@@ -9861,7 +9873,6 @@ class _FornoState extends State<Forno> {
     );
   }
 }
-
 
 class Armarios extends StatefulWidget {
   final String storeName;
@@ -11541,7 +11552,6 @@ class latas extends StatelessWidget {
   }
 }
 
-
 class Comodatos extends StatefulWidget {
   const Comodatos({super.key});
 
@@ -11643,7 +11653,8 @@ class _ComodatosState extends State<Comodatos> {
 
             widgets.add(pw.SizedBox(height: 20));
 
-            void addSection(String title, List lista, String Function(int, Map) fn) {
+            void addSection(
+                String title, List lista, String Function(int, Map) fn) {
               if (lista.isEmpty) return;
 
               widgets.add(
@@ -11836,7 +11847,8 @@ class _ComodatosState extends State<Comodatos> {
           // Conteúdo rolável
           SingleChildScrollView(
             controller: _scrollController,
-            padding: const EdgeInsets.fromLTRB(24, 24, 48, 24), // espaço lateral para fast lane
+            padding: const EdgeInsets.fromLTRB(
+                24, 24, 48, 24), // espaço lateral para fast lane
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: List.generate(lojasResumo.length, (i) {
@@ -11954,8 +11966,10 @@ class _ComodatosState extends State<Comodatos> {
                     return GestureDetector(
                       onTap: () {
                         // mapear número para índice da loja
-                        final lojaIndex = ((i / 100) * lojasResumo.length).floor();
-                        _scrollToStore(lojaIndex.clamp(0, lojasResumo.length - 1));
+                        final lojaIndex =
+                            ((i / 100) * lojasResumo.length).floor();
+                        _scrollToStore(
+                            lojaIndex.clamp(0, lojasResumo.length - 1));
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 4),
