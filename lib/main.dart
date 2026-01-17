@@ -1,3 +1,5 @@
+
+
 import 'package:firebase_storage/firebase_storage.dart';
 
 import 'dart:convert';
@@ -9548,12 +9550,13 @@ class Cadastro extends StatelessWidget {
   }
 }
 
+
 class Forno extends StatefulWidget {
   final String storeName;
   const Forno({super.key, required this.storeName});
 
   @override
-  State<Forno> createState() => _FornoState();
+  _FornoState createState() => _FornoState();
 }
 
 class _FornoState extends State<Forno> {
@@ -9562,7 +9565,7 @@ class _FornoState extends State<Forno> {
   List<TextEditingController> modeloControllers = [];
   List<String> tiposForno = [];
   List<int> suportesForno = [];
-  List<String?> fotosForno = []; // 🔥 URL da foto
+  List<String?> fotosForno = [];
 
   final List<String> tipos = ['Elétrico', 'Gás'];
   final List<int> suportes = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -9588,9 +9591,7 @@ class _FornoState extends State<Forno> {
   }
 
   void criarFornoControllers(int quantidade) {
-    for (var c in modeloControllers) {
-      c.dispose();
-    }
+    for (var c in modeloControllers) c.dispose();
     modeloControllers =
         List.generate(quantidade, (_) => TextEditingController());
     tiposForno = List.generate(quantidade, (_) => '');
@@ -9609,8 +9610,7 @@ class _FornoState extends State<Forno> {
 
     final ref = FirebaseStorage.instance
         .ref()
-        .child(
-            'stores/${widget.storeName}/fornos/forno_$index.jpg');
+        .child('stores/${widget.storeName}/fornos/forno_$index.jpg');
 
     await ref.putFile(File(image.path));
     final url = await ref.getDownloadURL();
@@ -9749,9 +9749,11 @@ class _FornoState extends State<Forno> {
             ...List.generate(quantidadeFornos, (index) {
               return Card(
                 margin: const EdgeInsets.only(bottom: 16),
+                elevation: 2,
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         mainAxisAlignment:
@@ -9759,6 +9761,7 @@ class _FornoState extends State<Forno> {
                         children: [
                           Text('Forno ${index + 1}',
                               style: const TextStyle(
+                                  fontSize: 16,
                                   fontWeight: FontWeight.bold)),
                           Row(
                             children: [
@@ -9782,24 +9785,75 @@ class _FornoState extends State<Forno> {
                           )
                         ],
                       ),
-
                       const SizedBox(height: 12),
-
                       TextField(
                         controller: modeloControllers[index],
                         decoration:
                             const InputDecoration(labelText: 'Modelo'),
                         onChanged: (_) => _saveFornoData(),
                       ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              isExpanded: true,
+                              value: tiposForno[index].isNotEmpty
+                                  ? tiposForno[index]
+                                  : null,
+                              hint: const Text('Tipo'),
+                              items: tipos
+                                  .map((t) => DropdownMenuItem(
+                                        value: t,
+                                        child: Text(t),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  tiposForno[index] = value ?? '';
+                                  _saveFornoData();
+                                });
+                              },
+                              decoration:
+                                  const InputDecoration(border: OutlineInputBorder()),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: DropdownButtonFormField<int>(
+                              isExpanded: true,
+                              value: suportesForno[index] > 0
+                                  ? suportesForno[index]
+                                  : null,
+                              items: suportes
+                                  .map((s) => DropdownMenuItem(
+                                        value: s,
+                                        child: Text(s.toString()),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  suportesForno[index] = value ?? 0;
+                                  _saveFornoData();
+                                });
+                              },
+                              decoration:
+                                  const InputDecoration(labelText: 'Suportes', border: OutlineInputBorder()),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
               );
             }),
-            IconButton(
-              icon: const Icon(Icons.add_circle,
-                  color: Colors.green, size: 36),
-              onPressed: _adicionarForno,
+            Center(
+              child: IconButton(
+                icon: const Icon(Icons.add_circle,
+                    color: Colors.green, size: 36),
+                onPressed: _adicionarForno,
+              ),
             ),
           ],
         ),
@@ -9807,6 +9861,7 @@ class _FornoState extends State<Forno> {
     );
   }
 }
+
 
 class Armarios extends StatefulWidget {
   final String storeName;
