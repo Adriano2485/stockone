@@ -11575,7 +11575,7 @@ class Comodatos extends StatefulWidget {
 class _ComodatosState extends State<Comodatos> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final ScrollController _scrollController = ScrollController();
-  final Map<int, GlobalKey> _storeKeys = {}; // chaves para cada loja
+  final Map<int, GlobalKey> _storeKeys = {};
 
   bool isLoading = true;
   List<Map<String, dynamic>> lojasResumo = [];
@@ -11619,16 +11619,13 @@ class _ComodatosState extends State<Comodatos> {
       }
 
       temp.sort(
-        (a, b) =>
-            _numeroLoja(a['storeName']).compareTo(_numeroLoja(b['storeName'])),
+        (a, b) => _numeroLoja(a['storeName']).compareTo(_numeroLoja(b['storeName'])),
       );
 
       if (mounted) {
         setState(() {
           lojasResumo = temp;
           isLoading = false;
-
-          // Criar keys para cada loja
           for (int i = 0; i < lojasResumo.length; i++) {
             _storeKeys[i] = GlobalKey();
           }
@@ -11666,8 +11663,7 @@ class _ComodatosState extends State<Comodatos> {
 
             widgets.add(pw.SizedBox(height: 20));
 
-            void addSection(
-                String title, List lista, String Function(int, Map) fn) {
+            void addSection(String title, List lista, String Function(int, Map) fn) {
               if (lista.isEmpty) return;
 
               widgets.add(
@@ -11682,7 +11678,8 @@ class _ComodatosState extends State<Comodatos> {
 
               for (int i = 0; i < lista.length; i++) {
                 final item = lista[i];
-                widgets.add(pw.Column(
+                widgets.add(
+                  pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Bullet(text: fn(i, item)),
@@ -11698,7 +11695,9 @@ class _ComodatosState extends State<Comodatos> {
                           ),
                         ),
                       pw.SizedBox(height: 4),
-                    ]));
+                    ],
+                  ),
+                );
               }
 
               widgets.add(pw.SizedBox(height: 12));
@@ -11714,36 +11713,31 @@ class _ComodatosState extends State<Comodatos> {
             addSection(
               'Armários:',
               dadosResumo['armarios'],
-              (i, a) =>
-                  'Armário ${i + 1} - Tipo: ${a['tipo'] ?? 'N/I'}, Suportes: ${a['suportes'] ?? 0}',
+              (i, a) => 'Armário ${i + 1} - Tipo: ${a['tipo'] ?? 'N/I'}, Suportes: ${a['suportes'] ?? 0}',
             );
 
             addSection(
               'Esqueletos:',
               dadosResumo['esqueletos'],
-              (i, e) =>
-                  'Esqueleto ${i + 1} - Tipo: ${e['tipo'] ?? 'N/I'}, Suportes: ${e['suportes'] ?? 0}',
+              (i, e) => 'Esqueleto ${i + 1} - Tipo: ${e['tipo'] ?? 'N/I'}, Suportes: ${e['suportes'] ?? 0}',
             );
 
             addSection(
               'Esteiras:',
               dadosResumo['esteiras'],
-              (i, e) =>
-                  'Esteira ${i + 1} - Tipo: ${e['tipo'] ?? 'N/I'}, Quantidade: ${e['quantidade'] ?? 0}',
+              (i, e) => 'Esteira ${i + 1} - Tipo: ${e['tipo'] ?? 'N/I'}, Quantidade: ${e['quantidade'] ?? 0}',
             );
 
             addSection(
               'Assadeiras:',
               dadosResumo['assadeiras'],
-              (i, a) =>
-                  'Assadeira ${i + 1} - Tipo: ${a['tipo'] ?? 'N/I'}, Quantidade: ${a['quantidade'] ?? 0}',
+              (i, a) => 'Assadeira ${i + 1} - Tipo: ${a['tipo'] ?? 'N/I'}, Quantidade: ${a['quantidade'] ?? 0}',
             );
 
             addSection(
               'Climáticas:',
               dadosResumo['climaticas'],
-              (i, c) =>
-                  'Climática ${i + 1} - Modelo: ${c['modelo'] ?? 'N/I'}, Suportes: ${c['suportes'] ?? 0}',
+              (i, c) => 'Climática ${i + 1} - Modelo: ${c['modelo'] ?? 'N/I'}, Suportes: ${c['suportes'] ?? 0}',
             );
 
             addSection(
@@ -11768,7 +11762,7 @@ class _ComodatosState extends State<Comodatos> {
     final bytes = await _gerarPdf();
     await Printing.sharePdf(
       bytes: bytes,
-      filename: 'Comodatos_Bahamas.pdf',
+      filename: 'Comodatos.pdf',
     );
   }
 
@@ -11779,9 +11773,7 @@ class _ComodatosState extends State<Comodatos> {
       child: Card(
         margin: const EdgeInsets.only(bottom: 16),
         elevation: 3,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -11789,11 +11781,7 @@ class _ComodatosState extends State<Comodatos> {
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue,
-                ),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
               ),
               const SizedBox(height: 12),
               ...children,
@@ -11804,31 +11792,68 @@ class _ComodatosState extends State<Comodatos> {
     );
   }
 
-  Widget _buildItemCard(String title, String subtitle) {
+  Widget _buildItemCard(String title, String subtitle, {String? photoUrl}) {
     return SizedBox(
       width: double.infinity,
       child: Card(
         margin: const EdgeInsets.only(bottom: 8),
         color: Colors.grey[50],
         elevation: 1,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Column(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  color: Colors.grey[700],
-                  fontSize: 14,
+              if (photoUrl != null)
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => Scaffold(
+                          appBar: AppBar(),
+                          body: Center(
+                            child: InteractiveViewer(
+                              child: CachedNetworkImage(
+                                imageUrl: photoUrl,
+                                placeholder: (context, url) => const CircularProgressIndicator(),
+                                errorWidget: (context, url, error) => const Icon(Icons.error),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                  child: CachedNetworkImage(
+                    imageUrl: photoUrl,
+                    width: 60,
+                    height: 60,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      width: 60,
+                      height: 60,
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.image, color: Colors.white70),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      width: 60,
+                      height: 60,
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.error, color: Colors.red),
+                    ),
+                  ),
+                ),
+              if (photoUrl != null) const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 4),
+                    Text(subtitle, style: TextStyle(color: Colors.grey[700], fontSize: 14)),
+                  ],
                 ),
               ),
             ],
@@ -11838,7 +11863,6 @@ class _ComodatosState extends State<Comodatos> {
     );
   }
 
-  // Pular para a loja pelo índice
   void _scrollToStore(int index) {
     if (_storeKeys.containsKey(index)) {
       final keyContext = _storeKeys[index]!.currentContext;
@@ -11855,30 +11879,23 @@ class _ComodatosState extends State<Comodatos> {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Inventário'),
+        title: const Text('Comodatos'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.share),
-            onPressed: _compartilharPdf,
-          ),
+          IconButton(icon: const Icon(Icons.share), onPressed: _compartilharPdf),
         ],
       ),
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             controller: _scrollController,
-            padding: const EdgeInsets.fromLTRB(
-                24, 24, 48, 24), // espaço lateral para fast lane
+            padding: const EdgeInsets.fromLTRB(24, 24, 48, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: List.generate(lojasResumo.length, (i) {
@@ -11891,10 +11908,7 @@ class _ComodatosState extends State<Comodatos> {
                     children: [
                       Text(
                         loja['storeName'],
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 16),
                       if (dadosResumo['fornos'].isNotEmpty)
@@ -11905,6 +11919,7 @@ class _ComodatosState extends State<Comodatos> {
                             return _buildItemCard(
                               'Forno ${j + 1}',
                               'Modelo: ${f['modelo']}, Tipo: ${f['tipo']}, Suportes: ${f['suportes']}',
+                              photoUrl: f['photoUrl'],
                             );
                           }),
                         ),
@@ -11916,6 +11931,7 @@ class _ComodatosState extends State<Comodatos> {
                             return _buildItemCard(
                               'Armário ${j + 1}',
                               'Tipo: ${a['tipo']}, Suportes: ${a['suportes']}',
+                              photoUrl: a['photoUrl'],
                             );
                           }),
                         ),
@@ -11927,6 +11943,7 @@ class _ComodatosState extends State<Comodatos> {
                             return _buildItemCard(
                               'Esqueleto ${j + 1}',
                               'Tipo: ${e['tipo']}, Suportes: ${e['suportes']}',
+                              photoUrl: e['photoUrl'],
                             );
                           }),
                         ),
@@ -11938,6 +11955,7 @@ class _ComodatosState extends State<Comodatos> {
                             return _buildItemCard(
                               'Esteira ${j + 1}',
                               'Tipo: ${e['tipo']}, Quantidade: ${e['quantidade']}',
+                              photoUrl: e['photoUrl'],
                             );
                           }),
                         ),
@@ -11949,6 +11967,7 @@ class _ComodatosState extends State<Comodatos> {
                             return _buildItemCard(
                               'Assadeira ${j + 1}',
                               'Tipo: ${a['tipo']}, Quantidade: ${a['quantidade']}',
+                              photoUrl: a['photoUrl'],
                             );
                           }),
                         ),
@@ -11960,6 +11979,7 @@ class _ComodatosState extends State<Comodatos> {
                             return _buildItemCard(
                               'Climática ${j + 1}',
                               'Modelo: ${c['modelo']}, Suportes: ${c['suportes']}',
+                              photoUrl: c['photoUrl'],
                             );
                           }),
                         ),
@@ -11971,6 +11991,7 @@ class _ComodatosState extends State<Comodatos> {
                             return _buildItemCard(
                               'Conservador ${j + 1}',
                               'Modelo: ${f['modelo']}, Volume: ${f['volume']}L, Tipo: ${f['tipo']}',
+                              photoUrl: f['photoUrl'],
                             );
                           }),
                         ),
@@ -11981,8 +12002,6 @@ class _ComodatosState extends State<Comodatos> {
               }),
             ),
           ),
-
-          // Fast lane numérica
           Positioned(
             right: 0,
             top: 24,
@@ -11995,11 +12014,8 @@ class _ComodatosState extends State<Comodatos> {
                   children: List.generate(100, (i) {
                     return GestureDetector(
                       onTap: () {
-                        // mapear número para índice da loja
-                        final lojaIndex =
-                            ((i / 100) * lojasResumo.length).floor();
-                        _scrollToStore(
-                            lojaIndex.clamp(0, lojasResumo.length - 1));
+                        final lojaIndex = ((i / 100) * lojasResumo.length).floor();
+                        _scrollToStore(lojaIndex.clamp(0, lojasResumo.length - 1));
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 4),
