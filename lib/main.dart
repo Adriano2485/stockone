@@ -1,3 +1,7 @@
+import 'package:stockone/helpers/app_task.dart';
+
+import 'package:firebase_storage/firebase_storage.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -37,12 +41,20 @@ void main() async {
       // Android / iOS usam os arquivos nativos
       await Firebase.initializeApp();
     }
+
+    // ✅ AQUI É O LUGAR CERTO (CONFIGURAÇÃO GLOBAL DO CACHE)
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
+
   } catch (e) {
     debugPrint('Erro Firebase: $e');
   }
 
   runApp(const MyApp());
 }
+
 
 const verdeEscuro = Color(0xFF006400);
 const vermelhoEscuro = Color(0xFF8B0000);
@@ -9548,13 +9560,17 @@ class Forno extends StatefulWidget {
 
 class _FornoState extends State<Forno> {
   int quantidadeFornos = 0;
+
   List<TextEditingController> modeloControllers = [];
   List<String> tiposForno = [];
   List<int> suportesForno = [];
+  List<String?> fotosForno = []; // 🔥 URL da foto
 
   final List<String> tipos = ['Elétrico', 'Gás'];
   final List<int> suportes = [1, 2, 3, 4, 5, 6, 7, 8];
+
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -9567,70 +9583,136 @@ class _FornoState extends State<Forno> {
 
   @override
   void dispose() {
-    for (var controller in modeloControllers) {
-      controller.dispose();
+    for (var c in modeloControllers) {
+      c.dispose();
     }
     super.dispose();
   }
 
   void criarFornoControllers(int quantidade) {
-    for (var controller in modeloControllers) {
-      controller.dispose();
+    for (var c in modeloControllers) {
+      c.dispose();
     }
     modeloControllers =
         List.generate(quantidade, (_) => TextEditingController());
     tiposForno = List.generate(quantidade, (_) => '');
     suportesForno = List.generate(quantidade, (_) => 0);
+    fotosForno = List.generate(quantidade, (_) => null);
   }
 
-  Future<void> _saveFornoData() async {
-    try {
-      List<Map<String, dynamic>> fornoList = [];
-      for (int i = 0; i < quantidadeFornos; i++) {
-        fornoList.add({
-          'modelo': modeloControllers[i].text,
-          'tipo': tiposForno[i],
-          'suportes': suportesForno[i],
-        });
-      }
+  // ===================== FOTO =====================
 
-      await _firestore.collection('stores').doc(widget.storeName).set({
-        'fornos': fornoList,
-        'lastUpdatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    } catch (e) {
-      print('Erro ao salvar fornos: $e');
+  Future<void> _selecionarFoto(int index) async {
+    final image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,
+    );
+    if (image == null) return;
+
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child(
+            'stores/${widget.storeName}/fornos/forno_$index.jpg');
+
+    await ref.putFile(File(image.path));
+    final url = await ref.getDownloadURL();
+
+    setState(() => fotosForno[index] = url);
+    _saveFornoData();
+  }
+
+  Future<void> _excluirFoto(int index) async {
+    final url = fotosForno[index];
+    if (url == null) return;
+
+    try {
+      await FirebaseStorage.instance.refFromURL(url).delete();
+    } catch (_) {}
+
+    setState(() => fotosForno[index] = null);
+    _saveFornoData();
+  }
+
+  void _abrirMenuFoto(int index) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.download),
+              title: const Text('Baixar foto'),
+              onTap: () async {
+                Navigator.pop(context);
+                final url = fotosForno[index];
+                if (url != null) {
+                  await launchUrl(Uri.parse(url),
+                      mode: LaunchMode.externalApplication);
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.swap_horiz),
+              title: const Text('Trocar foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _selecionarFoto(index);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Excluir foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _excluirFoto(index);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ===================== FIRESTORE =====================
+
+  Future<void> _saveFornoData() async {
+    List<Map<String, dynamic>> fornoList = [];
+
+    for (int i = 0; i < quantidadeFornos; i++) {
+      fornoList.add({
+        'modelo': modeloControllers[i].text,
+        'tipo': tiposForno[i],
+        'suportes': suportesForno[i],
+        'photoUrl': fotosForno[i],
+      });
     }
+
+    await _firestore.collection('stores').doc(widget.storeName).set({
+      'fornos': fornoList,
+      'lastUpdatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   Future<void> _loadFornoData() async {
-    try {
-      final doc =
-          await _firestore.collection('stores').doc(widget.storeName).get();
-      if (doc.exists) {
-        final data = doc.data() ?? {};
-        final fornoList = data['fornos'] ?? [];
+    final doc =
+        await _firestore.collection('stores').doc(widget.storeName).get();
 
-        if (mounted) {
-          setState(() {
-            quantidadeFornos = fornoList.length;
-            criarFornoControllers(quantidadeFornos);
-            for (int i = 0; i < quantidadeFornos; i++) {
-              var forno = fornoList[i];
-              modeloControllers[i].text = forno['modelo'] ?? '';
-              tiposForno[i] = forno['tipo'] ?? '';
-              suportesForno[i] = forno['suportes'] ?? 0;
-            }
-          });
-        }
+    if (!doc.exists) return;
+
+    final fornos = doc.data()?['fornos'] ?? [];
+
+    setState(() {
+      quantidadeFornos = fornos.length;
+      criarFornoControllers(quantidadeFornos);
+
+      for (int i = 0; i < quantidadeFornos; i++) {
+        modeloControllers[i].text = fornos[i]['modelo'] ?? '';
+        tiposForno[i] = fornos[i]['tipo'] ?? '';
+        suportesForno[i] = fornos[i]['suportes'] ?? 0;
+        fotosForno[i] = fornos[i]['photoUrl'];
       }
-    } catch (e) {
-      print('Erro ao carregar fornos: $e');
-    }
-  }
-
-  void _onFieldChanged() {
-    _saveFornoData();
+    });
   }
 
   void _adicionarForno() {
@@ -9639,6 +9721,7 @@ class _FornoState extends State<Forno> {
       modeloControllers.add(TextEditingController());
       tiposForno.add('');
       suportesForno.add(0);
+      fotosForno.add(null);
     });
     _saveFornoData();
   }
@@ -9650,9 +9733,12 @@ class _FornoState extends State<Forno> {
       modeloControllers.removeAt(index);
       tiposForno.removeAt(index);
       suportesForno.removeAt(index);
+      fotosForno.removeAt(index);
     });
     _saveFornoData();
   }
+
+  // ===================== UI =====================
 
   @override
   Widget build(BuildContext context) {
@@ -9661,111 +9747,61 @@ class _FornoState extends State<Forno> {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 20),
             ...List.generate(quantidadeFornos, (index) {
               return Card(
                 margin: const EdgeInsets.only(bottom: 16),
-                elevation: 2,
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment:
+                            MainAxisAlignment.spaceBetween,
                         children: [
                           Text('Forno ${index + 1}',
                               style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold)),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _removerForno(index),
-                          ),
+                                  fontWeight: FontWeight.bold)),
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  fotosForno[index] == null
+                                      ? Icons.add_a_photo
+                                      : Icons.photo,
+                                ),
+                                onPressed: fotosForno[index] == null
+                                    ? () => _selecionarFoto(index)
+                                    : () => _abrirMenuFoto(index),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete,
+                                    color: Colors.red),
+                                onPressed: () =>
+                                    _removerForno(index),
+                              ),
+                            ],
+                          )
                         ],
                       ),
+
                       const SizedBox(height: 12),
+
                       TextField(
                         controller: modeloControllers[index],
-                        maxLines: 3,
-                        decoration: const InputDecoration(
-                          labelText: 'Modelo',
-                          border: OutlineInputBorder(),
-                          alignLabelWithHint: true,
-                        ),
-                        onChanged: (_) => _onFieldChanged(),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              isExpanded: true,
-                              value: tiposForno[index].isNotEmpty
-                                  ? tiposForno[index]
-                                  : null,
-                              hint: const Text('Tipo'),
-                              items: tipos
-                                  .map((tipo) => DropdownMenuItem(
-                                        value: tipo,
-                                        child: Text(tipo,
-                                            overflow: TextOverflow.ellipsis),
-                                      ))
-                                  .toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  tiposForno[index] = value ?? '';
-                                  _saveFornoData();
-                                });
-                              },
-                              decoration: const InputDecoration(
-                                border: OutlineInputBorder(),
-                                contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: DropdownButtonFormField<int>(
-                              isExpanded: true,
-                              value: suportesForno[index] > 0
-                                  ? suportesForno[index]
-                                  : null,
-                              items: suportes
-                                  .map((num) => DropdownMenuItem(
-                                        value: num,
-                                        child: Text(num.toString()),
-                                      ))
-                                  .toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  suportesForno[index] = value ?? 0;
-                                  _saveFornoData();
-                                });
-                              },
-                              decoration: const InputDecoration(
-                                labelText: 'Suportes',
-                                border: OutlineInputBorder(),
-                                contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                              ),
-                            ),
-                          ),
-                        ],
+                        decoration:
+                            const InputDecoration(labelText: 'Modelo'),
+                        onChanged: (_) => _saveFornoData(),
                       ),
                     ],
                   ),
                 ),
               );
             }),
-            Center(
-              child: IconButton(
-                icon:
-                    const Icon(Icons.add_circle, color: Colors.green, size: 36),
-                onPressed: _adicionarForno,
-              ),
+            IconButton(
+              icon: const Icon(Icons.add_circle,
+                  color: Colors.green, size: 36),
+              onPressed: _adicionarForno,
             ),
           ],
         ),
