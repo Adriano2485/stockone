@@ -29,6 +29,8 @@ dependencies:
   wakelock_plus: ^1.2.4
   flutter_secure_storage: ^8.0.0
   in_app_update: ^4.2.2
+  cached_network_image: ^3.2.3
+  
 
 
 dev_dependencies:
