@@ -9599,39 +9599,28 @@ class _FornoState extends State<Forno> {
   // ===================== FOTO =====================
 
   Future<void> _selecionarFoto(int index) async {
-    try {
-      final image = await _picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 70,
-      );
-      if (image == null) return;
+    final image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,
+    );
+    if (image == null) return;
 
-      final file = File(image.path);
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child('stores/${widget.storeName}/fornos/forno_$index.jpg');
 
-      // Cria referência no Storage
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('stores/${widget.storeName}/fornos/forno_$index.jpg');
-
-      // Faz upload e espera terminar
-      final uploadTask = ref.putFile(file);
-      await uploadTask.whenComplete(() {});
-
-      // Pega URL da foto
-      final url = await ref.getDownloadURL();
-
-      setState(() => fotosForno[index] = url);
-
-      // Salva dados no Firestore
-      _saveFornoData();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Foto enviada com sucesso!')));
-    } catch (e) {
-      print('Erro upload Storage: $e');
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Erro ao enviar foto: $e')));
+    if (kIsWeb) {
+      // Web usa bytes
+      final bytes = await image.readAsBytes();
+      await ref.putData(bytes);
+    } else {
+      // Mobile usa File
+      await ref.putFile(File(image.path));
     }
+
+    final url = await ref.getDownloadURL();
+    setState(() => fotosForno[index] = url);
+    _saveFornoData();
   }
 
   Future<void> _excluirFoto(int index) async {
