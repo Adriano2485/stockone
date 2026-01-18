@@ -392,6 +392,8 @@ class _RedeScreenState extends State<RedeScreen> {
                       _card("assets/images/paisefilhos.jpg", "paisefilhos",
                           const PaiseFilhos()),
                       _card("assets/images/bh.jpg", "bh", const BH()),
+                      _card("assets/images/Mart-Minas.jpg", "martminas",
+                          const Martminas()),
                     ],
                   ),
                 ),
@@ -9872,48 +9874,147 @@ class Armarios extends StatefulWidget {
 }
 
 class _ArmariosState extends State<Armarios> {
+  int quantidadeArmarios = 0;
+  int quantidadeEsqueletos = 0;
+
   List<String> tiposArmario = [];
   List<int> suportesArmario = [];
+  List<String?> fotosArmario = [];
+
   List<String> tiposEsqueleto = [];
   List<int> suportesEsqueleto = [];
+  List<String?> fotosEsqueleto = [];
 
   final List<String> tiposMaterial = ['Inox', 'Alumínio', 'Epoxi'];
   final List<int> suportes = List.generate(20, (index) => index + 1);
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadData();
-    });
+    criarControllers(0, 0);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
   }
 
+  void criarControllers(int qtdArmarios, int qtdEsqueletos) {
+    fotosArmario = List.generate(qtdArmarios, (_) => null);
+    fotosEsqueleto = List.generate(qtdEsqueletos, (_) => null);
+  }
+
+  // ===================== FOTO =====================
+  Future<void> _selecionarFoto(bool isArmario, int index) async {
+    final image =
+        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    if (image == null) return;
+
+    final ref = FirebaseStorage.instance.ref().child(
+        'stores/${widget.storeName}/${isArmario ? 'armarios' : 'esqueletos'}/${isArmario ? 'armario' : 'esqueleto'}_$index.jpg');
+
+    if (kIsWeb) {
+      final bytes = await image.readAsBytes();
+      await ref.putData(bytes);
+    } else {
+      await ref.putFile(File(image.path));
+    }
+
+    final url = await ref.getDownloadURL();
+    setState(() {
+      if (isArmario) {
+        fotosArmario[index] = url;
+      } else {
+        fotosEsqueleto[index] = url;
+      }
+    });
+    _saveData();
+  }
+
+  Future<void> _excluirFoto(bool isArmario, int index) async {
+    final url = isArmario ? fotosArmario[index] : fotosEsqueleto[index];
+    if (url == null) return;
+
+    try {
+      await FirebaseStorage.instance.refFromURL(url).delete();
+    } catch (_) {}
+
+    setState(() {
+      if (isArmario) {
+        fotosArmario[index] = null;
+      } else {
+        fotosEsqueleto[index] = null;
+      }
+    });
+    _saveData();
+  }
+
+  void _abrirMenuFoto(bool isArmario, int index) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.download),
+              title: const Text('Baixar foto'),
+              onTap: () async {
+                Navigator.pop(context);
+                final url =
+                    isArmario ? fotosArmario[index] : fotosEsqueleto[index];
+                if (url != null) {
+                  await launchUrl(Uri.parse(url),
+                      mode: LaunchMode.externalApplication);
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.swap_horiz),
+              title: const Text('Trocar foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _selecionarFoto(isArmario, index);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Excluir foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _excluirFoto(isArmario, index);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ===================== FIRESTORE =====================
   Future<void> _saveData() async {
     try {
-      List<Map<String, dynamic>> armarioList = [];
-      for (int i = 0; i < tiposArmario.length; i++) {
-        armarioList.add({
-          'tipo': tiposArmario[i],
-          'suportes': suportesArmario[i],
-        });
-      }
+      final armariosData = List.generate(
+          quantidadeArmarios,
+          (i) => {
+                'tipo': tiposArmario[i],
+                'suportes': suportesArmario[i],
+                'photoUrl': fotosArmario[i],
+              });
 
-      List<Map<String, dynamic>> esqueletoList = [];
-      for (int i = 0; i < tiposEsqueleto.length; i++) {
-        esqueletoList.add({
-          'tipo': tiposEsqueleto[i],
-          'suportes': suportesEsqueleto[i],
-        });
-      }
+      final esqueletosData = List.generate(
+          quantidadeEsqueletos,
+          (i) => {
+                'tipo': tiposEsqueleto[i],
+                'suportes': suportesEsqueleto[i],
+                'photoUrl': fotosEsqueleto[i],
+              });
 
       await _firestore.collection('stores').doc(widget.storeName).set({
-        'armarios': armarioList,
-        'esqueletos': esqueletoList,
+        'armarios': armariosData,
+        'esqueletos': esqueletosData,
         'lastUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (e) {
-      print('Erro ao salvar armários/esqueletos: $e');
+      debugPrint('Erro ao salvar armários/esqueletos: $e');
     }
   }
 
@@ -9921,74 +10022,162 @@ class _ArmariosState extends State<Armarios> {
     try {
       final doc =
           await _firestore.collection('stores').doc(widget.storeName).get();
-      if (doc.exists) {
-        final data = doc.data() ?? {};
+      if (!doc.exists) return;
 
-        // Armários
-        final armarioList = data['armarios'] ?? [];
-        if (mounted) {
-          setState(() {
-            tiposArmario = List.generate(armarioList.length, (_) => '');
-            suportesArmario = List.generate(armarioList.length, (_) => 0);
-            for (int i = 0; i < armarioList.length; i++) {
-              tiposArmario[i] = armarioList[i]['tipo'] ?? '';
-              suportesArmario[i] = armarioList[i]['suportes'] ?? 0;
-            }
-          });
-        }
+      final data = doc.data() ?? {};
+      final List armarioList = (data['armarios'] as List?) ?? [];
+      final List esqueletoList = (data['esqueletos'] as List?) ?? [];
 
-        // Esqueletos
-        final esqueletoList = data['esqueletos'] ?? [];
-        if (mounted) {
-          setState(() {
-            tiposEsqueleto = List.generate(esqueletoList.length, (_) => '');
-            suportesEsqueleto = List.generate(esqueletoList.length, (_) => 0);
-            for (int i = 0; i < esqueletoList.length; i++) {
-              tiposEsqueleto[i] = esqueletoList[i]['tipo'] ?? '';
-              suportesEsqueleto[i] = esqueletoList[i]['suportes'] ?? 0;
-            }
-          });
-        }
-      }
+      setState(() {
+        quantidadeArmarios = armarioList.length;
+        quantidadeEsqueletos = esqueletoList.length;
+
+        tiposArmario = armarioList
+            .map<String>((e) => (e as Map)['tipo']?.toString() ?? '')
+            .toList();
+        suportesArmario = armarioList
+            .map<int>((e) => (e as Map)['suportes'] as int? ?? 0)
+            .toList();
+        fotosArmario = armarioList
+            .map<String?>((e) => (e as Map)['photoUrl'] as String?)
+            .toList();
+
+        tiposEsqueleto = esqueletoList
+            .map<String>((e) => (e as Map)['tipo']?.toString() ?? '')
+            .toList();
+        suportesEsqueleto = esqueletoList
+            .map<int>((e) => (e as Map)['suportes'] as int? ?? 0)
+            .toList();
+        fotosEsqueleto = esqueletoList
+            .map<String?>((e) => (e as Map)['photoUrl'] as String?)
+            .toList();
+      });
     } catch (e) {
-      print('Erro ao carregar armários/esqueletos: $e');
+      debugPrint('Erro ao carregar armários/esqueletos: $e');
     }
   }
 
-  void _onFieldChanged() => _saveData();
-
+  // ===================== AÇÕES =====================
   void _adicionarArmario() {
     setState(() {
+      quantidadeArmarios++;
       tiposArmario.add('');
       suportesArmario.add(0);
+      fotosArmario.add(null);
     });
     _saveData();
   }
 
   void _removerArmario(int index) {
     setState(() {
+      quantidadeArmarios--;
       tiposArmario.removeAt(index);
       suportesArmario.removeAt(index);
+      fotosArmario.removeAt(index);
     });
     _saveData();
   }
 
   void _adicionarEsqueleto() {
     setState(() {
+      quantidadeEsqueletos++;
       tiposEsqueleto.add('');
       suportesEsqueleto.add(0);
+      fotosEsqueleto.add(null);
     });
     _saveData();
   }
 
   void _removerEsqueleto(int index) {
     setState(() {
+      quantidadeEsqueletos--;
       tiposEsqueleto.removeAt(index);
       suportesEsqueleto.removeAt(index);
+      fotosEsqueleto.removeAt(index);
     });
     _saveData();
   }
 
+  // ===================== CARD =====================
+  Widget _buildCard({
+    required String title,
+    required String tipo,
+    required int suporte,
+    required String? photoUrl,
+    required void Function(String?) onTipoChanged,
+    required void Function(int?) onSuporteChanged,
+    required VoidCallback onRemove,
+    required VoidCallback onPhotoTap,
+  }) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(title,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                          photoUrl == null ? Icons.add_a_photo : Icons.photo),
+                      onPressed: onPhotoTap,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: onRemove,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    value: tipo.isNotEmpty ? tipo : null,
+                    items: tiposMaterial
+                        .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                        .toList(),
+                    onChanged: onTipoChanged,
+                    decoration: const InputDecoration(
+                      labelText: 'Tipo de material',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    isExpanded: true,
+                    value: suporte > 0 ? suporte : null,
+                    items: suportes
+                        .map((s) => DropdownMenuItem(
+                            value: s, child: Text(s.toString())))
+                        .toList(),
+                    onChanged: onSuporteChanged,
+                    decoration: const InputDecoration(
+                      labelText: 'Suportes',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ===================== UI =====================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -10000,182 +10189,62 @@ class _ArmariosState extends State<Armarios> {
           children: [
             const Text('Armários:',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
-            ...List.generate(tiposArmario.length, (index) {
-              return Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                elevation: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Armário ${index + 1}',
-                              style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold)),
-                          IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _removerArmario(index)),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              isExpanded: true,
-                              value: tiposArmario[index].isNotEmpty
-                                  ? tiposArmario[index]
-                                  : null,
-                              items: tiposMaterial
-                                  .map((tipo) => DropdownMenuItem(
-                                      value: tipo, child: Text(tipo)))
-                                  .toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  tiposArmario[index] = value ?? '';
-                                  _saveData();
-                                });
-                              },
-                              decoration: const InputDecoration(
-                                labelText: 'Tipo',
-                                border: OutlineInputBorder(),
-                                contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: DropdownButtonFormField<int>(
-                              isExpanded: true,
-                              value: suportesArmario[index] > 0
-                                  ? suportesArmario[index]
-                                  : null,
-                              items: suportes
-                                  .map((num) => DropdownMenuItem(
-                                      value: num, child: Text(num.toString())))
-                                  .toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  suportesArmario[index] = value ?? 0;
-                                  _saveData();
-                                });
-                              },
-                              decoration: const InputDecoration(
-                                labelText: 'Suportes',
-                                border: OutlineInputBorder(),
-                                contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+            const SizedBox(height: 12),
+            ...List.generate(quantidadeArmarios, (index) {
+              return _buildCard(
+                title: 'Armário ${index + 1}',
+                tipo: tiposArmario[index],
+                suporte: suportesArmario[index],
+                photoUrl: fotosArmario[index],
+                onTipoChanged: (v) {
+                  setState(() => tiposArmario[index] = v ?? '');
+                  _saveData();
+                },
+                onSuporteChanged: (v) {
+                  setState(() => suportesArmario[index] = v ?? 0);
+                  _saveData();
+                },
+                onRemove: () => _removerArmario(index),
+                onPhotoTap: () => fotosArmario[index] == null
+                    ? _selecionarFoto(true, index)
+                    : _abrirMenuFoto(true, index),
               );
             }),
             Center(
               child: IconButton(
-                icon:
-                    const Icon(Icons.add_circle, size: 40, color: Colors.green),
-                onPressed: _adicionarArmario,
-              ),
+                  icon: const Icon(Icons.add_circle,
+                      size: 36, color: Colors.green),
+                  onPressed: _adicionarArmario),
             ),
             const SizedBox(height: 30),
             const Text('Esqueletos:',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
-            ...List.generate(tiposEsqueleto.length, (index) {
-              return Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                elevation: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Esqueleto ${index + 1}',
-                              style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold)),
-                          IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _removerEsqueleto(index)),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              isExpanded: true,
-                              value: tiposEsqueleto[index].isNotEmpty
-                                  ? tiposEsqueleto[index]
-                                  : null,
-                              items: tiposMaterial
-                                  .map((tipo) => DropdownMenuItem(
-                                      value: tipo, child: Text(tipo)))
-                                  .toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  tiposEsqueleto[index] = value ?? '';
-                                  _saveData();
-                                });
-                              },
-                              decoration: const InputDecoration(
-                                labelText: 'Tipo de material',
-                                border: OutlineInputBorder(),
-                                contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: DropdownButtonFormField<int>(
-                              isExpanded: true,
-                              value: suportesEsqueleto[index] > 0
-                                  ? suportesEsqueleto[index]
-                                  : null,
-                              items: suportes
-                                  .map((num) => DropdownMenuItem(
-                                      value: num, child: Text(num.toString())))
-                                  .toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  suportesEsqueleto[index] = value ?? 0;
-                                  _saveData();
-                                });
-                              },
-                              decoration: const InputDecoration(
-                                labelText: 'Suportes',
-                                border: OutlineInputBorder(),
-                                contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+            const SizedBox(height: 12),
+            ...List.generate(quantidadeEsqueletos, (index) {
+              return _buildCard(
+                title: 'Esqueleto ${index + 1}',
+                tipo: tiposEsqueleto[index],
+                suporte: suportesEsqueleto[index],
+                photoUrl: fotosEsqueleto[index],
+                onTipoChanged: (v) {
+                  setState(() => tiposEsqueleto[index] = v ?? '');
+                  _saveData();
+                },
+                onSuporteChanged: (v) {
+                  setState(() => suportesEsqueleto[index] = v ?? 0);
+                  _saveData();
+                },
+                onRemove: () => _removerEsqueleto(index),
+                onPhotoTap: () => fotosEsqueleto[index] == null
+                    ? _selecionarFoto(false, index)
+                    : _abrirMenuFoto(false, index),
               );
             }),
             Center(
               child: IconButton(
-                icon:
-                    const Icon(Icons.add_circle, size: 40, color: Colors.green),
-                onPressed: _adicionarEsqueleto,
-              ),
+                  icon: const Icon(Icons.add_circle,
+                      size: 36, color: Colors.green),
+                  onPressed: _adicionarEsqueleto),
             ),
           ],
         ),
@@ -10193,10 +10262,16 @@ class Assadeiras extends StatefulWidget {
 }
 
 class _AssadeirasState extends State<Assadeiras> {
+  int quantidadeEsteiras = 0;
+  int quantidadeAssadeiras = 0;
+
   List<String> tiposEsteiras = [];
   List<int> quantidadesEsteiras = [];
+  List<String?> fotosEsteiras = [];
+
   List<String> tiposAssadeiras = [];
   List<int> quantidadesAssadeiras = [];
+  List<String?> fotosAssadeiras = [];
 
   final List<String> tiposMaterial = [
     'Alumínio',
@@ -10204,69 +10279,131 @@ class _AssadeirasState extends State<Assadeiras> {
     'Flandre',
     'Ferro Fundido'
   ];
-
   final List<int> quantidades = List.generate(120, (index) => index + 1);
+
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    criarEsteiraAssadeiraControllers(0, 0);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
   }
 
-  // ================== LOAD ==================
-  Future<void> _loadData() async {
-    try {
-      final doc =
-          await _firestore.collection('stores').doc(widget.storeName).get();
+  // ===================== CONTROLADORES =====================
+  void criarEsteiraAssadeiraControllers(int qtdEsteiras, int qtdAssadeiras) {
+    fotosEsteiras = List.generate(qtdEsteiras, (_) => null);
+    fotosAssadeiras = List.generate(qtdAssadeiras, (_) => null);
+  }
 
-      if (!doc.exists) return;
+  // ===================== FOTO =====================
+  Future<void> _selecionarFoto(bool isEsteira, int index) async {
+    final image =
+        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    if (image == null) return;
 
-      final data = doc.data() as Map<String, dynamic>;
+    final ref = FirebaseStorage.instance.ref().child(
+        'stores/${widget.storeName}/${isEsteira ? 'esteiras' : 'assadeiras'}/${isEsteira ? 'esteira' : 'assadeira'}_$index.jpg');
 
-      final List esteirasList = (data['esteiras'] as List?) ?? [];
-      final List assadeirasList = (data['assadeiras'] as List?) ?? [];
-
-      setState(() {
-        tiposEsteiras = esteirasList
-            .map<String>((e) => (e as Map)['tipo']?.toString() ?? '')
-            .toList();
-
-        quantidadesEsteiras = esteirasList
-            .map<int>((e) => (e as Map)['quantidade'] as int? ?? 0)
-            .toList();
-
-        tiposAssadeiras = assadeirasList
-            .map<String>((e) => (e as Map)['tipo']?.toString() ?? '')
-            .toList();
-
-        quantidadesAssadeiras = assadeirasList
-            .map<int>((e) => (e as Map)['quantidade'] as int? ?? 0)
-            .toList();
-      });
-    } catch (e) {
-      debugPrint('Erro ao carregar esteiras/assadeiras: $e');
+    if (kIsWeb) {
+      final bytes = await image.readAsBytes();
+      await ref.putData(bytes);
+    } else {
+      await ref.putFile(File(image.path));
     }
+
+    final url = await ref.getDownloadURL();
+    setState(() {
+      if (isEsteira) {
+        fotosEsteiras[index] = url;
+      } else {
+        fotosAssadeiras[index] = url;
+      }
+    });
+    _saveData();
   }
 
-  // ================== SAVE ==================
+  Future<void> _excluirFoto(bool isEsteira, int index) async {
+    final url = isEsteira ? fotosEsteiras[index] : fotosAssadeiras[index];
+    if (url == null) return;
+
+    try {
+      await FirebaseStorage.instance.refFromURL(url).delete();
+    } catch (_) {}
+
+    setState(() {
+      if (isEsteira) {
+        fotosEsteiras[index] = null;
+      } else {
+        fotosAssadeiras[index] = null;
+      }
+    });
+    _saveData();
+  }
+
+  void _abrirMenuFoto(bool isEsteira, int index) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.download),
+              title: const Text('Baixar foto'),
+              onTap: () async {
+                Navigator.pop(context);
+                final url =
+                    isEsteira ? fotosEsteiras[index] : fotosAssadeiras[index];
+                if (url != null) {
+                  await launchUrl(Uri.parse(url),
+                      mode: LaunchMode.externalApplication);
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.swap_horiz),
+              title: const Text('Trocar foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _selecionarFoto(isEsteira, index);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Excluir foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _excluirFoto(isEsteira, index);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ===================== FIRESTORE =====================
   Future<void> _saveData() async {
     try {
       final esteirasData = List.generate(
-        tiposEsteiras.length,
-        (i) => {
-          'tipo': tiposEsteiras[i],
-          'quantidade': quantidadesEsteiras[i],
-        },
-      );
+          quantidadeEsteiras,
+          (i) => {
+                'tipo': tiposEsteiras[i],
+                'quantidade': quantidadesEsteiras[i],
+                'photoUrl': fotosEsteiras[i],
+              });
 
       final assadeirasData = List.generate(
-        tiposAssadeiras.length,
-        (i) => {
-          'tipo': tiposAssadeiras[i],
-          'quantidade': quantidadesAssadeiras[i],
-        },
-      );
+          quantidadeAssadeiras,
+          (i) => {
+                'tipo': tiposAssadeiras[i],
+                'quantidade': quantidadesAssadeiras[i],
+                'photoUrl': fotosAssadeiras[i],
+              });
 
       await _firestore.collection('stores').doc(widget.storeName).set({
         'esteiras': esteirasData,
@@ -10278,47 +10415,96 @@ class _AssadeirasState extends State<Assadeiras> {
     }
   }
 
-  // ================== AÇÕES ==================
+  Future<void> _loadData() async {
+    try {
+      final doc =
+          await _firestore.collection('stores').doc(widget.storeName).get();
+      if (!doc.exists) return;
+
+      final data = doc.data() ?? {};
+      final List esteirasList = (data['esteiras'] as List?) ?? [];
+      final List assadeirasList = (data['assadeiras'] as List?) ?? [];
+
+      setState(() {
+        quantidadeEsteiras = esteirasList.length;
+        quantidadeAssadeiras = assadeirasList.length;
+
+        tiposEsteiras = esteirasList
+            .map<String>((e) => (e as Map)['tipo']?.toString() ?? '')
+            .toList();
+        quantidadesEsteiras = esteirasList
+            .map<int>((e) => (e as Map)['quantidade'] as int? ?? 0)
+            .toList();
+        fotosEsteiras = esteirasList
+            .map<String?>((e) => (e as Map)['photoUrl'] as String?)
+            .toList();
+
+        tiposAssadeiras = assadeirasList
+            .map<String>((e) => (e as Map)['tipo']?.toString() ?? '')
+            .toList();
+        quantidadesAssadeiras = assadeirasList
+            .map<int>((e) => (e as Map)['quantidade'] as int? ?? 0)
+            .toList();
+        fotosAssadeiras = assadeirasList
+            .map<String?>((e) => (e as Map)['photoUrl'] as String?)
+            .toList();
+      });
+    } catch (e) {
+      debugPrint('Erro ao carregar esteiras/assadeiras: $e');
+    }
+  }
+
+  // ===================== AÇÕES =====================
   void _adicionarEsteira() {
     setState(() {
+      quantidadeEsteiras++;
       tiposEsteiras.add('');
       quantidadesEsteiras.add(0);
+      fotosEsteiras.add(null);
     });
     _saveData();
   }
 
   void _removerEsteira(int index) {
     setState(() {
+      quantidadeEsteiras--;
       tiposEsteiras.removeAt(index);
       quantidadesEsteiras.removeAt(index);
+      fotosEsteiras.removeAt(index);
     });
     _saveData();
   }
 
   void _adicionarAssadeira() {
     setState(() {
+      quantidadeAssadeiras++;
       tiposAssadeiras.add('');
       quantidadesAssadeiras.add(0);
+      fotosAssadeiras.add(null);
     });
     _saveData();
   }
 
   void _removerAssadeira(int index) {
     setState(() {
+      quantidadeAssadeiras--;
       tiposAssadeiras.removeAt(index);
       quantidadesAssadeiras.removeAt(index);
+      fotosAssadeiras.removeAt(index);
     });
     _saveData();
   }
 
-  // ================== CARD ==================
+  // ===================== CARD =====================
   Widget _buildCard({
     required String title,
     required String tipo,
     required int quantidade,
+    required String? photoUrl,
     required void Function(String?) onTipoChanged,
     required void Function(int?) onQtdChanged,
     required VoidCallback onRemove,
+    required VoidCallback onPhotoTap,
   }) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -10327,7 +10513,26 @@ class _AssadeirasState extends State<Assadeiras> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(title,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                          photoUrl == null ? Icons.add_a_photo : Icons.photo),
+                      onPressed: onPhotoTap,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: onRemove,
+                    ),
+                  ],
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
               value: tipo.isNotEmpty ? tipo : null,
@@ -10336,39 +10541,26 @@ class _AssadeirasState extends State<Assadeiras> {
                   .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                   .toList(),
               onChanged: onTipoChanged,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(border: OutlineInputBorder()),
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<int>(
               value: quantidade > 0 ? quantidade : null,
               hint: const Text('Quantidade'),
               items: quantidades
-                  .map((q) => DropdownMenuItem(
-                        value: q,
-                        child: Text(q.toString()),
-                      ))
+                  .map((q) =>
+                      DropdownMenuItem(value: q, child: Text(q.toString())))
                   .toList(),
               onChanged: onQtdChanged,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(border: OutlineInputBorder()),
             ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
-                onPressed: onRemove,
-              ),
-            )
           ],
         ),
       ),
     );
   }
 
-  // ================== UI ==================
+  // ===================== UI =====================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -10381,11 +10573,12 @@ class _AssadeirasState extends State<Assadeiras> {
             const Text('Esteiras:',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
-            ...List.generate(tiposEsteiras.length, (index) {
+            ...List.generate(quantidadeEsteiras, (index) {
               return _buildCard(
                 title: 'Esteira ${index + 1}',
                 tipo: tiposEsteiras[index],
                 quantidade: quantidadesEsteiras[index],
+                photoUrl: fotosEsteiras[index],
                 onTipoChanged: (v) {
                   setState(() => tiposEsteiras[index] = v ?? '');
                   _saveData();
@@ -10395,24 +10588,27 @@ class _AssadeirasState extends State<Assadeiras> {
                   _saveData();
                 },
                 onRemove: () => _removerEsteira(index),
+                onPhotoTap: () => fotosEsteiras[index] == null
+                    ? _selecionarFoto(true, index)
+                    : _abrirMenuFoto(true, index),
               );
             }),
             Center(
               child: IconButton(
-                icon:
-                    const Icon(Icons.add_circle, size: 40, color: Colors.green),
-                onPressed: _adicionarEsteira,
-              ),
+                  icon: const Icon(Icons.add_circle,
+                      size: 36, color: Colors.green),
+                  onPressed: _adicionarEsteira),
             ),
             const SizedBox(height: 30),
             const Text('Assadeiras:',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
-            ...List.generate(tiposAssadeiras.length, (index) {
+            ...List.generate(quantidadeAssadeiras, (index) {
               return _buildCard(
                 title: 'Assadeira ${index + 1}',
                 tipo: tiposAssadeiras[index],
                 quantidade: quantidadesAssadeiras[index],
+                photoUrl: fotosAssadeiras[index],
                 onTipoChanged: (v) {
                   setState(() => tiposAssadeiras[index] = v ?? '');
                   _saveData();
@@ -10422,14 +10618,16 @@ class _AssadeirasState extends State<Assadeiras> {
                   _saveData();
                 },
                 onRemove: () => _removerAssadeira(index),
+                onPhotoTap: () => fotosAssadeiras[index] == null
+                    ? _selecionarFoto(false, index)
+                    : _abrirMenuFoto(false, index),
               );
             }),
             Center(
               child: IconButton(
-                icon:
-                    const Icon(Icons.add_circle, size: 40, color: Colors.green),
-                onPressed: _adicionarAssadeira,
-              ),
+                  icon: const Icon(Icons.add_circle,
+                      size: 36, color: Colors.green),
+                  onPressed: _adicionarAssadeira),
             ),
           ],
         ),
@@ -10443,114 +10641,188 @@ class Climatica extends StatefulWidget {
   const Climatica({super.key, required this.storeName});
 
   @override
-  State<Climatica> createState() => _ClimaticaState();
+  _ClimaticaState createState() => _ClimaticaState();
 }
 
 class _ClimaticaState extends State<Climatica> {
+  int quantidadeClimaticas = 0;
+
   List<TextEditingController> modeloControllers = [];
   List<int> suportesClimatica = [];
+  List<String?> fotosClimatica = [];
+
   final List<int> suportes = List.generate(40, (index) => index + 1);
+
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
+    criarClimaticaControllers(0);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadData();
+      _loadClimaticaData();
     });
   }
 
   @override
   void dispose() {
-    for (var controller in modeloControllers) {
-      controller.dispose();
-    }
+    for (var c in modeloControllers) c.dispose();
     super.dispose();
   }
 
   void criarClimaticaControllers(int quantidade) {
-    for (var controller in modeloControllers) {
-      controller.dispose();
-    }
+    for (var c in modeloControllers) c.dispose();
     modeloControllers =
         List.generate(quantidade, (_) => TextEditingController());
     suportesClimatica = List.generate(quantidade, (_) => 0);
+    fotosClimatica = List.generate(quantidade, (_) => null);
   }
 
-  Future<void> _saveData() async {
-    try {
-      List<Map<String, dynamic>> climaticaList = [];
+  // ===================== FOTO =====================
+  Future<void> _selecionarFoto(int index) async {
+    final image =
+        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    if (image == null) return;
 
-      for (int i = 0; i < modeloControllers.length; i++) {
-        climaticaList.add({
-          'modelo': modeloControllers[i].text,
-          'suportes': suportesClimatica[i],
-        });
-      }
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child('stores/${widget.storeName}/climaticas/climatica_$index.jpg');
 
-      await _firestore.collection('stores').doc(widget.storeName).set({
-        'climaticas': climaticaList,
-        'lastUpdatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    } catch (e) {
-      print('Erro ao salvar climáticas: $e');
+    if (kIsWeb) {
+      final bytes = await image.readAsBytes();
+      await ref.putData(bytes);
+    } else {
+      await ref.putFile(File(image.path));
     }
+
+    final url = await ref.getDownloadURL();
+    setState(() => fotosClimatica[index] = url);
+    _saveClimaticaData();
   }
 
-  Future<void> _loadData() async {
+  Future<void> _excluirFoto(int index) async {
+    final url = fotosClimatica[index];
+    if (url == null) return;
+
     try {
-      final doc =
-          await _firestore.collection('stores').doc(widget.storeName).get();
-      if (doc.exists) {
-        final data = doc.data() ?? {};
-        final climaticaList = data['climaticas'] ?? [];
+      await FirebaseStorage.instance.refFromURL(url).delete();
+    } catch (_) {}
 
-        if (mounted) {
-          setState(() {
-            criarClimaticaControllers(climaticaList.length);
-            for (int i = 0; i < climaticaList.length; i++) {
-              var climatica = climaticaList[i];
-              modeloControllers[i].text = climatica['modelo'] ?? '';
-              suportesClimatica[i] = climatica['suportes'] ?? 0;
-            }
-          });
-        }
-      }
-    } catch (e) {
-      print('Erro ao carregar climáticas: $e');
-    }
+    setState(() => fotosClimatica[index] = null);
+    _saveClimaticaData();
   }
 
-  void _onFieldChanged() => _saveData();
+  void _abrirMenuFoto(int index) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.download),
+              title: const Text('Baixar foto'),
+              onTap: () async {
+                Navigator.pop(context);
+                final url = fotosClimatica[index];
+                if (url != null) {
+                  await launchUrl(Uri.parse(url),
+                      mode: LaunchMode.externalApplication);
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.swap_horiz),
+              title: const Text('Trocar foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _selecionarFoto(index);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Excluir foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _excluirFoto(index);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-  void _adicionarCard() {
+  // ===================== FIRESTORE =====================
+  Future<void> _saveClimaticaData() async {
+    List<Map<String, dynamic>> climaticaList = [];
+
+    for (int i = 0; i < quantidadeClimaticas; i++) {
+      climaticaList.add({
+        'modelo': modeloControllers[i].text,
+        'suportes': suportesClimatica[i],
+        'photoUrl': fotosClimatica[i],
+      });
+    }
+
+    await _firestore.collection('stores').doc(widget.storeName).set({
+      'climaticas': climaticaList,
+      'lastUpdatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> _loadClimaticaData() async {
+    final doc =
+        await _firestore.collection('stores').doc(widget.storeName).get();
+
+    if (!doc.exists) return;
+
+    final climaticas = doc.data()?['climaticas'] ?? [];
+
     setState(() {
+      quantidadeClimaticas = climaticas.length;
+      criarClimaticaControllers(quantidadeClimaticas);
+
+      for (int i = 0; i < quantidadeClimaticas; i++) {
+        modeloControllers[i].text = climaticas[i]['modelo'] ?? '';
+        suportesClimatica[i] = climaticas[i]['suportes'] ?? 0;
+        fotosClimatica[i] = climaticas[i]['photoUrl'];
+      }
+    });
+  }
+
+  void _adicionarClimatica() {
+    setState(() {
+      quantidadeClimaticas++;
       modeloControllers.add(TextEditingController());
       suportesClimatica.add(0);
+      fotosClimatica.add(null);
     });
-    _saveData();
+    _saveClimaticaData();
   }
 
-  void _removerCard(int index) {
+  void _removerClimatica(int index) {
     setState(() {
+      quantidadeClimaticas--;
       modeloControllers[index].dispose();
       modeloControllers.removeAt(index);
       suportesClimatica.removeAt(index);
+      fotosClimatica.removeAt(index);
     });
-    _saveData();
+    _saveClimaticaData();
   }
 
+  // ===================== UI =====================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Climática')),
+      appBar: AppBar(title: const Text('Climáticas')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 20),
-            ...List.generate(modeloControllers.length, (index) {
+            ...List.generate(quantidadeClimaticas, (index) {
               return Card(
                 margin: const EdgeInsets.only(bottom: 16),
                 elevation: 2,
@@ -10562,25 +10834,35 @@ class _ClimaticaState extends State<Climatica> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Climática ${index + 1}',
+                          Text('Climatica ${index + 1}',
                               style: const TextStyle(
                                   fontSize: 16, fontWeight: FontWeight.bold)),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _removerCard(index),
-                          ),
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  fotosClimatica[index] == null
+                                      ? Icons.add_a_photo
+                                      : Icons.photo,
+                                ),
+                                onPressed: fotosClimatica[index] == null
+                                    ? () => _selecionarFoto(index)
+                                    : () => _abrirMenuFoto(index),
+                              ),
+                              IconButton(
+                                icon:
+                                    const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () => _removerClimatica(index),
+                              ),
+                            ],
+                          )
                         ],
                       ),
                       const SizedBox(height: 12),
                       TextField(
                         controller: modeloControllers[index],
-                        maxLines: 3,
-                        decoration: const InputDecoration(
-                          labelText: 'Modelo',
-                          border: OutlineInputBorder(),
-                          alignLabelWithHint: true,
-                        ),
-                        onChanged: (_) => _onFieldChanged(),
+                        decoration: const InputDecoration(labelText: 'Modelo'),
+                        onChanged: (_) => _saveClimaticaData(),
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<int>(
@@ -10589,24 +10871,20 @@ class _ClimaticaState extends State<Climatica> {
                             ? suportesClimatica[index]
                             : null,
                         items: suportes
-                            .map((num) => DropdownMenuItem(
-                                  value: num,
-                                  child: Text(num.toString(),
-                                      overflow: TextOverflow.ellipsis),
+                            .map((s) => DropdownMenuItem(
+                                  value: s,
+                                  child: Text(s.toString()),
                                 ))
                             .toList(),
                         onChanged: (value) {
                           setState(() {
                             suportesClimatica[index] = value ?? 0;
-                            _saveData();
+                            _saveClimaticaData();
                           });
                         },
                         decoration: const InputDecoration(
-                          labelText: 'Suportes',
-                          border: OutlineInputBorder(),
-                          contentPadding:
-                              EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        ),
+                            labelText: 'Suportes',
+                            border: OutlineInputBorder()),
                       ),
                     ],
                   ),
@@ -10616,8 +10894,8 @@ class _ClimaticaState extends State<Climatica> {
             Center(
               child: IconButton(
                 icon:
-                    const Icon(Icons.add_circle, size: 40, color: Colors.green),
-                onPressed: _adicionarCard,
+                    const Icon(Icons.add_circle, color: Colors.green, size: 36),
+                onPressed: _adicionarClimatica,
               ),
             ),
           ],
@@ -10636,115 +10914,186 @@ class Freezer extends StatefulWidget {
 }
 
 class _FreezerState extends State<Freezer> {
+  int quantidadeFreezers = 0;
+
   List<TextEditingController> modeloControllers = [];
   List<TextEditingController> volumeControllers = [];
   List<String> tiposFreezer = [];
+  List<String?> fotosFreezer = [];
 
   final List<String> tipos = ['Vertical', 'Horizontal'];
+
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
+    criarFreezerControllers(0);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadData();
+      _loadFreezerData();
     });
   }
 
   @override
   void dispose() {
-    for (var controller in modeloControllers) {
-      controller.dispose();
-    }
-    for (var controller in volumeControllers) {
-      controller.dispose();
-    }
+    for (var c in modeloControllers) c.dispose();
+    for (var c in volumeControllers) c.dispose();
     super.dispose();
   }
 
   void criarFreezerControllers(int quantidade) {
-    for (var controller in modeloControllers) {
-      controller.dispose();
-    }
-    for (var controller in volumeControllers) {
-      controller.dispose();
-    }
+    for (var c in modeloControllers) c.dispose();
+    for (var c in volumeControllers) c.dispose();
 
     modeloControllers =
         List.generate(quantidade, (_) => TextEditingController());
     volumeControllers =
         List.generate(quantidade, (_) => TextEditingController());
     tiposFreezer = List.generate(quantidade, (_) => '');
+    fotosFreezer = List.generate(quantidade, (_) => null);
   }
 
-  Future<void> _saveData() async {
-    try {
-      List<Map<String, dynamic>> freezerList = [];
+  // ===================== FOTO =====================
+  Future<void> _selecionarFoto(int index) async {
+    final image =
+        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    if (image == null) return;
 
-      for (int i = 0; i < modeloControllers.length; i++) {
-        freezerList.add({
-          'modelo': modeloControllers[i].text,
-          'volume': volumeControllers[i].text,
-          'tipo': tiposFreezer[i],
-        });
-      }
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child('stores/${widget.storeName}/freezers/freezer_$index.jpg');
 
-      await _firestore.collection('stores').doc(widget.storeName).set({
-        'freezers': freezerList,
-        'lastUpdatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    } catch (e) {
-      print('Erro ao salvar conservadores: $e');
+    if (kIsWeb) {
+      final bytes = await image.readAsBytes();
+      await ref.putData(bytes);
+    } else {
+      await ref.putFile(File(image.path));
     }
+
+    final url = await ref.getDownloadURL();
+    setState(() => fotosFreezer[index] = url);
+    _saveFreezerData();
   }
 
-  Future<void> _loadData() async {
+  Future<void> _excluirFoto(int index) async {
+    final url = fotosFreezer[index];
+    if (url == null) return;
+
     try {
-      final doc =
-          await _firestore.collection('stores').doc(widget.storeName).get();
-      if (doc.exists) {
-        final data = doc.data() ?? {};
-        final freezerList = data['freezers'] ?? [];
+      await FirebaseStorage.instance.refFromURL(url).delete();
+    } catch (_) {}
 
-        if (mounted) {
-          setState(() {
-            criarFreezerControllers(freezerList.length);
-            for (int i = 0; i < freezerList.length; i++) {
-              var freezer = freezerList[i];
-              modeloControllers[i].text = freezer['modelo'] ?? '';
-              volumeControllers[i].text = freezer['volume'] ?? '';
-              tiposFreezer[i] = freezer['tipo'] ?? '';
-            }
-          });
-        }
-      }
-    } catch (e) {
-      print('Erro ao carregar conservadores: $e');
-    }
+    setState(() => fotosFreezer[index] = null);
+    _saveFreezerData();
   }
 
-  void _onFieldChanged() => _saveData();
+  void _abrirMenuFoto(int index) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.download),
+              title: const Text('Baixar foto'),
+              onTap: () async {
+                Navigator.pop(context);
+                final url = fotosFreezer[index];
+                if (url != null) {
+                  await launchUrl(Uri.parse(url),
+                      mode: LaunchMode.externalApplication);
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.swap_horiz),
+              title: const Text('Trocar foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _selecionarFoto(index);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Excluir foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _excluirFoto(index);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-  void _adicionarCard() {
+  // ===================== FIRESTORE =====================
+  Future<void> _saveFreezerData() async {
+    List<Map<String, dynamic>> freezerList = [];
+
+    for (int i = 0; i < quantidadeFreezers; i++) {
+      freezerList.add({
+        'modelo': modeloControllers[i].text,
+        'volume': volumeControllers[i].text,
+        'tipo': tiposFreezer[i],
+        'photoUrl': fotosFreezer[i],
+      });
+    }
+
+    await _firestore.collection('stores').doc(widget.storeName).set({
+      'freezers': freezerList,
+      'lastUpdatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> _loadFreezerData() async {
+    final doc =
+        await _firestore.collection('stores').doc(widget.storeName).get();
+
+    if (!doc.exists) return;
+
+    final freezers = doc.data()?['freezers'] ?? [];
+
     setState(() {
+      quantidadeFreezers = freezers.length;
+      criarFreezerControllers(quantidadeFreezers);
+
+      for (int i = 0; i < quantidadeFreezers; i++) {
+        modeloControllers[i].text = freezers[i]['modelo'] ?? '';
+        volumeControllers[i].text = freezers[i]['volume'] ?? '';
+        tiposFreezer[i] = freezers[i]['tipo'] ?? '';
+        fotosFreezer[i] = freezers[i]['photoUrl'];
+      }
+    });
+  }
+
+  void _adicionarFreezer() {
+    setState(() {
+      quantidadeFreezers++;
       modeloControllers.add(TextEditingController());
       volumeControllers.add(TextEditingController());
       tiposFreezer.add('');
+      fotosFreezer.add(null);
     });
-    _saveData();
+    _saveFreezerData();
   }
 
-  void _removerCard(int index) {
+  void _removerFreezer(int index) {
     setState(() {
+      quantidadeFreezers--;
       modeloControllers[index].dispose();
       volumeControllers[index].dispose();
       modeloControllers.removeAt(index);
       volumeControllers.removeAt(index);
       tiposFreezer.removeAt(index);
+      fotosFreezer.removeAt(index);
     });
-    _saveData();
+    _saveFreezerData();
   }
 
+  // ===================== UI =====================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -10752,10 +11101,8 @@ class _FreezerState extends State<Freezer> {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 20),
-            ...List.generate(modeloControllers.length, (index) {
+            ...List.generate(quantidadeFreezers, (index) {
               return Card(
                 margin: const EdgeInsets.only(bottom: 16),
                 elevation: 2,
@@ -10770,30 +11117,42 @@ class _FreezerState extends State<Freezer> {
                           Text('Conservador ${index + 1}',
                               style: const TextStyle(
                                   fontSize: 16, fontWeight: FontWeight.bold)),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _removerCard(index),
-                          ),
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  fotosFreezer[index] == null
+                                      ? Icons.add_a_photo
+                                      : Icons.photo,
+                                ),
+                                onPressed: fotosFreezer[index] == null
+                                    ? () => _selecionarFoto(index)
+                                    : () => _abrirMenuFoto(index),
+                              ),
+                              IconButton(
+                                icon:
+                                    const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () => _removerFreezer(index),
+                              ),
+                            ],
+                          )
                         ],
                       ),
                       const SizedBox(height: 12),
                       TextField(
                         controller: modeloControllers[index],
                         decoration: const InputDecoration(
-                          labelText: 'Modelo',
-                          border: OutlineInputBorder(),
-                        ),
-                        onChanged: (_) => _onFieldChanged(),
+                            labelText: 'Modelo', border: OutlineInputBorder()),
+                        onChanged: (_) => _saveFreezerData(),
                       ),
                       const SizedBox(height: 12),
                       TextField(
                         controller: volumeControllers[index],
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
-                          labelText: 'Volume (litros)',
-                          border: OutlineInputBorder(),
-                        ),
-                        onChanged: (_) => _onFieldChanged(),
+                            labelText: 'Volume (litros)',
+                            border: OutlineInputBorder()),
+                        onChanged: (_) => _saveFreezerData(),
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
@@ -10803,22 +11162,16 @@ class _FreezerState extends State<Freezer> {
                             : null,
                         items: tipos
                             .map((tipo) => DropdownMenuItem(
-                                  value: tipo,
-                                  child: Text(tipo),
-                                ))
+                                value: tipo, child: Text(tipo)))
                             .toList(),
                         onChanged: (value) {
                           setState(() {
                             tiposFreezer[index] = value ?? '';
-                            _saveData();
+                            _saveFreezerData();
                           });
                         },
                         decoration: const InputDecoration(
-                          labelText: 'Tipo',
-                          border: OutlineInputBorder(),
-                          contentPadding:
-                              EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        ),
+                            labelText: 'Tipo', border: OutlineInputBorder()),
                       ),
                     ],
                   ),
@@ -10828,8 +11181,8 @@ class _FreezerState extends State<Freezer> {
             Center(
               child: IconButton(
                 icon:
-                    const Icon(Icons.add_circle, size: 40, color: Colors.green),
-                onPressed: _adicionarCard,
+                    const Icon(Icons.add_circle, size: 36, color: Colors.green),
+                onPressed: _adicionarFreezer,
               ),
             ),
           ],
@@ -10864,36 +11217,18 @@ class _ResumoEquipamentosState extends State<ResumoEquipamentos> {
           await _firestore.collection('stores').doc(widget.storeName).get();
       if (doc.exists) {
         final data = doc.data() ?? {};
-        Map<String, dynamic> tempResumo = {
-          'fornos': data['fornos'] ?? [],
-          'armarios': data['armarios'] ?? [],
-          'esqueletos': data['esqueletos'] ?? [],
-          'esteiras': data['esteiras'] ?? [],
-          'assadeiras': data['assadeiras'] ?? [],
-          'climaticas': data['climaticas'] ?? [],
-          'freezers': data['freezers'] ?? [],
-        };
-
-        // pegar URLs reais do Firebase Storage
-        for (var categoria in tempResumo.keys) {
-          for (var item in tempResumo[categoria]) {
-            if (item['photoPath'] != null) {
-              try {
-                final url = await FirebaseStorage.instance
-                    .ref(item['photoPath'])
-                    .getDownloadURL();
-                item['photoUrl'] = url;
-              } catch (e) {
-                print('Erro ao obter URL: $e');
-                item['photoUrl'] = null;
-              }
-            }
-          }
-        }
 
         if (mounted) {
           setState(() {
-            dadosResumo = tempResumo;
+            dadosResumo = {
+              'fornos': data['fornos'] ?? [],
+              'armarios': data['armarios'] ?? [],
+              'esqueletos': data['esqueletos'] ?? [],
+              'esteiras': data['esteiras'] ?? [],
+              'assadeiras': data['assadeiras'] ?? [],
+              'climaticas': data['climaticas'] ?? [],
+              'freezers': data['freezers'] ?? [],
+            };
             isLoading = false;
           });
         }
@@ -10906,9 +11241,156 @@ class _ResumoEquipamentosState extends State<ResumoEquipamentos> {
     }
   }
 
-  Widget _buildItemCard(String title, String subtitle, String? photoUrl) {
+  Future<Uint8List> _gerarPdf() async {
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.MultiPage(
+        build: (context) {
+          final List<pw.Widget> widgets = [];
+
+          widgets.add(
+            pw.Center(
+              child: pw.Text(
+                'Inventário de Equipamentos - ${widget.storeName}',
+                style:
+                    pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+              ),
+            ),
+          );
+          widgets.add(pw.SizedBox(height: 20));
+
+          void addSection(
+              String title, List lista, String Function(int, Map) fn) {
+            if (lista.isEmpty) return;
+
+            widgets.add(
+              pw.Text(
+                title,
+                style:
+                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+              ),
+            );
+
+            for (int i = 0; i < lista.length; i++) {
+              final item = lista[i];
+              widgets.add(
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Bullet(text: fn(i, item)),
+                    if (item['photoUrl'] != null)
+                      pw.UrlLink(
+                        destination: item['photoUrl'],
+                        child: pw.Text(
+                          'Ver foto',
+                          style: pw.TextStyle(
+                            color: PdfColors.blue,
+                            decoration: pw.TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    pw.SizedBox(height: 4),
+                  ],
+                ),
+              );
+            }
+
+            widgets.add(pw.SizedBox(height: 10));
+          }
+
+          addSection(
+            'Fornos:',
+            dadosResumo['fornos'],
+            (i, f) =>
+                'Forno ${i + 1} - Modelo: ${f['modelo'] ?? 'N/I'}, Tipo: ${f['tipo'] ?? 'N/I'}, Suportes: ${f['suportes'] ?? 0}',
+          );
+
+          addSection(
+            'Armários:',
+            dadosResumo['armarios'],
+            (i, a) =>
+                'Armário ${i + 1} - Tipo: ${a['tipo'] ?? 'N/I'}, Suportes: ${a['suportes'] ?? 0}',
+          );
+
+          addSection(
+            'Esqueletos:',
+            dadosResumo['esqueletos'],
+            (i, e) =>
+                'Esqueleto ${i + 1} - Tipo: ${e['tipo'] ?? 'N/I'}, Suportes: ${e['suportes'] ?? 0}',
+          );
+
+          addSection(
+            'Esteiras:',
+            dadosResumo['esteiras'],
+            (i, e) =>
+                'Esteira ${i + 1} - Tipo: ${e['tipo'] ?? 'N/I'}, Quantidade: ${e['quantidade'] ?? 0}',
+          );
+
+          addSection(
+            'Assadeiras:',
+            dadosResumo['assadeiras'],
+            (i, a) =>
+                'Assadeira ${i + 1} - Tipo: ${a['tipo'] ?? 'N/I'}, Quantidade: ${a['quantidade'] ?? 0}',
+          );
+
+          addSection(
+            'Climáticas:',
+            dadosResumo['climaticas'],
+            (i, c) =>
+                'Climática ${i + 1} - Modelo: ${c['modelo'] ?? 'N/I'}, Suportes: ${c['suportes'] ?? 0}',
+          );
+
+          addSection(
+            'Conservadores:',
+            dadosResumo['freezers'],
+            (i, f) =>
+                'Conservador ${i + 1} - Modelo: ${f['modelo'] ?? 'N/I'}, Volume: ${f['volume'] ?? 'N/I'}L, Tipo: ${f['tipo'] ?? 'N/I'}',
+          );
+
+          return widgets;
+        },
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  Future<void> _compartilharPdf() async {
+    final pdfBytes = await _gerarPdf();
+    await Printing.sharePdf(
+      bytes: pdfBytes,
+      filename: "Inventário Equipamentos_${widget.storeName}.pdf",
+    );
+  }
+
+  Widget _buildSection(String title, List<Widget> children) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 3,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title,
+                style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue)),
+            const SizedBox(height: 12),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildItemCard(String title, String subtitle, {String? photoUrl}) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      color: Colors.grey[50],
+      elevation: 1,
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
@@ -10917,33 +11399,55 @@ class _ResumoEquipamentosState extends State<ResumoEquipamentos> {
             if (photoUrl != null)
               GestureDetector(
                 onTap: () {
-                  // abrir em tela cheia
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => FullScreenImage(photoUrl: photoUrl),
+                      builder: (_) => Scaffold(
+                        appBar: AppBar(),
+                        body: Center(
+                          child: InteractiveViewer(
+                            child: CachedNetworkImage(
+                              imageUrl: photoUrl,
+                              placeholder: (context, url) =>
+                                  const CircularProgressIndicator(),
+                              errorWidget: (context, url, error) =>
+                                  const Icon(Icons.error),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   );
                 },
                 child: CachedNetworkImage(
                   imageUrl: photoUrl,
-                  width: 80,
-                  height: 80,
+                  width: 60,
+                  height: 60,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) =>
-                      const CircularProgressIndicator(),
-                  errorWidget: (context, url, error) => const Icon(Icons.error),
+                  placeholder: (context, url) => Container(
+                    width: 60,
+                    height: 60,
+                    color: Colors.grey[300],
+                    child: const Icon(Icons.image, color: Colors.white70),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    width: 60,
+                    height: 60,
+                    color: Colors.grey[300],
+                    child: const Icon(Icons.error, color: Colors.red),
+                  ),
                 ),
               ),
-            const SizedBox(width: 12),
+            if (photoUrl != null) const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title,
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                      style: const TextStyle(fontWeight: FontWeight.w500)),
                   const SizedBox(height: 4),
-                  Text(subtitle, style: TextStyle(color: Colors.grey[700])),
+                  Text(subtitle,
+                      style: TextStyle(color: Colors.grey[600], fontSize: 14)),
                 ],
               ),
             ),
@@ -10951,6 +11455,20 @@ class _ResumoEquipamentosState extends State<ResumoEquipamentos> {
         ),
       ),
     );
+  }
+
+  List<Map<String, dynamic>> buildItems(
+      String key, String Function(Map) detailsFn) {
+    final list = dadosResumo[key] ?? [];
+    return List<Map<String, dynamic>>.from(list.map((item) => {
+          'nome': (item['modelo'] != null && item['modelo'].toString().trim().isNotEmpty)
+    ? item['modelo']
+    : (item['tipo'] != null && item['tipo'].toString().trim().isNotEmpty)
+        ? item['tipo']
+        : 'Não informado',
+          'detalhes': detailsFn(item),
+          'photoUrl': item['photoUrl'],
+        }));
   }
 
   @override
@@ -10961,52 +11479,118 @@ class _ResumoEquipamentosState extends State<ResumoEquipamentos> {
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Resumo Equipamentos')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            if (dadosResumo['fornos'] != null &&
-                dadosResumo['fornos'].isNotEmpty)
-              ...dadosResumo['fornos'].map<Widget>((f) => _buildItemCard(
-                    'Forno ${dadosResumo['fornos'].indexOf(f) + 1}',
-                    'Modelo: ${f['modelo']}, Tipo: ${f['tipo']}, Suportes: ${f['suportes']}',
-                    f['photoUrl'],
-                  )),
-            if (dadosResumo['armarios'] != null &&
-                dadosResumo['armarios'].isNotEmpty)
-              ...dadosResumo['armarios'].map<Widget>((a) => _buildItemCard(
-                    'Armário ${dadosResumo['armarios'].indexOf(a) + 1}',
-                    'Tipo: ${a['tipo']}, Suportes: ${a['suportes']}',
-                    a['photoUrl'],
-                  )),
-            // repetir para as outras categorias...
-          ],
-        ),
-      ),
-    );
-  }
-}
+    final hasData = dadosResumo.isNotEmpty &&
+        dadosResumo.values.any((value) => value != null && value.isNotEmpty);
 
-class FullScreenImage extends StatelessWidget {
-  final String photoUrl;
-  const FullScreenImage({super.key, required this.photoUrl});
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: GestureDetector(
-        onTap: () => Navigator.pop(context),
-        child: Center(
-          child: CachedNetworkImage(
-            imageUrl: photoUrl,
-            placeholder: (context, url) => const CircularProgressIndicator(),
-            errorWidget: (context, url, error) => const Icon(Icons.error),
+      appBar: AppBar(
+        title: const Text('Inventário'),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share),
+            onPressed: _compartilharPdf,
           ),
-        ),
+        ],
       ),
+      body: !hasData
+          ? const Center(
+              child: Text('Nenhum dado cadastrado',
+                  style: TextStyle(fontSize: 18, color: Colors.grey)),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (dadosResumo['fornos'] != null &&
+                      dadosResumo['fornos'].isNotEmpty)
+                    _buildSection(
+                      'Fornos (${dadosResumo['fornos'].length})',
+                      buildItems(
+                              'fornos',
+                              (item) =>
+                                  'Modelo: ${item['modelo'] ?? 'N/I'}, Tipo: ${item['tipo'] ?? 'N/I'}, Suportes: ${item['suportes'] ?? 0}')
+                          .map((e) => _buildItemCard(e['nome'], e['detalhes'],
+                              photoUrl: e['photoUrl']))
+                          .toList(),
+                    ),
+                  if (dadosResumo['armarios'] != null &&
+                      dadosResumo['armarios'].isNotEmpty)
+                    _buildSection(
+                      'Armários (${dadosResumo['armarios'].length})',
+                      buildItems(
+                              'armarios',
+                              (item) =>
+                                  'Tipo: ${item['tipo'] ?? 'N/I'}, Suportes: ${item['suportes'] ?? 0}')
+                          .map((e) => _buildItemCard(e['nome'], e['detalhes'],
+                              photoUrl: e['photoUrl']))
+                          .toList(),
+                    ),
+                  if (dadosResumo['esqueletos'] != null &&
+                      dadosResumo['esqueletos'].isNotEmpty)
+                    _buildSection(
+                      'Esqueletos (${dadosResumo['esqueletos'].length})',
+                      buildItems(
+                              'esqueletos',
+                              (item) =>
+                                  'Tipo: ${item['tipo'] ?? 'N/I'}, Suportes: ${item['suportes'] ?? 0}')
+                          .map((e) => _buildItemCard(e['nome'], e['detalhes'],
+                              photoUrl: e['photoUrl']))
+                          .toList(),
+                    ),
+                  if (dadosResumo['esteiras'] != null &&
+                      (dadosResumo['esteiras'] as List).isNotEmpty)
+                    _buildSection(
+                      'Esteiras (${dadosResumo['esteiras'].length})',
+                      buildItems(
+                              'esteiras',
+                              (item) =>
+                                  'Tipo: ${item['tipo'] ?? 'N/I'}, Quantidade: ${item['quantidade'] ?? 0}')
+                          .map((e) => _buildItemCard(e['nome'], e['detalhes'],
+                              photoUrl: e['photoUrl']))
+                          .toList(),
+                    ),
+                  if (dadosResumo['assadeiras'] != null &&
+                      (dadosResumo['assadeiras'] as List).isNotEmpty)
+                    _buildSection(
+                      'Assadeiras (${dadosResumo['assadeiras'].length})',
+                      buildItems(
+                              'assadeiras',
+                              (item) =>
+                                  'Tipo: ${item['tipo'] ?? 'N/I'}, Quantidade: ${item['quantidade'] ?? 0}')
+                          .map((e) => _buildItemCard(e['nome'], e['detalhes'],
+                              photoUrl: e['photoUrl']))
+                          .toList(),
+                    ),
+                  if (dadosResumo['climaticas'] != null &&
+                      dadosResumo['climaticas'].isNotEmpty)
+                    _buildSection(
+                      'Climáticas (${dadosResumo['climaticas'].length})',
+                      buildItems(
+                              'climaticas',
+                              (item) =>
+                                  'Modelo: ${item['modelo'] ?? 'N/I'}, Suportes: ${item['suportes'] ?? 0}')
+                          .map((e) => _buildItemCard(e['nome'], e['detalhes'],
+                              photoUrl: e['photoUrl']))
+                          .toList(),
+                    ),
+                  if (dadosResumo['freezers'] != null &&
+                      dadosResumo['freezers'].isNotEmpty)
+                    _buildSection(
+                      'Conservadores (${dadosResumo['freezers'].length})',
+                      buildItems(
+                              'freezers',
+                              (item) =>
+                                  'Modelo: ${item['modelo'] ?? 'N/I'}, Volume: ${item['volume'] ?? 'N/I'}L, Tipo: ${item['tipo'] ?? 'N/I'}')
+                          .map((e) => _buildItemCard(e['nome'], e['detalhes'],
+                              photoUrl: e['photoUrl']))
+                          .toList(),
+                    ),
+                ],
+              ),
+            ),
     );
   }
 }
@@ -11859,6 +12443,3309 @@ class _ComodatosState extends State<Comodatos> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class Martminas extends StatelessWidget {
+  const Martminas({super.key});
+
+  // 🔹 Card estilo Android
+  Widget _menuCard(
+    BuildContext context,
+    IconData icon, // novo parâmetro
+    String label,
+    Widget destination,
+    Color color,
+  ) {
+    return Card(
+      color: color,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 4,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        splashColor: Colors.brown.withOpacity(0.3),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => destination),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 28,
+                color: const Color(0xFF5D4037),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  fontFamily: 'Roboto',
+                  color: Color(0xFF5D4037),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return WillPopScope(
+      onWillPop: () async {
+        // Botão físico de voltar: fecha o app ou navega para outra tela se quiser
+        return true; // true permite o comportamento padrão (fecha o app)
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: const Color(0xFFD2691E),
+          centerTitle: true,
+          automaticallyImplyLeading:
+              false, // se quiser ícone custom, use leading
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => RedeScreen()),
+              ); // volta para a tela anterior
+            },
+          ),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset('assets/images/Logo StockOne.png', height: 32),
+              const SizedBox(width: 8),
+              Image.asset(
+                'assets/images/martminas2.jpg',
+                height: 40,
+              ), // imagem no lugar do texto
+            ],
+          ),
+        ),
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFFFFE5B4), // topo claro
+                Color(0xFFD29752), // base marrom padaria
+              ],
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: GridView.count(
+              crossAxisCount: 1, // 1 card por linha
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
+              childAspectRatio: 3,
+              children: [
+                _menuCard(
+                  context,
+                  Icons.menu_book,
+                  'COMODATOS',
+                  Comodatosmm(),
+                  Colors.white,
+                ),
+                _menuCard(
+                  context,
+                  Icons.menu_book,
+                  'ATENDIMENTO',
+                  StoreSelectionMM(),
+                  Colors.white,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class Comodatosmm extends StatefulWidget {
+  const Comodatosmm({super.key});
+
+  @override
+  State<Comodatosmm> createState() => _ComodatosmmState();
+}
+
+class _ComodatosmmState extends State<Comodatosmm> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ScrollController _scrollController = ScrollController();
+  final Map<int, GlobalKey> _storeKeys = {};
+
+  bool isLoading = true;
+  List<Map<String, dynamic>> lojasResumo = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _carregarTodosDados();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  int _numeroLoja(String nome) {
+    final match = RegExp(r'\d+').firstMatch(nome);
+    return match != null ? int.parse(match.group(0)!) : 0;
+  }
+
+ Future<void> _carregarTodosDados() async {
+  try {
+    final snapshot = await _firestore.collection('storesmm').get();
+    final List<Map<String, dynamic>> temp = [];
+
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+
+      temp.add({
+        'storeId': doc.id,
+        'storeName': data['storeName'] ?? doc.id,
+        'dados': {
+          'fornos': data['fornos'] ?? [],
+          'armarios': data['armarios'] ?? [],
+          'esqueletos': data['esqueletos'] ?? [],
+          'esteiras': data['esteiras'] ?? [],
+          'assadeiras': data['assadeiras'] ?? [],
+          'climaticas': data['climaticas'] ?? [],
+          'freezers': data['freezers'] ?? [],
+        },
+      });
+    }
+
+    temp.sort(
+      (a, b) => _numeroLoja(a['storeName'])
+          .compareTo(_numeroLoja(b['storeName'])),
+    );
+
+    if (mounted) {
+      setState(() {
+        lojasResumo = temp;
+        isLoading = false;
+        _storeKeys.clear();
+        for (int i = 0; i < lojasResumo.length; i++) {
+          _storeKeys[i] = GlobalKey();
+        }
+      });
+    }
+  } catch (e) {
+    debugPrint('Erro ao carregar dados MM: $e');
+    if (mounted) setState(() => isLoading = false);
+  }
+}
+
+
+  // ===================== PDF =====================
+  Future<Uint8List> _gerarPdf() async {
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.MultiPage(
+        build: (context) {
+          final List<pw.Widget> widgets = [];
+
+          for (final loja in lojasResumo) {
+            final dadosResumo = loja['dados'];
+
+            widgets.add(
+              pw.Center(
+                child: pw.Text(
+                  'Comodatos - ${loja['storeName']}',
+                  style: pw.TextStyle(
+                    fontSize: 20,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+            );
+
+            widgets.add(pw.SizedBox(height: 20));
+
+            void addSection(
+                String title, List lista, String Function(int, Map) fn) {
+              if (lista.isEmpty) return;
+
+              widgets.add(
+                pw.Text(
+                  title,
+                  style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              );
+
+              for (int i = 0; i < lista.length; i++) {
+                final item = lista[i];
+                widgets.add(
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Bullet(text: fn(i, item)),
+                      if (item['photoUrl'] != null)
+                        pw.UrlLink(
+                          destination: item['photoUrl'],
+                          child: pw.Text(
+                            'Ver foto',
+                            style: pw.TextStyle(
+                              color: PdfColors.blue,
+                              decoration: pw.TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      pw.SizedBox(height: 4),
+                    ],
+                  ),
+                );
+              }
+
+              widgets.add(pw.SizedBox(height: 12));
+            }
+
+            addSection(
+              'Fornos:',
+              dadosResumo['fornos'],
+              (i, f) =>
+                  'Forno ${i + 1} - Modelo: ${f['modelo'] ?? 'N/I'}, Tipo: ${f['tipo'] ?? 'N/I'}, Suportes: ${f['suportes'] ?? 0}',
+            );
+
+            addSection(
+              'Armários:',
+              dadosResumo['armarios'],
+              (i, a) =>
+                  'Armário ${i + 1} - Tipo: ${a['tipo'] ?? 'N/I'}, Suportes: ${a['suportes'] ?? 0}',
+            );
+
+            addSection(
+              'Esqueletos:',
+              dadosResumo['esqueletos'],
+              (i, e) =>
+                  'Esqueleto ${i + 1} - Tipo: ${e['tipo'] ?? 'N/I'}, Suportes: ${e['suportes'] ?? 0}',
+            );
+
+            addSection(
+              'Esteiras:',
+              dadosResumo['esteiras'],
+              (i, e) =>
+                  'Esteira ${i + 1} - Tipo: ${e['tipo'] ?? 'N/I'}, Quantidade: ${e['quantidade'] ?? 0}',
+            );
+
+            addSection(
+              'Assadeiras:',
+              dadosResumo['assadeiras'],
+              (i, a) =>
+                  'Assadeira ${i + 1} - Tipo: ${a['tipo'] ?? 'N/I'}, Quantidade: ${a['quantidade'] ?? 0}',
+            );
+
+            addSection(
+              'Climáticas:',
+              dadosResumo['climaticas'],
+              (i, c) =>
+                  'Climática ${i + 1} - Modelo: ${c['modelo'] ?? 'N/I'}, Suportes: ${c['suportes'] ?? 0}',
+            );
+
+            addSection(
+              'Conservadores:',
+              dadosResumo['freezers'],
+              (i, f) =>
+                  'Conservador ${i + 1} - Modelo: ${f['modelo'] ?? 'N/I'}, Volume: ${f['volume'] ?? 'N/I'}L, Tipo: ${f['tipo'] ?? 'N/I'}',
+            );
+
+            widgets.add(pw.SizedBox(height: 30));
+          }
+
+          return widgets;
+        },
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  Future<void> _compartilharPdf() async {
+    final bytes = await _gerarPdf();
+    await Printing.sharePdf(
+      bytes: bytes,
+      filename: 'Comodatos.pdf',
+    );
+  }
+
+  // ===================== UI =====================
+  Widget _buildSection(String title, List<Widget> children) {
+    return SizedBox(
+      width: double.infinity,
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 16),
+        elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue),
+              ),
+              const SizedBox(height: 12),
+              ...children,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildItemCard(String title, String subtitle, {String? photoUrl}) {
+    return SizedBox(
+      width: double.infinity,
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 8),
+        color: Colors.grey[50],
+        elevation: 1,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (photoUrl != null)
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => Scaffold(
+                          appBar: AppBar(),
+                          body: Center(
+                            child: InteractiveViewer(
+                              child: CachedNetworkImage(
+                                imageUrl: photoUrl,
+                                placeholder: (context, url) =>
+                                    const CircularProgressIndicator(),
+                                errorWidget: (context, url, error) =>
+                                    const Icon(Icons.error),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                  child: CachedNetworkImage(
+                    imageUrl: photoUrl,
+                    width: 60,
+                    height: 60,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      width: 60,
+                      height: 60,
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.image, color: Colors.white70),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      width: 60,
+                      height: 60,
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.error, color: Colors.red),
+                    ),
+                  ),
+                ),
+              if (photoUrl != null) const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 4),
+                    Text(subtitle,
+                        style:
+                            TextStyle(color: Colors.grey[700], fontSize: 14)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _scrollToStore(int index) {
+    if (_storeKeys.containsKey(index)) {
+      final keyContext = _storeKeys[index]!.currentContext;
+      if (keyContext != null) {
+        Scrollable.ensureVisible(
+          keyContext,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Comodatos'),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+              icon: const Icon(Icons.share), onPressed: _compartilharPdf),
+        ],
+      ),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            controller: _scrollController,
+            padding: const EdgeInsets.fromLTRB(24, 24, 48, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: List.generate(lojasResumo.length, (i) {
+                final loja = lojasResumo[i];
+                final dadosResumo = loja['dados'];
+                return Container(
+                  key: _storeKeys[i],
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        loja['storeName'],
+                        style: const TextStyle(
+                            fontSize: 22, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 16),
+                      if (dadosResumo['fornos'].isNotEmpty)
+                        _buildSection(
+                          'Fornos (${dadosResumo['fornos'].length})',
+                          List.generate(dadosResumo['fornos'].length, (j) {
+                            final f = dadosResumo['fornos'][j];
+                            return _buildItemCard(
+                              'Forno ${j + 1}',
+                              'Modelo: ${f['modelo']}, Tipo: ${f['tipo']}, Suportes: ${f['suportes']}',
+                              photoUrl: f['photoUrl'],
+                            );
+                          }),
+                        ),
+                      if (dadosResumo['armarios'].isNotEmpty)
+                        _buildSection(
+                          'Armários (${dadosResumo['armarios'].length})',
+                          List.generate(dadosResumo['armarios'].length, (j) {
+                            final a = dadosResumo['armarios'][j];
+                            return _buildItemCard(
+                              'Armário ${j + 1}',
+                              'Tipo: ${a['tipo']}, Suportes: ${a['suportes']}',
+                              photoUrl: a['photoUrl'],
+                            );
+                          }),
+                        ),
+                      if (dadosResumo['esqueletos'].isNotEmpty)
+                        _buildSection(
+                          'Esqueletos (${dadosResumo['esqueletos'].length})',
+                          List.generate(dadosResumo['esqueletos'].length, (j) {
+                            final e = dadosResumo['esqueletos'][j];
+                            return _buildItemCard(
+                              'Esqueleto ${j + 1}',
+                              'Tipo: ${e['tipo']}, Suportes: ${e['suportes']}',
+                              photoUrl: e['photoUrl'],
+                            );
+                          }),
+                        ),
+                      if (dadosResumo['esteiras'].isNotEmpty)
+                        _buildSection(
+                          'Esteiras (${dadosResumo['esteiras'].length})',
+                          List.generate(dadosResumo['esteiras'].length, (j) {
+                            final e = dadosResumo['esteiras'][j];
+                            return _buildItemCard(
+                              'Esteira ${j + 1}',
+                              'Tipo: ${e['tipo']}, Quantidade: ${e['quantidade']}',
+                              photoUrl: e['photoUrl'],
+                            );
+                          }),
+                        ),
+                      if (dadosResumo['assadeiras'].isNotEmpty)
+                        _buildSection(
+                          'Assadeiras (${dadosResumo['assadeiras'].length})',
+                          List.generate(dadosResumo['assadeiras'].length, (j) {
+                            final a = dadosResumo['assadeiras'][j];
+                            return _buildItemCard(
+                              'Assadeira ${j + 1}',
+                              'Tipo: ${a['tipo']}, Quantidade: ${a['quantidade']}',
+                              photoUrl: a['photoUrl'],
+                            );
+                          }),
+                        ),
+                      if (dadosResumo['climaticas'].isNotEmpty)
+                        _buildSection(
+                          'Climáticas (${dadosResumo['climaticas'].length})',
+                          List.generate(dadosResumo['climaticas'].length, (j) {
+                            final c = dadosResumo['climaticas'][j];
+                            return _buildItemCard(
+                              'Climática ${j + 1}',
+                              'Modelo: ${c['modelo']}, Suportes: ${c['suportes']}',
+                              photoUrl: c['photoUrl'],
+                            );
+                          }),
+                        ),
+                      if (dadosResumo['freezers'].isNotEmpty)
+                        _buildSection(
+                          'Conservadores (${dadosResumo['freezers'].length})',
+                          List.generate(dadosResumo['freezers'].length, (j) {
+                            final f = dadosResumo['freezers'][j];
+                            return _buildItemCard(
+                              'Conservador ${j + 1}',
+                              'Modelo: ${f['modelo']}, Volume: ${f['volume']}L, Tipo: ${f['tipo']}',
+                              photoUrl: f['photoUrl'],
+                            );
+                          }),
+                        ),
+                      const SizedBox(height: 32),
+                    ],
+                  ),
+                );
+              }),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class StoreSelectionMM extends StatefulWidget {
+  const StoreSelectionMM({Key? key}) : super(key: key);
+
+  @override
+  _StoreSelectionMMState createState() => _StoreSelectionMMState();
+}
+
+class _StoreSelectionMMState extends State<StoreSelectionMM> {
+  final List<Map<String, String>> stores = [
+    {'id': 'leopoldina', 'name': 'Leopoldina'},
+    {'id': 'juiz_fora_jk', 'name': 'Juiz de Fora JK'},
+    {'id': 'juiz_fora_st', 'name': 'Juiz de Fora ST'},
+  ];
+
+  List<String> favoriteStores = [];
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFavorites();
+  }
+
+  Future<void> _loadFavorites() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      favoriteStores = prefs.getStringList('favoriteStores') ?? [];
+    });
+  }
+
+  Future<void> _toggleFavorite(String storeId) async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      if (favoriteStores.contains(storeId)) {
+        favoriteStores.remove(storeId);
+      } else {
+        favoriteStores.add(storeId);
+      }
+    });
+    await prefs.setStringList('favoriteStores', favoriteStores);
+  }
+
+  Future<void> _onStoreSelected(
+    BuildContext context,
+    String storeId,
+    String storeName,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.setString('selectedStoreId', storeId);
+    await prefs.setString('selectedStoreName', storeName);
+
+    final storeRef = _firestore.collection('storesmm').doc(storeId);
+
+    final doc = await storeRef.get();
+    if (!doc.exists) {
+      await storeRef.set({
+        'storeId': storeId,
+        'storeName': storeName,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TelaPrincipal(
+          storeId: storeId,
+          storeName: storeName,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sortedStores = [
+      ...stores.where((s) => favoriteStores.contains(s['id']!)),
+      ...stores.where((s) => !favoriteStores.contains(s['id']!)),
+    ];
+
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => Martminas()),
+        );
+        return false;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.blueGrey.shade700,
+          centerTitle: true,
+          automaticallyImplyLeading: false,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => Martminas()),
+              );
+            },
+          ),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset('assets/images/Logo StockOne.png', height: 32),
+              const SizedBox(width: 8),
+              const Text(
+                "ATENDIMENTO",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Lora',
+                ),
+              ),
+            ],
+          ),
+        ),
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFEFEFEF), Color(0xFFFDFDFD)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                const Text(
+                  "SELECIONE A LOJA:",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.brown,
+                    fontFamily: 'Lora',
+                  ),
+                ),
+                const SizedBox(height: 30),
+                ...sortedStores.map((store) {
+                  final storeId = store['id']!;
+                  final storeName = store['name']!;
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.store),
+                            label: Text(storeName),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.brown.shade300,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 40,
+                                vertical: 16,
+                              ),
+                              textStyle: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 4,
+                            ),
+                            onPressed: () => _onStoreSelected(
+                              context,
+                              storeId,
+                              storeName,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: Icon(
+                            favoriteStores.contains(storeId)
+                                ? Icons.star
+                                : Icons.star_border,
+                            color: Colors.amber,
+                          ),
+                          onPressed: () => _toggleFavorite(storeId),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class TelaPrincipal extends StatefulWidget {
+  final String storeId;
+  final String storeName;
+
+  const TelaPrincipal({
+    Key? key,
+    required this.storeId,
+    required this.storeName,
+  }) : super(key: key);
+
+  @override
+  _TelaPrincipalState createState() => _TelaPrincipalState();
+}
+
+class _TelaPrincipalState extends State<TelaPrincipal> {
+  @override
+  Widget build(BuildContext context) {
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const StoreSelectionMM()),
+          (route) => false,
+        );
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFFF8F0),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFFD2691E),
+          elevation: 4,
+          centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const StoreSelectionMM()),
+                (route) => false,
+              );
+            },
+          ),
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset('assets/images/StockOnesf.png', height: 50),
+            ],
+          ),
+        ),
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFFFFE5B4),
+                Color(0xFFD29752),
+              ],
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                Text(
+                  widget.storeName,
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF5D4037),
+                    fontFamily: 'Roboto',
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                Expanded(
+                  child: GridView.count(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 1.2,
+                    children: [
+                      _padariaCard(
+                        Icons.kitchen,
+                        "Equipamentos",
+                        Colors.brown.shade400,
+                        () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => EquipamentosMM(
+                                storeId: widget.storeId,
+                                storeName: widget.storeName,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _padariaCard(
+    IconData icon,
+    String label,
+    Color color,
+    VoidCallback onPressed,
+  ) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      elevation: 4,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(16),
+        splashColor: color.withOpacity(0.3),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 36, color: color),
+              const SizedBox(height: 12),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Roboto',
+                  color: Color(0xFF5D4037),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class EquipamentosMM extends StatelessWidget {
+  final String storeId;
+  final String storeName;
+
+  const EquipamentosMM({
+    Key? key,
+    required this.storeId,
+    required this.storeName,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0x76153555),
+        centerTitle: true,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset('assets/images/Logo StockOne.png', height: 32),
+            const SizedBox(width: 8),
+            const Text(
+              "EQUIPAMENTOS",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Lora',
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFFFE5B4), // topo claro
+              Color(0xFFD29752), // marrom padaria
+            ],
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              /// 🔹 CADASTRO
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0x76153555),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 18,
+                    horizontal: 38,
+                  ),
+                  textStyle: const TextStyle(fontSize: 22),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CadastroMM(
+                        storeId: storeId,
+                        storeName: storeName,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(
+                  Icons.person_add,
+                  size: 26,
+                  color: Colors.white,
+                ),
+                label: const Text(
+                  'Cadastro',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              /// 🔹 LIMPEZA
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0x97095195),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 18,
+                    horizontal: 38,
+                  ),
+                  textStyle: const TextStyle(fontSize: 22),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const Limpeza()),
+                  );
+                },
+                icon: const Icon(
+                  Icons.cleaning_services,
+                  size: 26,
+                  color: Colors.white,
+                ),
+                label: const Text(
+                  'Limpeza',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class CadastroMM extends StatelessWidget {
+  final String storeId;
+  final String storeName;
+
+  const CadastroMM({
+    Key? key,
+    required this.storeId,
+    required this.storeName,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0x76153555),
+        centerTitle: true,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset('assets/images/Logo StockOne.png', height: 32),
+            const SizedBox(width: 8),
+            const Text(
+              "CADASTRO",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Lora',
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFFFE5B4),
+              Color(0xFFD29752),
+            ],
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _botao(
+                'Fornos',
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => FornoMM(
+                      storeId: storeId,
+                      storeName: storeName,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+               _botao(
+                'Climática',
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ClimaticaMM(
+                      storeId: storeId,
+                      storeName: storeName,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _botao(
+                'Conservadores',
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => FreezerMM(
+                      storeId: storeId,
+                      storeName: storeName,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _botao(
+                'Assadeiras',
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AssadeirasMM(
+                      storeId: storeId,
+                      storeName: storeName,
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+              _botao(
+                'Armários e Esqueletos',
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ArmariosMM(
+                      storeId: storeId,
+                      storeName: storeName,
+                    ),
+                  ),
+                ),
+              ),
+              
+              const SizedBox(height: 16),
+              _botao(
+                'Resumo',
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ResumoEquipamentosMM(
+                      storeId: storeId,
+                      storeName: storeName,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _botao(String label, VoidCallback onPressed) {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0x97095195),
+        padding: const EdgeInsets.symmetric(
+          vertical: 14,
+          horizontal: 24,
+        ),
+        textStyle: const TextStyle(fontSize: 19),
+      ),
+      onPressed: onPressed,
+      child: Text(
+        label,
+        style: const TextStyle(color: Colors.white),
+      ),
+    );
+  }
+}
+
+class FornoMM extends StatefulWidget {
+  final String storeId;
+  final String storeName;
+
+  const FornoMM({
+    super.key,
+    required this.storeId,
+    required this.storeName,
+  });
+
+  @override
+  _FornoMMState createState() => _FornoMMState();
+}
+
+class _FornoMMState extends State<FornoMM> {
+  int quantidadeFornos = 0;
+
+  List<TextEditingController> modeloControllers = [];
+  List<String> tiposForno = [];
+  List<int> suportesForno = [];
+  List<String?> fotosForno = [];
+
+  final List<String> tipos = ['Elétrico', 'Gás'];
+  final List<int> suportes = [1, 2, 3, 4, 5, 6, 7, 8];
+
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    _criarFornoControllers(0);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadFornoData();
+    });
+  }
+
+  @override
+  void dispose() {
+    for (var c in modeloControllers) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  // ===================== CONTROLLERS =====================
+
+  void _criarFornoControllers(int quantidade) {
+    for (var c in modeloControllers) {
+      c.dispose();
+    }
+    modeloControllers =
+        List.generate(quantidade, (_) => TextEditingController());
+    tiposForno = List.generate(quantidade, (_) => '');
+    suportesForno = List.generate(quantidade, (_) => 0);
+    fotosForno = List.generate(quantidade, (_) => null);
+  }
+
+  // ===================== FOTO =====================
+
+  Future<void> _selecionarFoto(int index) async {
+    final image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,
+    );
+
+    if (image == null) return;
+
+    final ref = FirebaseStorage.instance.ref().child(
+          'MM/stores/${widget.storeId}/fornos/forno_$index.jpg',
+        );
+
+    if (kIsWeb) {
+      final bytes = await image.readAsBytes();
+      await ref.putData(bytes);
+    } else {
+      await ref.putFile(File(image.path));
+    }
+
+    final url = await ref.getDownloadURL();
+
+    setState(() {
+      fotosForno[index] = url;
+    });
+
+    _saveFornoData();
+  }
+
+  Future<void> _excluirFoto(int index) async {
+    final url = fotosForno[index];
+    if (url == null) return;
+
+    try {
+      await FirebaseStorage.instance.refFromURL(url).delete();
+    } catch (_) {}
+
+    setState(() {
+      fotosForno[index] = null;
+    });
+
+    _saveFornoData();
+  }
+
+  void _abrirMenuFoto(int index) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.download),
+              title: const Text('Baixar foto'),
+              onTap: () async {
+                Navigator.pop(context);
+                final url = fotosForno[index];
+                if (url != null) {
+                  await launchUrl(
+                    Uri.parse(url),
+                    mode: LaunchMode.externalApplication,
+                  );
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.swap_horiz),
+              title: const Text('Trocar foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _selecionarFoto(index);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Excluir foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _excluirFoto(index);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ===================== FIRESTORE =====================
+
+ 
+  Future<void> _saveFornoData() async {
+    final List<Map<String, dynamic>> fornoList = [];
+
+    for (int i = 0; i < quantidadeFornos; i++) {
+      fornoList.add({
+        'modelo': modeloControllers[i].text,
+        'tipo': tiposForno[i],
+        'suportes': suportesForno[i],
+        'photoUrl': fotosForno[i],
+      });
+    }
+
+    await _firestore.collection('storesmm').doc(widget.storeId).set({
+      'storeName': widget.storeName,
+      'fornos': fornoList,
+      'lastUpdatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> _loadFornoData() async {
+    final doc =
+        await _firestore.collection('storesmm').doc(widget.storeId).get();
+
+    if (!doc.exists) return;
+
+    final List<dynamic> fornos = doc.data()?['fornos'] ?? [];
+
+    setState(() {
+      quantidadeFornos = fornos.length;
+      _criarFornoControllers(quantidadeFornos);
+
+      for (int i = 0; i < quantidadeFornos; i++) {
+        modeloControllers[i].text = fornos[i]['modelo'] ?? '';
+        tiposForno[i] = fornos[i]['tipo'] ?? '';
+        suportesForno[i] = fornos[i]['suportes'] ?? 0;
+        fotosForno[i] = fornos[i]['photoUrl'];
+      }
+    });
+  }
+
+  void _adicionarForno() {
+    setState(() {
+      quantidadeFornos++;
+      modeloControllers.add(TextEditingController());
+      tiposForno.add('');
+      suportesForno.add(0);
+      fotosForno.add(null);
+    });
+    _saveFornoData();
+  }
+
+  void _removerForno(int index) {
+    setState(() {
+      quantidadeFornos--;
+      modeloControllers[index].dispose();
+      modeloControllers.removeAt(index);
+      tiposForno.removeAt(index);
+      suportesForno.removeAt(index);
+      fotosForno.removeAt(index);
+    });
+    _saveFornoData();
+  }
+
+  // ===================== UI =====================
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Fornos')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            ...List.generate(quantidadeFornos, (index) {
+              return Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Forno ${index + 1}',
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  fotosForno[index] == null
+                                      ? Icons.add_a_photo
+                                      : Icons.photo,
+                                ),
+                                onPressed: fotosForno[index] == null
+                                    ? () => _selecionarFoto(index)
+                                    : () => _abrirMenuFoto(index),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete,
+                                    color: Colors.red),
+                                onPressed: () => _removerForno(index),
+                              ),
+                            ],
+                          )
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: modeloControllers[index],
+                        decoration:
+                            const InputDecoration(labelText: 'Modelo'),
+                        onChanged: (_) => _saveFornoData(),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              isExpanded: true,
+                              value: tiposForno[index].isNotEmpty
+                                  ? tiposForno[index]
+                                  : null,
+                              hint: const Text('Tipo'),
+                              items: tipos
+                                  .map((t) => DropdownMenuItem(
+                                        value: t,
+                                        child: Text(t),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  tiposForno[index] = value ?? '';
+                                  _saveFornoData();
+                                });
+                              },
+                              decoration: const InputDecoration(
+                                  border: OutlineInputBorder()),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: DropdownButtonFormField<int>(
+                              isExpanded: true,
+                              value: suportesForno[index] > 0
+                                  ? suportesForno[index]
+                                  : null,
+                              items: suportes
+                                  .map((s) => DropdownMenuItem(
+                                        value: s,
+                                        child: Text(s.toString()),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  suportesForno[index] = value ?? 0;
+                                  _saveFornoData();
+                                });
+                              },
+                              decoration: const InputDecoration(
+                                  labelText: 'Suportes',
+                                  border: OutlineInputBorder()),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+            Center(
+              child: IconButton(
+                icon: const Icon(Icons.add_circle,
+                    color: Colors.green, size: 36),
+                onPressed: _adicionarForno,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ArmariosMM extends StatefulWidget {
+  final String storeId;
+  final String storeName;
+
+  const ArmariosMM({
+    super.key,
+    required this.storeId,
+    required this.storeName,
+  });
+
+  @override
+  State<ArmariosMM> createState() => _ArmariosMMState();
+}
+
+class _ArmariosMMState extends State<ArmariosMM> {
+  int quantidadeArmarios = 0;
+  int quantidadeEsqueletos = 0;
+
+  List<String> tiposArmario = [];
+  List<int> suportesArmario = [];
+  List<String?> fotosArmario = [];
+
+  List<String> tiposEsqueleto = [];
+  List<int> suportesEsqueleto = [];
+  List<String?> fotosEsqueleto = [];
+
+  final List<String> tiposMaterial = ['Inox', 'Alumínio', 'Epoxi'];
+  final List<int> suportes = List.generate(20, (index) => index + 1);
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    criarControllers(0, 0);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
+  }
+
+  void criarControllers(int qtdArmarios, int qtdEsqueletos) {
+    fotosArmario = List.generate(qtdArmarios, (_) => null);
+    fotosEsqueleto = List.generate(qtdEsqueletos, (_) => null);
+  }
+
+  // ===================== FOTO =====================
+  Future<void> _selecionarFoto(bool isArmario, int index) async {
+    final image =
+        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    if (image == null) return;
+
+    final ref = FirebaseStorage.instance.ref().child(
+        'MM/stores/${widget.storeName}/${isArmario ? 'armarios' : 'esqueletos'}/${isArmario ? 'armario' : 'esqueleto'}_$index.jpg');
+
+    if (kIsWeb) {
+      final bytes = await image.readAsBytes();
+      await ref.putData(bytes);
+    } else {
+      await ref.putFile(File(image.path));
+    }
+
+    final url = await ref.getDownloadURL();
+    setState(() {
+      if (isArmario) {
+        fotosArmario[index] = url;
+      } else {
+        fotosEsqueleto[index] = url;
+      }
+    });
+    _saveData();
+  }
+
+  Future<void> _excluirFoto(bool isArmario, int index) async {
+    final url = isArmario ? fotosArmario[index] : fotosEsqueleto[index];
+    if (url == null) return;
+
+    try {
+      await FirebaseStorage.instance.refFromURL(url).delete();
+    } catch (_) {}
+
+    setState(() {
+      if (isArmario) {
+        fotosArmario[index] = null;
+      } else {
+        fotosEsqueleto[index] = null;
+      }
+    });
+    _saveData();
+  }
+
+  void _abrirMenuFoto(bool isArmario, int index) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.download),
+              title: const Text('Baixar foto'),
+              onTap: () async {
+                Navigator.pop(context);
+                final url =
+                    isArmario ? fotosArmario[index] : fotosEsqueleto[index];
+                if (url != null) {
+                  await launchUrl(Uri.parse(url),
+                      mode: LaunchMode.externalApplication);
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.swap_horiz),
+              title: const Text('Trocar foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _selecionarFoto(isArmario, index);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Excluir foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _excluirFoto(isArmario, index);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ===================== FIRESTORE =====================
+  Future<void> _saveData() async {
+    try {
+      final armariosData = List.generate(
+          quantidadeArmarios,
+          (i) => {
+                'tipo': tiposArmario[i],
+                'suportes': suportesArmario[i],
+                'photoUrl': fotosArmario[i],
+              });
+
+      final esqueletosData = List.generate(
+          quantidadeEsqueletos,
+          (i) => {
+                'tipo': tiposEsqueleto[i],
+                'suportes': suportesEsqueleto[i],
+                'photoUrl': fotosEsqueleto[i],
+              });
+
+      await _firestore.collection('storesmm').doc(widget.storeId).set({
+        'armarios': armariosData,
+        'esqueletos': esqueletosData,
+        'lastUpdatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Erro ao salvar armários/esqueletos: $e');
+    }
+  }
+
+  Future<void> _loadData() async {
+    try {
+      final doc =
+          await _firestore.collection('storesmm').doc(widget.storeId).get();
+      if (!doc.exists) return;
+
+      final data = doc.data() ?? {};
+      final List armarioList = (data['armarios'] as List?) ?? [];
+      final List esqueletoList = (data['esqueletos'] as List?) ?? [];
+
+      setState(() {
+        quantidadeArmarios = armarioList.length;
+        quantidadeEsqueletos = esqueletoList.length;
+
+        tiposArmario = armarioList
+            .map<String>((e) => (e as Map)['tipo']?.toString() ?? '')
+            .toList();
+        suportesArmario = armarioList
+            .map<int>((e) => (e as Map)['suportes'] as int? ?? 0)
+            .toList();
+        fotosArmario = armarioList
+            .map<String?>((e) => (e as Map)['photoUrl'] as String?)
+            .toList();
+
+        tiposEsqueleto = esqueletoList
+            .map<String>((e) => (e as Map)['tipo']?.toString() ?? '')
+            .toList();
+        suportesEsqueleto = esqueletoList
+            .map<int>((e) => (e as Map)['suportes'] as int? ?? 0)
+            .toList();
+        fotosEsqueleto = esqueletoList
+            .map<String?>((e) => (e as Map)['photoUrl'] as String?)
+            .toList();
+      });
+    } catch (e) {
+      debugPrint('Erro ao carregar armários/esqueletos: $e');
+    }
+  }
+
+  // ===================== AÇÕES =====================
+  void _adicionarArmario() {
+    setState(() {
+      quantidadeArmarios++;
+      tiposArmario.add('');
+      suportesArmario.add(0);
+      fotosArmario.add(null);
+    });
+    _saveData();
+  }
+
+  void _removerArmario(int index) {
+    setState(() {
+      quantidadeArmarios--;
+      tiposArmario.removeAt(index);
+      suportesArmario.removeAt(index);
+      fotosArmario.removeAt(index);
+    });
+    _saveData();
+  }
+
+  void _adicionarEsqueleto() {
+    setState(() {
+      quantidadeEsqueletos++;
+      tiposEsqueleto.add('');
+      suportesEsqueleto.add(0);
+      fotosEsqueleto.add(null);
+    });
+    _saveData();
+  }
+
+  void _removerEsqueleto(int index) {
+    setState(() {
+      quantidadeEsqueletos--;
+      tiposEsqueleto.removeAt(index);
+      suportesEsqueleto.removeAt(index);
+      fotosEsqueleto.removeAt(index);
+    });
+    _saveData();
+  }
+
+  // ===================== CARD =====================
+  Widget _buildCard({
+    required String title,
+    required String tipo,
+    required int suporte,
+    required String? photoUrl,
+    required void Function(String?) onTipoChanged,
+    required void Function(int?) onSuporteChanged,
+    required VoidCallback onRemove,
+    required VoidCallback onPhotoTap,
+  }) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(title,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                          photoUrl == null ? Icons.add_a_photo : Icons.photo),
+                      onPressed: onPhotoTap,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: onRemove,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    value: tipo.isNotEmpty ? tipo : null,
+                    items: tiposMaterial
+                        .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                        .toList(),
+                    onChanged: onTipoChanged,
+                    decoration: const InputDecoration(
+                      labelText: 'Tipo de material',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    isExpanded: true,
+                    value: suporte > 0 ? suporte : null,
+                    items: suportes
+                        .map((s) => DropdownMenuItem(
+                            value: s, child: Text(s.toString())))
+                        .toList(),
+                    onChanged: onSuporteChanged,
+                    decoration: const InputDecoration(
+                      labelText: 'Suportes',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ===================== UI =====================
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Armários e Esqueletos')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Armários:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            ...List.generate(quantidadeArmarios, (index) {
+              return _buildCard(
+                title: 'Armário ${index + 1}',
+                tipo: tiposArmario[index],
+                suporte: suportesArmario[index],
+                photoUrl: fotosArmario[index],
+                onTipoChanged: (v) {
+                  setState(() => tiposArmario[index] = v ?? '');
+                  _saveData();
+                },
+                onSuporteChanged: (v) {
+                  setState(() => suportesArmario[index] = v ?? 0);
+                  _saveData();
+                },
+                onRemove: () => _removerArmario(index),
+                onPhotoTap: () => fotosArmario[index] == null
+                    ? _selecionarFoto(true, index)
+                    : _abrirMenuFoto(true, index),
+              );
+            }),
+            Center(
+              child: IconButton(
+                  icon: const Icon(Icons.add_circle,
+                      size: 36, color: Colors.green),
+                  onPressed: _adicionarArmario),
+            ),
+            const SizedBox(height: 30),
+            const Text('Esqueletos:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            ...List.generate(quantidadeEsqueletos, (index) {
+              return _buildCard(
+                title: 'Esqueleto ${index + 1}',
+                tipo: tiposEsqueleto[index],
+                suporte: suportesEsqueleto[index],
+                photoUrl: fotosEsqueleto[index],
+                onTipoChanged: (v) {
+                  setState(() => tiposEsqueleto[index] = v ?? '');
+                  _saveData();
+                },
+                onSuporteChanged: (v) {
+                  setState(() => suportesEsqueleto[index] = v ?? 0);
+                  _saveData();
+                },
+                onRemove: () => _removerEsqueleto(index),
+                onPhotoTap: () => fotosEsqueleto[index] == null
+                    ? _selecionarFoto(false, index)
+                    : _abrirMenuFoto(false, index),
+              );
+            }),
+            Center(
+              child: IconButton(
+                  icon: const Icon(Icons.add_circle,
+                      size: 36, color: Colors.green),
+                  onPressed: _adicionarEsqueleto),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ClimaticaMM extends StatefulWidget {
+ 
+ final String storeId;
+ final String storeName;
+
+  const ClimaticaMM({
+    super.key,
+    required this.storeId,
+    required this.storeName,
+  });
+
+  @override
+  _ClimaticaMMState createState() => _ClimaticaMMState();
+}
+
+class _ClimaticaMMState extends State<ClimaticaMM> {
+  int quantidadeClimaticas = 0;
+
+  List<TextEditingController> modeloControllers = [];
+  List<int> suportesClimatica = [];
+  List<String?> fotosClimatica = [];
+
+  final List<int> suportes = List.generate(40, (index) => index + 1);
+
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    criarClimaticaControllers(0);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadClimaticaData();
+    });
+  }
+
+  @override
+  void dispose() {
+    for (var c in modeloControllers) c.dispose();
+    super.dispose();
+  }
+
+  void criarClimaticaControllers(int quantidade) {
+    for (var c in modeloControllers) c.dispose();
+    modeloControllers =
+        List.generate(quantidade, (_) => TextEditingController());
+    suportesClimatica = List.generate(quantidade, (_) => 0);
+    fotosClimatica = List.generate(quantidade, (_) => null);
+  }
+
+  // ===================== FOTO =====================
+  Future<void> _selecionarFoto(int index) async {
+    final image =
+        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    if (image == null) return;
+
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child('MM/stores/${widget.storeName}/climaticas/climatica_$index.jpg');
+
+    if (kIsWeb) {
+      final bytes = await image.readAsBytes();
+      await ref.putData(bytes);
+    } else {
+      await ref.putFile(File(image.path));
+    }
+
+    final url = await ref.getDownloadURL();
+    setState(() => fotosClimatica[index] = url);
+    _saveClimaticaData();
+  }
+
+  Future<void> _excluirFoto(int index) async {
+    final url = fotosClimatica[index];
+    if (url == null) return;
+
+    try {
+      await FirebaseStorage.instance.refFromURL(url).delete();
+    } catch (_) {}
+
+    setState(() => fotosClimatica[index] = null);
+    _saveClimaticaData();
+  }
+
+  void _abrirMenuFoto(int index) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.download),
+              title: const Text('Baixar foto'),
+              onTap: () async {
+                Navigator.pop(context);
+                final url = fotosClimatica[index];
+                if (url != null) {
+                  await launchUrl(Uri.parse(url),
+                      mode: LaunchMode.externalApplication);
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.swap_horiz),
+              title: const Text('Trocar foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _selecionarFoto(index);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Excluir foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _excluirFoto(index);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ===================== FIRESTORE =====================
+  Future<void> _saveClimaticaData() async {
+    List<Map<String, dynamic>> climaticaList = [];
+
+    for (int i = 0; i < quantidadeClimaticas; i++) {
+      climaticaList.add({
+        'modelo': modeloControllers[i].text,
+        'suportes': suportesClimatica[i],
+        'photoUrl': fotosClimatica[i],
+      });
+    }
+
+    await _firestore.collection('storesmm').doc(widget.storeId).set({
+      'climaticas': climaticaList,
+      'lastUpdatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> _loadClimaticaData() async {
+    final doc =
+        await _firestore.collection('storesmm').doc(widget.storeId).get();
+
+    if (!doc.exists) return;
+
+    final climaticas = doc.data()?['climaticas'] ?? [];
+
+    setState(() {
+      quantidadeClimaticas = climaticas.length;
+      criarClimaticaControllers(quantidadeClimaticas);
+
+      for (int i = 0; i < quantidadeClimaticas; i++) {
+        modeloControllers[i].text = climaticas[i]['modelo'] ?? '';
+        suportesClimatica[i] = climaticas[i]['suportes'] ?? 0;
+        fotosClimatica[i] = climaticas[i]['photoUrl'];
+      }
+    });
+  }
+
+  void _adicionarClimatica() {
+    setState(() {
+      quantidadeClimaticas++;
+      modeloControllers.add(TextEditingController());
+      suportesClimatica.add(0);
+      fotosClimatica.add(null);
+    });
+    _saveClimaticaData();
+  }
+
+  void _removerClimatica(int index) {
+    setState(() {
+      quantidadeClimaticas--;
+      modeloControllers[index].dispose();
+      modeloControllers.removeAt(index);
+      suportesClimatica.removeAt(index);
+      fotosClimatica.removeAt(index);
+    });
+    _saveClimaticaData();
+  }
+
+  // ===================== UI =====================
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Climáticas')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            ...List.generate(quantidadeClimaticas, (index) {
+              return Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Climatica ${index + 1}',
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  fotosClimatica[index] == null
+                                      ? Icons.add_a_photo
+                                      : Icons.photo,
+                                ),
+                                onPressed: fotosClimatica[index] == null
+                                    ? () => _selecionarFoto(index)
+                                    : () => _abrirMenuFoto(index),
+                              ),
+                              IconButton(
+                                icon:
+                                    const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () => _removerClimatica(index),
+                              ),
+                            ],
+                          )
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: modeloControllers[index],
+                        decoration: const InputDecoration(labelText: 'Modelo'),
+                        onChanged: (_) => _saveClimaticaData(),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<int>(
+                        isExpanded: true,
+                        value: suportesClimatica[index] > 0
+                            ? suportesClimatica[index]
+                            : null,
+                        items: suportes
+                            .map((s) => DropdownMenuItem(
+                                  value: s,
+                                  child: Text(s.toString()),
+                                ))
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            suportesClimatica[index] = value ?? 0;
+                            _saveClimaticaData();
+                          });
+                        },
+                        decoration: const InputDecoration(
+                            labelText: 'Suportes',
+                            border: OutlineInputBorder()),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+            Center(
+              child: IconButton(
+                icon:
+                    const Icon(Icons.add_circle, color: Colors.green, size: 36),
+                onPressed: _adicionarClimatica,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class FreezerMM extends StatefulWidget {
+  final String storeId;
+  final String storeName;
+  const FreezerMM({
+    super.key,
+    required this.storeId,
+    required this.storeName,
+  });
+
+  @override
+  State<FreezerMM> createState() => _FreezerMMState();
+}
+
+class _FreezerMMState extends State<FreezerMM> {
+  int quantidadeFreezers = 0;
+
+  List<TextEditingController> modeloControllers = [];
+  List<TextEditingController> volumeControllers = [];
+  List<String> tiposFreezer = [];
+  List<String?> fotosFreezer = [];
+
+  final List<String> tipos = ['Vertical', 'Horizontal'];
+
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    criarFreezerControllers(0);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadFreezerData();
+    });
+  }
+
+  @override
+  void dispose() {
+    for (var c in modeloControllers) c.dispose();
+    for (var c in volumeControllers) c.dispose();
+    super.dispose();
+  }
+
+  void criarFreezerControllers(int quantidade) {
+    for (var c in modeloControllers) c.dispose();
+    for (var c in volumeControllers) c.dispose();
+
+    modeloControllers =
+        List.generate(quantidade, (_) => TextEditingController());
+    volumeControllers =
+        List.generate(quantidade, (_) => TextEditingController());
+    tiposFreezer = List.generate(quantidade, (_) => '');
+    fotosFreezer = List.generate(quantidade, (_) => null);
+  }
+
+  // ===================== FOTO =====================
+  Future<void> _selecionarFoto(int index) async {
+    final image =
+        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    if (image == null) return;
+
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child('MM/stores/${widget.storeName}/freezers/freezer_$index.jpg');
+
+    if (kIsWeb) {
+      final bytes = await image.readAsBytes();
+      await ref.putData(bytes);
+    } else {
+      await ref.putFile(File(image.path));
+    }
+
+    final url = await ref.getDownloadURL();
+    setState(() => fotosFreezer[index] = url);
+    _saveFreezerData();
+  }
+
+  Future<void> _excluirFoto(int index) async {
+    final url = fotosFreezer[index];
+    if (url == null) return;
+
+    try {
+      await FirebaseStorage.instance.refFromURL(url).delete();
+    } catch (_) {}
+
+    setState(() => fotosFreezer[index] = null);
+    _saveFreezerData();
+  }
+
+  void _abrirMenuFoto(int index) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.download),
+              title: const Text('Baixar foto'),
+              onTap: () async {
+                Navigator.pop(context);
+                final url = fotosFreezer[index];
+                if (url != null) {
+                  await launchUrl(Uri.parse(url),
+                      mode: LaunchMode.externalApplication);
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.swap_horiz),
+              title: const Text('Trocar foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _selecionarFoto(index);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Excluir foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _excluirFoto(index);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ===================== FIRESTORE =====================
+  Future<void> _saveFreezerData() async {
+    List<Map<String, dynamic>> freezerList = [];
+
+    for (int i = 0; i < quantidadeFreezers; i++) {
+      freezerList.add({
+        'modelo': modeloControllers[i].text,
+        'volume': volumeControllers[i].text,
+        'tipo': tiposFreezer[i],
+        'photoUrl': fotosFreezer[i],
+      });
+    }
+
+    await _firestore.collection('storesmm').doc(widget.storeId).set({
+      'freezers': freezerList,
+      'lastUpdatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> _loadFreezerData() async {
+    final doc =
+        await _firestore.collection('storesmm').doc(widget.storeId).get();
+
+    if (!doc.exists) return;
+
+    final freezers = doc.data()?['freezers'] ?? [];
+
+    setState(() {
+      quantidadeFreezers = freezers.length;
+      criarFreezerControllers(quantidadeFreezers);
+
+      for (int i = 0; i < quantidadeFreezers; i++) {
+        modeloControllers[i].text = freezers[i]['modelo'] ?? '';
+        volumeControllers[i].text = freezers[i]['volume'] ?? '';
+        tiposFreezer[i] = freezers[i]['tipo'] ?? '';
+        fotosFreezer[i] = freezers[i]['photoUrl'];
+      }
+    });
+  }
+
+  void _adicionarFreezer() {
+    setState(() {
+      quantidadeFreezers++;
+      modeloControllers.add(TextEditingController());
+      volumeControllers.add(TextEditingController());
+      tiposFreezer.add('');
+      fotosFreezer.add(null);
+    });
+    _saveFreezerData();
+  }
+
+  void _removerFreezer(int index) {
+    setState(() {
+      quantidadeFreezers--;
+      modeloControllers[index].dispose();
+      volumeControllers[index].dispose();
+      modeloControllers.removeAt(index);
+      volumeControllers.removeAt(index);
+      tiposFreezer.removeAt(index);
+      fotosFreezer.removeAt(index);
+    });
+    _saveFreezerData();
+  }
+
+  // ===================== UI =====================
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Conservadores')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            ...List.generate(quantidadeFreezers, (index) {
+              return Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Conservador ${index + 1}',
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  fotosFreezer[index] == null
+                                      ? Icons.add_a_photo
+                                      : Icons.photo,
+                                ),
+                                onPressed: fotosFreezer[index] == null
+                                    ? () => _selecionarFoto(index)
+                                    : () => _abrirMenuFoto(index),
+                              ),
+                              IconButton(
+                                icon:
+                                    const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () => _removerFreezer(index),
+                              ),
+                            ],
+                          )
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: modeloControllers[index],
+                        decoration: const InputDecoration(
+                            labelText: 'Modelo', border: OutlineInputBorder()),
+                        onChanged: (_) => _saveFreezerData(),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: volumeControllers[index],
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                            labelText: 'Volume (litros)',
+                            border: OutlineInputBorder()),
+                        onChanged: (_) => _saveFreezerData(),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        value: tiposFreezer[index].isNotEmpty
+                            ? tiposFreezer[index]
+                            : null,
+                        items: tipos
+                            .map((tipo) => DropdownMenuItem(
+                                value: tipo, child: Text(tipo)))
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            tiposFreezer[index] = value ?? '';
+                            _saveFreezerData();
+                          });
+                        },
+                        decoration: const InputDecoration(
+                            labelText: 'Tipo', border: OutlineInputBorder()),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+            Center(
+              child: IconButton(
+                icon:
+                    const Icon(Icons.add_circle, size: 36, color: Colors.green),
+                onPressed: _adicionarFreezer,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class AssadeirasMM extends StatefulWidget {
+  final String storeId;
+  final String storeName;
+  const AssadeirasMM({super.key, required this.storeId,
+    required this.storeName,});
+
+  @override
+  State<AssadeirasMM> createState() => _AssadeirasMMState();
+}
+
+class _AssadeirasMMState extends State<AssadeirasMM> {
+  int quantidadeEsteiras = 0;
+  int quantidadeAssadeiras = 0;
+
+  List<String> tiposEsteiras = [];
+  List<int> quantidadesEsteiras = [];
+  List<String?> fotosEsteiras = [];
+
+  List<String> tiposAssadeiras = [];
+  List<int> quantidadesAssadeiras = [];
+  List<String?> fotosAssadeiras = [];
+
+  final List<String> tiposMaterial = [
+    'Alumínio',
+    'Inox',
+    'Flandre',
+    'Ferro Fundido'
+  ];
+  final List<int> quantidades = List.generate(120, (index) => index + 1);
+
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    criarEsteiraAssadeiraControllers(0, 0);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
+  }
+
+  // ===================== CONTROLADORES =====================
+  void criarEsteiraAssadeiraControllers(int qtdEsteiras, int qtdAssadeiras) {
+    fotosEsteiras = List.generate(qtdEsteiras, (_) => null);
+    fotosAssadeiras = List.generate(qtdAssadeiras, (_) => null);
+  }
+
+  // ===================== FOTO =====================
+  Future<void> _selecionarFoto(bool isEsteira, int index) async {
+    final image =
+        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    if (image == null) return;
+
+    final ref = FirebaseStorage.instance.ref().child(
+        'MM/stores/${widget.storeName}/${isEsteira ? 'esteiras' : 'assadeiras'}/${isEsteira ? 'esteira' : 'assadeira'}_$index.jpg');
+
+    if (kIsWeb) {
+      final bytes = await image.readAsBytes();
+      await ref.putData(bytes);
+    } else {
+      await ref.putFile(File(image.path));
+    }
+
+    final url = await ref.getDownloadURL();
+    setState(() {
+      if (isEsteira) {
+        fotosEsteiras[index] = url;
+      } else {
+        fotosAssadeiras[index] = url;
+      }
+    });
+    _saveData();
+  }
+
+  Future<void> _excluirFoto(bool isEsteira, int index) async {
+    final url = isEsteira ? fotosEsteiras[index] : fotosAssadeiras[index];
+    if (url == null) return;
+
+    try {
+      await FirebaseStorage.instance.refFromURL(url).delete();
+    } catch (_) {}
+
+    setState(() {
+      if (isEsteira) {
+        fotosEsteiras[index] = null;
+      } else {
+        fotosAssadeiras[index] = null;
+      }
+    });
+    _saveData();
+  }
+
+  void _abrirMenuFoto(bool isEsteira, int index) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.download),
+              title: const Text('Baixar foto'),
+              onTap: () async {
+                Navigator.pop(context);
+                final url =
+                    isEsteira ? fotosEsteiras[index] : fotosAssadeiras[index];
+                if (url != null) {
+                  await launchUrl(Uri.parse(url),
+                      mode: LaunchMode.externalApplication);
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.swap_horiz),
+              title: const Text('Trocar foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _selecionarFoto(isEsteira, index);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Excluir foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _excluirFoto(isEsteira, index);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ===================== FIRESTORE =====================
+  Future<void> _saveData() async {
+    try {
+      final esteirasData = List.generate(
+          quantidadeEsteiras,
+          (i) => {
+                'tipo': tiposEsteiras[i],
+                'quantidade': quantidadesEsteiras[i],
+                'photoUrl': fotosEsteiras[i],
+              });
+
+      final assadeirasData = List.generate(
+          quantidadeAssadeiras,
+          (i) => {
+                'tipo': tiposAssadeiras[i],
+                'quantidade': quantidadesAssadeiras[i],
+                'photoUrl': fotosAssadeiras[i],
+              });
+
+      await _firestore.collection('storesmm').doc(widget.storeId).set({
+        'esteiras': esteirasData,
+        'assadeiras': assadeirasData,
+        'lastUpdatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Erro ao salvar esteiras/assadeiras: $e');
+    }
+  }
+
+  Future<void> _loadData() async {
+    try {
+      final doc =
+          await _firestore.collection('storesmm').doc(widget.storeId).get();
+      if (!doc.exists) return;
+
+      final data = doc.data() ?? {};
+      final List esteirasList = (data['esteiras'] as List?) ?? [];
+      final List assadeirasList = (data['assadeiras'] as List?) ?? [];
+
+      setState(() {
+        quantidadeEsteiras = esteirasList.length;
+        quantidadeAssadeiras = assadeirasList.length;
+
+        tiposEsteiras = esteirasList
+            .map<String>((e) => (e as Map)['tipo']?.toString() ?? '')
+            .toList();
+        quantidadesEsteiras = esteirasList
+            .map<int>((e) => (e as Map)['quantidade'] as int? ?? 0)
+            .toList();
+        fotosEsteiras = esteirasList
+            .map<String?>((e) => (e as Map)['photoUrl'] as String?)
+            .toList();
+
+        tiposAssadeiras = assadeirasList
+            .map<String>((e) => (e as Map)['tipo']?.toString() ?? '')
+            .toList();
+        quantidadesAssadeiras = assadeirasList
+            .map<int>((e) => (e as Map)['quantidade'] as int? ?? 0)
+            .toList();
+        fotosAssadeiras = assadeirasList
+            .map<String?>((e) => (e as Map)['photoUrl'] as String?)
+            .toList();
+      });
+    } catch (e) {
+      debugPrint('Erro ao carregar esteiras/assadeiras: $e');
+    }
+  }
+
+  // ===================== AÇÕES =====================
+  void _adicionarEsteira() {
+    setState(() {
+      quantidadeEsteiras++;
+      tiposEsteiras.add('');
+      quantidadesEsteiras.add(0);
+      fotosEsteiras.add(null);
+    });
+    _saveData();
+  }
+
+  void _removerEsteira(int index) {
+    setState(() {
+      quantidadeEsteiras--;
+      tiposEsteiras.removeAt(index);
+      quantidadesEsteiras.removeAt(index);
+      fotosEsteiras.removeAt(index);
+    });
+    _saveData();
+  }
+
+  void _adicionarAssadeira() {
+    setState(() {
+      quantidadeAssadeiras++;
+      tiposAssadeiras.add('');
+      quantidadesAssadeiras.add(0);
+      fotosAssadeiras.add(null);
+    });
+    _saveData();
+  }
+
+  void _removerAssadeira(int index) {
+    setState(() {
+      quantidadeAssadeiras--;
+      tiposAssadeiras.removeAt(index);
+      quantidadesAssadeiras.removeAt(index);
+      fotosAssadeiras.removeAt(index);
+    });
+    _saveData();
+  }
+
+  // ===================== CARD =====================
+  Widget _buildCard({
+    required String title,
+    required String tipo,
+    required int quantidade,
+    required String? photoUrl,
+    required void Function(String?) onTipoChanged,
+    required void Function(int?) onQtdChanged,
+    required VoidCallback onRemove,
+    required VoidCallback onPhotoTap,
+  }) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(title,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                          photoUrl == null ? Icons.add_a_photo : Icons.photo),
+                      onPressed: onPhotoTap,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: onRemove,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: tipo.isNotEmpty ? tipo : null,
+              hint: const Text('Tipo de material'),
+              items: tiposMaterial
+                  .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                  .toList(),
+              onChanged: onTipoChanged,
+              decoration: const InputDecoration(border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<int>(
+              value: quantidade > 0 ? quantidade : null,
+              hint: const Text('Quantidade'),
+              items: quantidades
+                  .map((q) =>
+                      DropdownMenuItem(value: q, child: Text(q.toString())))
+                  .toList(),
+              onChanged: onQtdChanged,
+              decoration: const InputDecoration(border: OutlineInputBorder()),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ===================== UI =====================
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Esteiras e Assadeiras')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Esteiras:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            ...List.generate(quantidadeEsteiras, (index) {
+              return _buildCard(
+                title: 'Esteira ${index + 1}',
+                tipo: tiposEsteiras[index],
+                quantidade: quantidadesEsteiras[index],
+                photoUrl: fotosEsteiras[index],
+                onTipoChanged: (v) {
+                  setState(() => tiposEsteiras[index] = v ?? '');
+                  _saveData();
+                },
+                onQtdChanged: (v) {
+                  setState(() => quantidadesEsteiras[index] = v ?? 0);
+                  _saveData();
+                },
+                onRemove: () => _removerEsteira(index),
+                onPhotoTap: () => fotosEsteiras[index] == null
+                    ? _selecionarFoto(true, index)
+                    : _abrirMenuFoto(true, index),
+              );
+            }),
+            Center(
+              child: IconButton(
+                  icon: const Icon(Icons.add_circle,
+                      size: 36, color: Colors.green),
+                  onPressed: _adicionarEsteira),
+            ),
+            const SizedBox(height: 30),
+            const Text('Assadeiras:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            ...List.generate(quantidadeAssadeiras, (index) {
+              return _buildCard(
+                title: 'Assadeira ${index + 1}',
+                tipo: tiposAssadeiras[index],
+                quantidade: quantidadesAssadeiras[index],
+                photoUrl: fotosAssadeiras[index],
+                onTipoChanged: (v) {
+                  setState(() => tiposAssadeiras[index] = v ?? '');
+                  _saveData();
+                },
+                onQtdChanged: (v) {
+                  setState(() => quantidadesAssadeiras[index] = v ?? 0);
+                  _saveData();
+                },
+                onRemove: () => _removerAssadeira(index),
+                onPhotoTap: () => fotosAssadeiras[index] == null
+                    ? _selecionarFoto(false, index)
+                    : _abrirMenuFoto(false, index),
+              );
+            }),
+            Center(
+              child: IconButton(
+                  icon: const Icon(Icons.add_circle,
+                      size: 36, color: Colors.green),
+                  onPressed: _adicionarAssadeira),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ResumoEquipamentosMM extends StatefulWidget {
+  final String storeId;
+  final String storeName;
+  const ResumoEquipamentosMM({required this.storeId,
+    required this.storeName,});
+
+  @override
+  State<ResumoEquipamentosMM> createState() => _ResumoEquipamentosMMState();
+}
+
+class _ResumoEquipamentosMMState extends State<ResumoEquipamentosMM> {
+  Map<String, dynamic> dadosResumo = {};
+  bool isLoading = true;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _carregarTodosDados();
+  }
+
+  Future<void> _carregarTodosDados() async {
+    try {
+      final doc =
+          await _firestore.collection('storesmm').doc(widget.storeId).get();
+      if (doc.exists) {
+        final data = doc.data() ?? {};
+
+        if (mounted) {
+          setState(() {
+            dadosResumo = {
+              'fornos': data['fornos'] ?? [],
+              'armarios': data['armarios'] ?? [],
+              'esqueletos': data['esqueletos'] ?? [],
+              'esteiras': data['esteiras'] ?? [],
+              'assadeiras': data['assadeiras'] ?? [],
+              'climaticas': data['climaticas'] ?? [],
+              'freezers': data['freezers'] ?? [],
+            };
+            isLoading = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => isLoading = false);
+      }
+    } catch (e) {
+      print('Erro ao carregar dados: $e');
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  Future<Uint8List> _gerarPdf() async {
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.MultiPage(
+        build: (context) {
+          final List<pw.Widget> widgets = [];
+
+          widgets.add(
+            pw.Center(
+              child: pw.Text(
+                'Inventário de Equipamentos - ${widget.storeName}',
+                style:
+                    pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+              ),
+            ),
+          );
+          widgets.add(pw.SizedBox(height: 20));
+
+          void addSection(
+              String title, List lista, String Function(int, Map) fn) {
+            if (lista.isEmpty) return;
+
+            widgets.add(
+              pw.Text(
+                title,
+                style:
+                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+              ),
+            );
+
+            for (int i = 0; i < lista.length; i++) {
+              final item = lista[i];
+              widgets.add(
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Bullet(text: fn(i, item)),
+                    if (item['photoUrl'] != null)
+                      pw.UrlLink(
+                        destination: item['photoUrl'],
+                        child: pw.Text(
+                          'Ver foto',
+                          style: pw.TextStyle(
+                            color: PdfColors.blue,
+                            decoration: pw.TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    pw.SizedBox(height: 4),
+                  ],
+                ),
+              );
+            }
+
+            widgets.add(pw.SizedBox(height: 10));
+          }
+
+          addSection(
+            'Fornos:',
+            dadosResumo['fornos'],
+            (i, f) =>
+                'Forno ${i + 1} - Modelo: ${f['modelo'] ?? 'N/I'}, Tipo: ${f['tipo'] ?? 'N/I'}, Suportes: ${f['suportes'] ?? 0}',
+          );
+
+          addSection(
+            'Armários:',
+            dadosResumo['armarios'],
+            (i, a) =>
+                'Armário ${i + 1} - Tipo: ${a['tipo'] ?? 'N/I'}, Suportes: ${a['suportes'] ?? 0}',
+          );
+
+          addSection(
+            'Esqueletos:',
+            dadosResumo['esqueletos'],
+            (i, e) =>
+                'Esqueleto ${i + 1} - Tipo: ${e['tipo'] ?? 'N/I'}, Suportes: ${e['suportes'] ?? 0}',
+          );
+
+          addSection(
+            'Esteiras:',
+            dadosResumo['esteiras'],
+            (i, e) =>
+                'Esteira ${i + 1} - Tipo: ${e['tipo'] ?? 'N/I'}, Quantidade: ${e['quantidade'] ?? 0}',
+          );
+
+          addSection(
+            'Assadeiras:',
+            dadosResumo['assadeiras'],
+            (i, a) =>
+                'Assadeira ${i + 1} - Tipo: ${a['tipo'] ?? 'N/I'}, Quantidade: ${a['quantidade'] ?? 0}',
+          );
+
+          addSection(
+            'Climáticas:',
+            dadosResumo['climaticas'],
+            (i, c) =>
+                'Climática ${i + 1} - Modelo: ${c['modelo'] ?? 'N/I'}, Suportes: ${c['suportes'] ?? 0}',
+          );
+
+          addSection(
+            'Conservadores:',
+            dadosResumo['freezers'],
+            (i, f) =>
+                'Conservador ${i + 1} - Modelo: ${f['modelo'] ?? 'N/I'}, Volume: ${f['volume'] ?? 'N/I'}L, Tipo: ${f['tipo'] ?? 'N/I'}',
+          );
+
+          return widgets;
+        },
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  Future<void> _compartilharPdf() async {
+    final pdfBytes = await _gerarPdf();
+    await Printing.sharePdf(
+      bytes: pdfBytes,
+      filename: "Inventário Equipamentos_${widget.storeName}.pdf",
+    );
+  }
+
+  Widget _buildSection(String title, List<Widget> children) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 3,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title,
+                style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue)),
+            const SizedBox(height: 12),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildItemCard(String title, String subtitle, {String? photoUrl}) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      color: Colors.grey[50],
+      elevation: 1,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (photoUrl != null)
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => Scaffold(
+                        appBar: AppBar(),
+                        body: Center(
+                          child: InteractiveViewer(
+                            child: CachedNetworkImage(
+                              imageUrl: photoUrl,
+                              placeholder: (context, url) =>
+                                  const CircularProgressIndicator(),
+                              errorWidget: (context, url, error) =>
+                                  const Icon(Icons.error),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+                child: CachedNetworkImage(
+                  imageUrl: photoUrl,
+                  width: 60,
+                  height: 60,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(
+                    width: 60,
+                    height: 60,
+                    color: Colors.grey[300],
+                    child: const Icon(Icons.image, color: Colors.white70),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    width: 60,
+                    height: 60,
+                    color: Colors.grey[300],
+                    child: const Icon(Icons.error, color: Colors.red),
+                  ),
+                ),
+              ),
+            if (photoUrl != null) const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 4),
+                  Text(subtitle,
+                      style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Map<String, dynamic>> buildItems(
+      String key, String Function(Map) detailsFn) {
+    final list = dadosResumo[key] ?? [];
+    return List<Map<String, dynamic>>.from(list.map((item) => {
+          'nome': (item['modelo'] != null && item['modelo'].toString().trim().isNotEmpty)
+    ? item['modelo']
+    : (item['tipo'] != null && item['tipo'].toString().trim().isNotEmpty)
+        ? item['tipo']
+        : 'Não informado',
+          'detalhes': detailsFn(item),
+          'photoUrl': item['photoUrl'],
+        }));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final hasData = dadosResumo.isNotEmpty &&
+        dadosResumo.values.any((value) => value != null && value.isNotEmpty);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Inventário'),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share),
+            onPressed: _compartilharPdf,
+          ),
+        ],
+      ),
+      body: !hasData
+          ? const Center(
+              child: Text('Nenhum dado cadastrado',
+                  style: TextStyle(fontSize: 18, color: Colors.grey)),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (dadosResumo['fornos'] != null &&
+                      dadosResumo['fornos'].isNotEmpty)
+                    _buildSection(
+                      'Fornos (${dadosResumo['fornos'].length})',
+                      buildItems(
+                              'fornos',
+                              (item) =>
+                                  'Modelo: ${item['modelo'] ?? 'N/I'}, Tipo: ${item['tipo'] ?? 'N/I'}, Suportes: ${item['suportes'] ?? 0}')
+                          .map((e) => _buildItemCard(e['nome'], e['detalhes'],
+                              photoUrl: e['photoUrl']))
+                          .toList(),
+                    ),
+                  if (dadosResumo['armarios'] != null &&
+                      dadosResumo['armarios'].isNotEmpty)
+                    _buildSection(
+                      'Armários (${dadosResumo['armarios'].length})',
+                      buildItems(
+                              'armarios',
+                              (item) =>
+                                  'Tipo: ${item['tipo'] ?? 'N/I'}, Suportes: ${item['suportes'] ?? 0}')
+                          .map((e) => _buildItemCard(e['nome'], e['detalhes'],
+                              photoUrl: e['photoUrl']))
+                          .toList(),
+                    ),
+                  if (dadosResumo['esqueletos'] != null &&
+                      dadosResumo['esqueletos'].isNotEmpty)
+                    _buildSection(
+                      'Esqueletos (${dadosResumo['esqueletos'].length})',
+                      buildItems(
+                              'esqueletos',
+                              (item) =>
+                                  'Tipo: ${item['tipo'] ?? 'N/I'}, Suportes: ${item['suportes'] ?? 0}')
+                          .map((e) => _buildItemCard(e['nome'], e['detalhes'],
+                              photoUrl: e['photoUrl']))
+                          .toList(),
+                    ),
+                  if (dadosResumo['esteiras'] != null &&
+                      (dadosResumo['esteiras'] as List).isNotEmpty)
+                    _buildSection(
+                      'Esteiras (${dadosResumo['esteiras'].length})',
+                      buildItems(
+                              'esteiras',
+                              (item) =>
+                                  'Tipo: ${item['tipo'] ?? 'N/I'}, Quantidade: ${item['quantidade'] ?? 0}')
+                          .map((e) => _buildItemCard(e['nome'], e['detalhes'],
+                              photoUrl: e['photoUrl']))
+                          .toList(),
+                    ),
+                  if (dadosResumo['assadeiras'] != null &&
+                      (dadosResumo['assadeiras'] as List).isNotEmpty)
+                    _buildSection(
+                      'Assadeiras (${dadosResumo['assadeiras'].length})',
+                      buildItems(
+                              'assadeiras',
+                              (item) =>
+                                  'Tipo: ${item['tipo'] ?? 'N/I'}, Quantidade: ${item['quantidade'] ?? 0}')
+                          .map((e) => _buildItemCard(e['nome'], e['detalhes'],
+                              photoUrl: e['photoUrl']))
+                          .toList(),
+                    ),
+                  if (dadosResumo['climaticas'] != null &&
+                      dadosResumo['climaticas'].isNotEmpty)
+                    _buildSection(
+                      'Climáticas (${dadosResumo['climaticas'].length})',
+                      buildItems(
+                              'climaticas',
+                              (item) =>
+                                  'Modelo: ${item['modelo'] ?? 'N/I'}, Suportes: ${item['suportes'] ?? 0}')
+                          .map((e) => _buildItemCard(e['nome'], e['detalhes'],
+                              photoUrl: e['photoUrl']))
+                          .toList(),
+                    ),
+                  if (dadosResumo['freezers'] != null &&
+                      dadosResumo['freezers'].isNotEmpty)
+                    _buildSection(
+                      'Conservadores (${dadosResumo['freezers'].length})',
+                      buildItems(
+                              'freezers',
+                              (item) =>
+                                  'Modelo: ${item['modelo'] ?? 'N/I'}, Volume: ${item['volume'] ?? 'N/I'}L, Tipo: ${item['tipo'] ?? 'N/I'}')
+                          .map((e) => _buildItemCard(e['nome'], e['detalhes'],
+                              photoUrl: e['photoUrl']))
+                          .toList(),
+                    ),
+                ],
+              ),
+            ),
     );
   }
 }
