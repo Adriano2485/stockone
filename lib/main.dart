@@ -1,6 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
 
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_downloader/image_downloader.dart';
+import 'dart:html' as html; 
+
 
 import 'dart:convert';
 import 'dart:io';
@@ -9567,6 +9570,9 @@ class _FornoState extends State<Forno> {
   List<int> suportesForno = [];
   List<String?> fotosForno = [];
 
+  /// progresso de upload por forno
+  Map<int, double> uploadProgress = {};
+
   final List<String> tipos = ['Elétrico', 'Gás'];
   final List<int> suportes = [1, 2, 3, 4, 5, 6, 7, 8];
 
@@ -9576,7 +9582,7 @@ class _FornoState extends State<Forno> {
   @override
   void initState() {
     super.initState();
-    criarFornoControllers(0);
+    _criarFornoControllers(0);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadFornoData();
     });
@@ -9590,8 +9596,12 @@ class _FornoState extends State<Forno> {
     super.dispose();
   }
 
-  void criarFornoControllers(int quantidade) {
-    for (var c in modeloControllers) c.dispose();
+  // ===================== CONTROLLERS =====================
+
+  void _criarFornoControllers(int quantidade) {
+    for (var c in modeloControllers) {
+      c.dispose();
+    }
     modeloControllers =
         List.generate(quantidade, (_) => TextEditingController());
     tiposForno = List.generate(quantidade, (_) => '');
@@ -9604,25 +9614,40 @@ class _FornoState extends State<Forno> {
   Future<void> _selecionarFoto(int index) async {
     final image = await _picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 70,
+      maxWidth: 1024, // ✅ garante 1024px (Android + Web)
+      imageQuality: 70, // ✅ reduz tamanho
     );
+
     if (image == null) return;
 
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child('stores/${widget.storeName}/fornos/forno_$index.jpg');
+    final ref = FirebaseStorage.instance.ref(
+      'stores/${widget.storeName}/fornos/forno_$index.jpg',
+    );
+
+    UploadTask task;
 
     if (kIsWeb) {
-      // Web usa bytes
       final bytes = await image.readAsBytes();
-      await ref.putData(bytes);
+      task = ref.putData(bytes);
     } else {
-      // Mobile usa File
-      await ref.putFile(File(image.path));
+      task = ref.putFile(File(image.path));
     }
 
-    final url = await ref.getDownloadURL();
-    setState(() => fotosForno[index] = url);
+    task.snapshotEvents.listen((event) {
+      final progress = event.bytesTransferred / event.totalBytes;
+      setState(() {
+        uploadProgress[index] = progress;
+      });
+    });
+
+    final snapshot = await task;
+    final url = await snapshot.ref.getDownloadURL();
+
+    setState(() {
+      fotosForno[index] = url;
+      uploadProgress.remove(index);
+    });
+
     _saveFornoData();
   }
 
@@ -9634,8 +9659,28 @@ class _FornoState extends State<Forno> {
       await FirebaseStorage.instance.refFromURL(url).delete();
     } catch (_) {}
 
-    setState(() => fotosForno[index] = null);
+    setState(() {
+      fotosForno[index] = null;
+    });
+
     _saveFornoData();
+  }
+
+  // ===================== VISUALIZAR FOTO =====================
+
+  void _visualizarFoto(String url) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: InteractiveViewer(
+          child: Image.network(
+            url,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
+    );
   }
 
   void _abrirMenuFoto(int index) {
@@ -9646,14 +9691,13 @@ class _FornoState extends State<Forno> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.download),
-              title: const Text('Baixar foto'),
-              onTap: () async {
+              leading: const Icon(Icons.visibility),
+              title: const Text('Visualizar'),
+              onTap: () {
                 Navigator.pop(context);
                 final url = fotosForno[index];
                 if (url != null) {
-                  await launchUrl(Uri.parse(url),
-                      mode: LaunchMode.externalApplication);
+                  _visualizarFoto(url);
                 }
               },
             ),
@@ -9682,7 +9726,7 @@ class _FornoState extends State<Forno> {
   // ===================== FIRESTORE =====================
 
   Future<void> _saveFornoData() async {
-    List<Map<String, dynamic>> fornoList = [];
+    final List<Map<String, dynamic>> fornoList = [];
 
     for (int i = 0; i < quantidadeFornos; i++) {
       fornoList.add({
@@ -9694,6 +9738,7 @@ class _FornoState extends State<Forno> {
     }
 
     await _firestore.collection('stores').doc(widget.storeName).set({
+      'storeName': widget.storeName,
       'fornos': fornoList,
       'lastUpdatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
@@ -9705,11 +9750,11 @@ class _FornoState extends State<Forno> {
 
     if (!doc.exists) return;
 
-    final fornos = doc.data()?['fornos'] ?? [];
+    final List<dynamic> fornos = doc.data()?['fornos'] ?? [];
 
     setState(() {
       quantidadeFornos = fornos.length;
-      criarFornoControllers(quantidadeFornos);
+      _criarFornoControllers(quantidadeFornos);
 
       for (int i = 0; i < quantidadeFornos; i++) {
         modeloControllers[i].text = fornos[i]['modelo'] ?? '';
@@ -9756,7 +9801,6 @@ class _FornoState extends State<Forno> {
             ...List.generate(quantidadeFornos, (index) {
               return Card(
                 margin: const EdgeInsets.only(bottom: 16),
-                elevation: 2,
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -9765,34 +9809,35 @@ class _FornoState extends State<Forno> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Forno ${index + 1}',
-                              style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold)),
-                          Row(
-                            children: [
-                              IconButton(
-                                icon: Icon(
-                                  fotosForno[index] == null
-                                      ? Icons.add_a_photo
-                                      : Icons.photo,
-                                ),
-                                onPressed: fotosForno[index] == null
-                                    ? () => _selecionarFoto(index)
-                                    : () => _abrirMenuFoto(index),
-                              ),
-                              IconButton(
-                                icon:
-                                    const Icon(Icons.delete, color: Colors.red),
-                                onPressed: () => _removerForno(index),
-                              ),
-                            ],
-                          )
+                          Text(
+                            'Forno ${index + 1}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              fotosForno[index] == null
+                                  ? Icons.add_a_photo
+                                  : Icons.photo,
+                            ),
+                            onPressed: fotosForno[index] == null
+                                ? () => _selecionarFoto(index)
+                                : () => _abrirMenuFoto(index),
+                          ),
                         ],
                       ),
+                      if (uploadProgress[index] != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: LinearProgressIndicator(
+                            value: uploadProgress[index],
+                          ),
+                        ),
                       const SizedBox(height: 12),
                       TextField(
                         controller: modeloControllers[index],
-                        decoration: const InputDecoration(labelText: 'Modelo'),
+                        decoration: const InputDecoration(
+                          labelText: 'Modelo',
+                        ),
                         onChanged: (_) => _saveFornoData(),
                       ),
                       const SizedBox(height: 12),
@@ -9886,9 +9931,13 @@ class _ArmariosState extends State<Armarios> {
   List<int> suportesEsqueleto = [];
   List<String?> fotosEsqueleto = [];
 
+  // Mapas para controlar o progresso de upload
+  Map<String, double> uploadProgress = {}; // Chave: 'armario_0', 'esqueleto_1'
+
   final List<String> tiposMaterial = ['Inox', 'Alumínio', 'Epoxi'];
   final List<int> suportes = List.generate(20, (index) => index + 1);
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -9903,31 +9952,58 @@ class _ArmariosState extends State<Armarios> {
     fotosEsqueleto = List.generate(qtdEsqueletos, (_) => null);
   }
 
-  // ===================== FOTO =====================
+  // ===================== FOTO - COM PARÂMETROS IGUAIS À TELA FORNO =====================
   Future<void> _selecionarFoto(bool isArmario, int index) async {
-    final image =
-        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    final image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024, // ✅ mesma compressão da tela FornoMM
+      imageQuality: 70, // ✅ mesma qualidade
+    );
+
     if (image == null) return;
 
-    final ref = FirebaseStorage.instance.ref().child(
-        'stores/${widget.storeName}/${isArmario ? 'armarios' : 'esqueletos'}/${isArmario ? 'armario' : 'esqueleto'}_$index.jpg');
+    final chave = isArmario ? 'armario_$index' : 'esqueleto_$index';
+    final ref = _storage.ref().child(
+          'stores/${widget.storeName}/${isArmario ? 'armarios' : 'esqueletos'}/$chave.jpg',
+        );
+
+    UploadTask task;
 
     if (kIsWeb) {
       final bytes = await image.readAsBytes();
-      await ref.putData(bytes);
+      task = ref.putData(bytes);
     } else {
-      await ref.putFile(File(image.path));
+      task = ref.putFile(File(image.path));
     }
 
-    final url = await ref.getDownloadURL();
-    setState(() {
-      if (isArmario) {
-        fotosArmario[index] = url;
-      } else {
-        fotosEsqueleto[index] = url;
-      }
+    // ✅ LISTENER PARA BARRA DE PROGRESSO
+    task.snapshotEvents.listen((event) {
+      final progress = event.bytesTransferred / event.totalBytes;
+      setState(() {
+        uploadProgress[chave] = progress;
+      });
     });
-    _saveData();
+
+    // ✅ UPLOAD CONTINUA EM BACKGROUND (não usa await diretamente)
+    task.then((snapshot) async {
+      final url = await snapshot.ref.getDownloadURL();
+
+      setState(() {
+        if (isArmario) {
+          fotosArmario[index] = url;
+        } else {
+          fotosEsqueleto[index] = url;
+        }
+        uploadProgress.remove(chave);
+      });
+
+      _saveData();
+    }).catchError((error) {
+      print('Erro no upload: $error');
+      setState(() {
+        uploadProgress.remove(chave);
+      });
+    });
   }
 
   Future<void> _excluirFoto(bool isArmario, int index) async {
@@ -9935,7 +10011,7 @@ class _ArmariosState extends State<Armarios> {
     if (url == null) return;
 
     try {
-      await FirebaseStorage.instance.refFromURL(url).delete();
+      await _storage.refFromURL(url).delete();
     } catch (_) {}
 
     setState(() {
@@ -9948,6 +10024,23 @@ class _ArmariosState extends State<Armarios> {
     _saveData();
   }
 
+  // ===================== VISUALIZAR FOTO (IGUAL FORNOMM) =====================
+  void _visualizarFoto(String url) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: InteractiveViewer(
+          child: Image.network(
+            url,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ===================== MENU FOTO (IGUAL FORNOMM) =====================
   void _abrirMenuFoto(bool isArmario, int index) {
     showModalBottomSheet(
       context: context,
@@ -9956,15 +10049,14 @@ class _ArmariosState extends State<Armarios> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.download),
-              title: const Text('Baixar foto'),
-              onTap: () async {
+              leading: const Icon(Icons.visibility),
+              title: const Text('Visualizar'),
+              onTap: () {
                 Navigator.pop(context);
                 final url =
                     isArmario ? fotosArmario[index] : fotosEsqueleto[index];
                 if (url != null) {
-                  await launchUrl(Uri.parse(url),
-                      mode: LaunchMode.externalApplication);
+                  _visualizarFoto(url);
                 }
               },
             ),
@@ -9994,22 +10086,25 @@ class _ArmariosState extends State<Armarios> {
   Future<void> _saveData() async {
     try {
       final armariosData = List.generate(
-          quantidadeArmarios,
-          (i) => {
-                'tipo': tiposArmario[i],
-                'suportes': suportesArmario[i],
-                'photoUrl': fotosArmario[i],
-              });
+        quantidadeArmarios,
+        (i) => {
+          'tipo': tiposArmario[i],
+          'suportes': suportesArmario[i],
+          'photoUrl': fotosArmario[i],
+        },
+      );
 
       final esqueletosData = List.generate(
-          quantidadeEsqueletos,
-          (i) => {
-                'tipo': tiposEsqueleto[i],
-                'suportes': suportesEsqueleto[i],
-                'photoUrl': fotosEsqueleto[i],
-              });
+        quantidadeEsqueletos,
+        (i) => {
+          'tipo': tiposEsqueleto[i],
+          'suportes': suportesEsqueleto[i],
+          'photoUrl': fotosEsqueleto[i],
+        },
+      );
 
       await _firestore.collection('stores').doc(widget.storeName).set({
+        'storeName': widget.storeName,
         'armarios': armariosData,
         'esqueletos': esqueletosData,
         'lastUpdatedAt': FieldValue.serverTimestamp(),
@@ -10105,6 +10200,7 @@ class _ArmariosState extends State<Armarios> {
     required String tipo,
     required int suporte,
     required String? photoUrl,
+    required String uploadKey,
     required void Function(String?) onTipoChanged,
     required void Function(int?) onSuporteChanged,
     required VoidCallback onRemove,
@@ -10120,13 +10216,16 @@ class _ArmariosState extends State<Armarios> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(title,
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 Row(
                   children: [
                     IconButton(
                       icon: Icon(
-                          photoUrl == null ? Icons.add_a_photo : Icons.photo),
+                        photoUrl == null ? Icons.add_a_photo : Icons.photo,
+                      ),
                       onPressed: onPhotoTap,
                     ),
                     IconButton(
@@ -10137,6 +10236,16 @@ class _ArmariosState extends State<Armarios> {
                 ),
               ],
             ),
+
+            // ✅ BARRA DE PROGRESSO (IGUAL FORNOMM)
+            if (uploadProgress.containsKey(uploadKey))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: LinearProgressIndicator(
+                  value: uploadProgress[uploadKey],
+                ),
+              ),
+
             const SizedBox(height: 8),
             Row(
               children: [
@@ -10161,7 +10270,9 @@ class _ArmariosState extends State<Armarios> {
                     value: suporte > 0 ? suporte : null,
                     items: suportes
                         .map((s) => DropdownMenuItem(
-                            value: s, child: Text(s.toString())))
+                              value: s,
+                              child: Text(s.toString()),
+                            ))
                         .toList(),
                     onChanged: onSuporteChanged,
                     decoration: const InputDecoration(
@@ -10188,8 +10299,10 @@ class _ArmariosState extends State<Armarios> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Armários:',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              'Armários:',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 12),
             ...List.generate(quantidadeArmarios, (index) {
               return _buildCard(
@@ -10197,6 +10310,7 @@ class _ArmariosState extends State<Armarios> {
                 tipo: tiposArmario[index],
                 suporte: suportesArmario[index],
                 photoUrl: fotosArmario[index],
+                uploadKey: 'armario_$index',
                 onTipoChanged: (v) {
                   setState(() => tiposArmario[index] = v ?? '');
                   _saveData();
@@ -10213,13 +10327,16 @@ class _ArmariosState extends State<Armarios> {
             }),
             Center(
               child: IconButton(
-                  icon: const Icon(Icons.add_circle,
-                      size: 36, color: Colors.green),
-                  onPressed: _adicionarArmario),
+                icon:
+                    const Icon(Icons.add_circle, size: 36, color: Colors.green),
+                onPressed: _adicionarArmario,
+              ),
             ),
             const SizedBox(height: 30),
-            const Text('Esqueletos:',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              'Esqueletos:',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 12),
             ...List.generate(quantidadeEsqueletos, (index) {
               return _buildCard(
@@ -10227,6 +10344,7 @@ class _ArmariosState extends State<Armarios> {
                 tipo: tiposEsqueleto[index],
                 suporte: suportesEsqueleto[index],
                 photoUrl: fotosEsqueleto[index],
+                uploadKey: 'esqueleto_$index',
                 onTipoChanged: (v) {
                   setState(() => tiposEsqueleto[index] = v ?? '');
                   _saveData();
@@ -10243,9 +10361,10 @@ class _ArmariosState extends State<Armarios> {
             }),
             Center(
               child: IconButton(
-                  icon: const Icon(Icons.add_circle,
-                      size: 36, color: Colors.green),
-                  onPressed: _adicionarEsqueleto),
+                icon:
+                    const Icon(Icons.add_circle, size: 36, color: Colors.green),
+                onPressed: _adicionarEsqueleto,
+              ),
             ),
           ],
         ),
@@ -10253,7 +10372,6 @@ class _ArmariosState extends State<Armarios> {
     );
   }
 }
-
 class Assadeiras extends StatefulWidget {
   final String storeName;
   const Assadeiras({super.key, required this.storeName});
@@ -10274,6 +10392,9 @@ class _AssadeirasState extends State<Assadeiras> {
   List<int> quantidadesAssadeiras = [];
   List<String?> fotosAssadeiras = [];
 
+  // Mapas para controle de progresso
+  Map<String, double> uploadProgress = {}; // 'esteira_0', 'assadeira_1'
+
   final List<String> tiposMaterial = [
     'Alumínio',
     'Inox',
@@ -10283,6 +10404,7 @@ class _AssadeirasState extends State<Assadeiras> {
   final List<int> quantidades = List.generate(120, (index) => index + 1);
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -10294,37 +10416,61 @@ class _AssadeirasState extends State<Assadeiras> {
     });
   }
 
-  // ===================== CONTROLADORES =====================
   void criarEsteiraAssadeiraControllers(int qtdEsteiras, int qtdAssadeiras) {
     fotosEsteiras = List.generate(qtdEsteiras, (_) => null);
     fotosAssadeiras = List.generate(qtdAssadeiras, (_) => null);
   }
 
-  // ===================== FOTO =====================
+  // ===================== FOTO - COM PARÂMETROS IGUAIS =====================
   Future<void> _selecionarFoto(bool isEsteira, int index) async {
-    final image =
-        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    final image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      imageQuality: 70,
+    );
+
     if (image == null) return;
 
-    final ref = FirebaseStorage.instance.ref().child(
-        'stores/${widget.storeName}/${isEsteira ? 'esteiras' : 'assadeiras'}/${isEsteira ? 'esteira' : 'assadeira'}_$index.jpg');
+    final chave = isEsteira ? 'esteira_$index' : 'assadeira_$index';
+    final ref = _storage.ref().child(
+          'stores/${widget.storeName}/${isEsteira ? 'esteiras' : 'assadeiras'}/$chave.jpg',
+        );
+
+    UploadTask task;
 
     if (kIsWeb) {
       final bytes = await image.readAsBytes();
-      await ref.putData(bytes);
+      task = ref.putData(bytes);
     } else {
-      await ref.putFile(File(image.path));
+      task = ref.putFile(File(image.path));
     }
 
-    final url = await ref.getDownloadURL();
-    setState(() {
-      if (isEsteira) {
-        fotosEsteiras[index] = url;
-      } else {
-        fotosAssadeiras[index] = url;
-      }
+    // ✅ BARRA DE PROGRESSO
+    task.snapshotEvents.listen((event) {
+      final progress = event.bytesTransferred / event.totalBytes;
+      setState(() {
+        uploadProgress[chave] = progress;
+      });
     });
-    _saveData();
+
+    // ✅ UPLOAD EM BACKGROUND
+    task.then((snapshot) async {
+      final url = await snapshot.ref.getDownloadURL();
+      setState(() {
+        if (isEsteira) {
+          fotosEsteiras[index] = url;
+        } else {
+          fotosAssadeiras[index] = url;
+        }
+        uploadProgress.remove(chave);
+      });
+      _saveData();
+    }).catchError((error) {
+      print('Erro no upload: $error');
+      setState(() {
+        uploadProgress.remove(chave);
+      });
+    });
   }
 
   Future<void> _excluirFoto(bool isEsteira, int index) async {
@@ -10332,7 +10478,7 @@ class _AssadeirasState extends State<Assadeiras> {
     if (url == null) return;
 
     try {
-      await FirebaseStorage.instance.refFromURL(url).delete();
+      await _storage.refFromURL(url).delete();
     } catch (_) {}
 
     setState(() {
@@ -10345,6 +10491,23 @@ class _AssadeirasState extends State<Assadeiras> {
     _saveData();
   }
 
+  // ===================== VISUALIZAR FOTO =====================
+  void _visualizarFoto(String url) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: InteractiveViewer(
+          child: Image.network(
+            url,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ===================== MENU FOTO =====================
   void _abrirMenuFoto(bool isEsteira, int index) {
     showModalBottomSheet(
       context: context,
@@ -10353,15 +10516,14 @@ class _AssadeirasState extends State<Assadeiras> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.download),
-              title: const Text('Baixar foto'),
-              onTap: () async {
+              leading: const Icon(Icons.visibility),
+              title: const Text('Visualizar'),
+              onTap: () {
                 Navigator.pop(context);
                 final url =
                     isEsteira ? fotosEsteiras[index] : fotosAssadeiras[index];
                 if (url != null) {
-                  await launchUrl(Uri.parse(url),
-                      mode: LaunchMode.externalApplication);
+                  _visualizarFoto(url);
                 }
               },
             ),
@@ -10391,22 +10553,25 @@ class _AssadeirasState extends State<Assadeiras> {
   Future<void> _saveData() async {
     try {
       final esteirasData = List.generate(
-          quantidadeEsteiras,
-          (i) => {
-                'tipo': tiposEsteiras[i],
-                'quantidade': quantidadesEsteiras[i],
-                'photoUrl': fotosEsteiras[i],
-              });
+        quantidadeEsteiras,
+        (i) => {
+          'tipo': tiposEsteiras[i],
+          'quantidade': quantidadesEsteiras[i],
+          'photoUrl': fotosEsteiras[i],
+        },
+      );
 
       final assadeirasData = List.generate(
-          quantidadeAssadeiras,
-          (i) => {
-                'tipo': tiposAssadeiras[i],
-                'quantidade': quantidadesAssadeiras[i],
-                'photoUrl': fotosAssadeiras[i],
-              });
+        quantidadeAssadeiras,
+        (i) => {
+          'tipo': tiposAssadeiras[i],
+          'quantidade': quantidadesAssadeiras[i],
+          'photoUrl': fotosAssadeiras[i],
+        },
+      );
 
       await _firestore.collection('stores').doc(widget.storeName).set({
+        'storeName': widget.storeName,
         'esteiras': esteirasData,
         'assadeiras': assadeirasData,
         'lastUpdatedAt': FieldValue.serverTimestamp(),
@@ -10502,6 +10667,7 @@ class _AssadeirasState extends State<Assadeiras> {
     required String tipo,
     required int quantidade,
     required String? photoUrl,
+    required String uploadKey,
     required void Function(String?) onTipoChanged,
     required void Function(int?) onQtdChanged,
     required VoidCallback onRemove,
@@ -10534,6 +10700,16 @@ class _AssadeirasState extends State<Assadeiras> {
                 ),
               ],
             ),
+
+            // ✅ BARRA DE PROGRESSO
+            if (uploadProgress.containsKey(uploadKey))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: LinearProgressIndicator(
+                  value: uploadProgress[uploadKey],
+                ),
+              ),
+
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
               value: tipo.isNotEmpty ? tipo : null,
@@ -10580,6 +10756,7 @@ class _AssadeirasState extends State<Assadeiras> {
                 tipo: tiposEsteiras[index],
                 quantidade: quantidadesEsteiras[index],
                 photoUrl: fotosEsteiras[index],
+                uploadKey: 'esteira_$index',
                 onTipoChanged: (v) {
                   setState(() => tiposEsteiras[index] = v ?? '');
                   _saveData();
@@ -10596,9 +10773,10 @@ class _AssadeirasState extends State<Assadeiras> {
             }),
             Center(
               child: IconButton(
-                  icon: const Icon(Icons.add_circle,
-                      size: 36, color: Colors.green),
-                  onPressed: _adicionarEsteira),
+                icon:
+                    const Icon(Icons.add_circle, size: 36, color: Colors.green),
+                onPressed: _adicionarEsteira,
+              ),
             ),
             const SizedBox(height: 30),
             const Text('Assadeiras:',
@@ -10610,6 +10788,7 @@ class _AssadeirasState extends State<Assadeiras> {
                 tipo: tiposAssadeiras[index],
                 quantidade: quantidadesAssadeiras[index],
                 photoUrl: fotosAssadeiras[index],
+                uploadKey: 'assadeira_$index',
                 onTipoChanged: (v) {
                   setState(() => tiposAssadeiras[index] = v ?? '');
                   _saveData();
@@ -10626,9 +10805,10 @@ class _AssadeirasState extends State<Assadeiras> {
             }),
             Center(
               child: IconButton(
-                  icon: const Icon(Icons.add_circle,
-                      size: 36, color: Colors.green),
-                  onPressed: _adicionarAssadeira),
+                icon:
+                    const Icon(Icons.add_circle, size: 36, color: Colors.green),
+                onPressed: _adicionarAssadeira,
+              ),
             ),
           ],
         ),
@@ -10647,14 +10827,16 @@ class Climatica extends StatefulWidget {
 
 class _ClimaticaState extends State<Climatica> {
   int quantidadeClimaticas = 0;
-
   List<TextEditingController> modeloControllers = [];
   List<int> suportesClimatica = [];
   List<String?> fotosClimatica = [];
 
-  final List<int> suportes = List.generate(40, (index) => index + 1);
+  // Mapa para controle de progresso
+  Map<int, double> uploadProgress = {};
 
+  final List<int> suportes = List.generate(40, (index) => index + 1);
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -10680,26 +10862,51 @@ class _ClimaticaState extends State<Climatica> {
     fotosClimatica = List.generate(quantidade, (_) => null);
   }
 
-  // ===================== FOTO =====================
+  // ===================== FOTO - COM PARÂMETROS IGUAIS =====================
   Future<void> _selecionarFoto(int index) async {
-    final image =
-        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    final image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      imageQuality: 70,
+    );
+
     if (image == null) return;
 
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child('stores/${widget.storeName}/climaticas/climatica_$index.jpg');
+    final ref = _storage.ref().child(
+          'stores/${widget.storeName}/climaticas/climatica_$index.jpg',
+        );
+
+    UploadTask task;
 
     if (kIsWeb) {
       final bytes = await image.readAsBytes();
-      await ref.putData(bytes);
+      task = ref.putData(bytes);
     } else {
-      await ref.putFile(File(image.path));
+      task = ref.putFile(File(image.path));
     }
 
-    final url = await ref.getDownloadURL();
-    setState(() => fotosClimatica[index] = url);
-    _saveClimaticaData();
+    // ✅ BARRA DE PROGRESSO
+    task.snapshotEvents.listen((event) {
+      final progress = event.bytesTransferred / event.totalBytes;
+      setState(() {
+        uploadProgress[index] = progress;
+      });
+    });
+
+    // ✅ UPLOAD EM BACKGROUND
+    task.then((snapshot) async {
+      final url = await snapshot.ref.getDownloadURL();
+      setState(() {
+        fotosClimatica[index] = url;
+        uploadProgress.remove(index);
+      });
+      _saveClimaticaData();
+    }).catchError((error) {
+      print('Erro no upload: $error');
+      setState(() {
+        uploadProgress.remove(index);
+      });
+    });
   }
 
   Future<void> _excluirFoto(int index) async {
@@ -10707,13 +10914,30 @@ class _ClimaticaState extends State<Climatica> {
     if (url == null) return;
 
     try {
-      await FirebaseStorage.instance.refFromURL(url).delete();
+      await _storage.refFromURL(url).delete();
     } catch (_) {}
 
     setState(() => fotosClimatica[index] = null);
     _saveClimaticaData();
   }
 
+  // ===================== VISUALIZAR FOTO =====================
+  void _visualizarFoto(String url) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: InteractiveViewer(
+          child: Image.network(
+            url,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ===================== MENU FOTO =====================
   void _abrirMenuFoto(int index) {
     showModalBottomSheet(
       context: context,
@@ -10722,14 +10946,13 @@ class _ClimaticaState extends State<Climatica> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.download),
-              title: const Text('Baixar foto'),
-              onTap: () async {
+              leading: const Icon(Icons.visibility),
+              title: const Text('Visualizar'),
+              onTap: () {
                 Navigator.pop(context);
                 final url = fotosClimatica[index];
                 if (url != null) {
-                  await launchUrl(Uri.parse(url),
-                      mode: LaunchMode.externalApplication);
+                  _visualizarFoto(url);
                 }
               },
             ),
@@ -10768,6 +10991,7 @@ class _ClimaticaState extends State<Climatica> {
     }
 
     await _firestore.collection('stores').doc(widget.storeName).set({
+      'storeName': widget.storeName,
       'climaticas': climaticaList,
       'lastUpdatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
@@ -10859,6 +11083,16 @@ class _ClimaticaState extends State<Climatica> {
                           )
                         ],
                       ),
+
+                      // ✅ BARRA DE PROGRESSO
+                      if (uploadProgress.containsKey(index))
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8, bottom: 8),
+                          child: LinearProgressIndicator(
+                            value: uploadProgress[index],
+                          ),
+                        ),
+
                       const SizedBox(height: 12),
                       TextField(
                         controller: modeloControllers[index],
@@ -10916,15 +11150,17 @@ class Freezer extends StatefulWidget {
 
 class _FreezerState extends State<Freezer> {
   int quantidadeFreezers = 0;
-
   List<TextEditingController> modeloControllers = [];
   List<TextEditingController> volumeControllers = [];
   List<String> tiposFreezer = [];
   List<String?> fotosFreezer = [];
 
-  final List<String> tipos = ['Vertical', 'Horizontal'];
+  // Mapa para controle de progresso
+  Map<int, double> uploadProgress = {};
 
+  final List<String> tipos = ['Vertical', 'Horizontal'];
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -10955,26 +11191,51 @@ class _FreezerState extends State<Freezer> {
     fotosFreezer = List.generate(quantidade, (_) => null);
   }
 
-  // ===================== FOTO =====================
+  // ===================== FOTO - COM PARÂMETROS IGUAIS =====================
   Future<void> _selecionarFoto(int index) async {
-    final image =
-        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    final image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      imageQuality: 70,
+    );
+
     if (image == null) return;
 
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child('stores/${widget.storeName}/freezers/freezer_$index.jpg');
+    final ref = _storage.ref().child(
+          'stores/${widget.storeName}/freezers/freezer_$index.jpg',
+        );
+
+    UploadTask task;
 
     if (kIsWeb) {
       final bytes = await image.readAsBytes();
-      await ref.putData(bytes);
+      task = ref.putData(bytes);
     } else {
-      await ref.putFile(File(image.path));
+      task = ref.putFile(File(image.path));
     }
 
-    final url = await ref.getDownloadURL();
-    setState(() => fotosFreezer[index] = url);
-    _saveFreezerData();
+    // ✅ BARRA DE PROGRESSO
+    task.snapshotEvents.listen((event) {
+      final progress = event.bytesTransferred / event.totalBytes;
+      setState(() {
+        uploadProgress[index] = progress;
+      });
+    });
+
+    // ✅ UPLOAD EM BACKGROUND
+    task.then((snapshot) async {
+      final url = await snapshot.ref.getDownloadURL();
+      setState(() {
+        fotosFreezer[index] = url;
+        uploadProgress.remove(index);
+      });
+      _saveFreezerData();
+    }).catchError((error) {
+      print('Erro no upload: $error');
+      setState(() {
+        uploadProgress.remove(index);
+      });
+    });
   }
 
   Future<void> _excluirFoto(int index) async {
@@ -10982,13 +11243,30 @@ class _FreezerState extends State<Freezer> {
     if (url == null) return;
 
     try {
-      await FirebaseStorage.instance.refFromURL(url).delete();
+      await _storage.refFromURL(url).delete();
     } catch (_) {}
 
     setState(() => fotosFreezer[index] = null);
     _saveFreezerData();
   }
 
+  // ===================== VISUALIZAR FOTO =====================
+  void _visualizarFoto(String url) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: InteractiveViewer(
+          child: Image.network(
+            url,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ===================== MENU FOTO =====================
   void _abrirMenuFoto(int index) {
     showModalBottomSheet(
       context: context,
@@ -10997,14 +11275,13 @@ class _FreezerState extends State<Freezer> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.download),
-              title: const Text('Baixar foto'),
-              onTap: () async {
+              leading: const Icon(Icons.visibility),
+              title: const Text('Visualizar'),
+              onTap: () {
                 Navigator.pop(context);
                 final url = fotosFreezer[index];
                 if (url != null) {
-                  await launchUrl(Uri.parse(url),
-                      mode: LaunchMode.externalApplication);
+                  _visualizarFoto(url);
                 }
               },
             ),
@@ -11044,6 +11321,7 @@ class _FreezerState extends State<Freezer> {
     }
 
     await _firestore.collection('stores').doc(widget.storeName).set({
+      'storeName': widget.storeName,
       'freezers': freezerList,
       'lastUpdatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
@@ -11139,6 +11417,16 @@ class _FreezerState extends State<Freezer> {
                           )
                         ],
                       ),
+
+                      // ✅ BARRA DE PROGRESSO
+                      if (uploadProgress.containsKey(index))
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8, bottom: 8),
+                          child: LinearProgressIndicator(
+                            value: uploadProgress[index],
+                          ),
+                        ),
+
                       const SizedBox(height: 12),
                       TextField(
                         controller: modeloControllers[index],
@@ -11462,11 +11750,13 @@ class _ResumoEquipamentosState extends State<ResumoEquipamentos> {
       String key, String Function(Map) detailsFn) {
     final list = dadosResumo[key] ?? [];
     return List<Map<String, dynamic>>.from(list.map((item) => {
-          'nome': (item['modelo'] != null && item['modelo'].toString().trim().isNotEmpty)
-    ? item['modelo']
-    : (item['tipo'] != null && item['tipo'].toString().trim().isNotEmpty)
-        ? item['tipo']
-        : 'Não informado',
+          'nome': (item['modelo'] != null &&
+                  item['modelo'].toString().trim().isNotEmpty)
+              ? item['modelo']
+              : (item['tipo'] != null &&
+                      item['tipo'].toString().trim().isNotEmpty)
+                  ? item['tipo']
+                  : 'Não informado',
           'detalhes': detailsFn(item),
           'photoUrl': item['photoUrl'],
         }));
@@ -12609,50 +12899,48 @@ class _ComodatosmmState extends State<Comodatosmm> {
     return match != null ? int.parse(match.group(0)!) : 0;
   }
 
- Future<void> _carregarTodosDados() async {
-  try {
-    final snapshot = await _firestore.collection('storesmm').get();
-    final List<Map<String, dynamic>> temp = [];
+  Future<void> _carregarTodosDados() async {
+    try {
+      final snapshot = await _firestore.collection('storesmm').get();
+      final List<Map<String, dynamic>> temp = [];
 
-    for (final doc in snapshot.docs) {
-      final data = doc.data();
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        temp.add({
+          'storeId': doc.id,
+          'storeName': data['storeName'] ?? doc.id,
+          'dados': {
+            'fornos': data['fornos'] ?? [],
+            'armarios': data['armarios'] ?? [],
+            'esqueletos': data['esqueletos'] ?? [],
+            'esteiras': data['esteiras'] ?? [],
+            'assadeiras': data['assadeiras'] ?? [],
+            'climaticas': data['climaticas'] ?? [],
+            'freezers': data['freezers'] ?? [],
+          },
+        });
+      }
 
-      temp.add({
-        'storeId': doc.id,
-        'storeName': data['storeName'] ?? doc.id,
-        'dados': {
-          'fornos': data['fornos'] ?? [],
-          'armarios': data['armarios'] ?? [],
-          'esqueletos': data['esqueletos'] ?? [],
-          'esteiras': data['esteiras'] ?? [],
-          'assadeiras': data['assadeiras'] ?? [],
-          'climaticas': data['climaticas'] ?? [],
-          'freezers': data['freezers'] ?? [],
-        },
-      });
+      temp.sort(
+        (a, b) =>
+            _numeroLoja(a['storeName']).compareTo(_numeroLoja(b['storeName'])),
+      );
+
+      if (mounted) {
+        setState(() {
+          lojasResumo = temp;
+          isLoading = false;
+          _storeKeys.clear();
+          for (int i = 0; i < lojasResumo.length; i++) {
+            _storeKeys[i] = GlobalKey();
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Erro ao carregar dados MM: $e');
+      if (mounted) setState(() => isLoading = false);
     }
-
-    temp.sort(
-      (a, b) => _numeroLoja(a['storeName'])
-          .compareTo(_numeroLoja(b['storeName'])),
-    );
-
-    if (mounted) {
-      setState(() {
-        lojasResumo = temp;
-        isLoading = false;
-        _storeKeys.clear();
-        for (int i = 0; i < lojasResumo.length; i++) {
-          _storeKeys[i] = GlobalKey();
-        }
-      });
-    }
-  } catch (e) {
-    debugPrint('Erro ao carregar dados MM: $e');
-    if (mounted) setState(() => isLoading = false);
   }
-}
-
 
   // ===================== PDF =====================
   Future<Uint8List> _gerarPdf() async {
@@ -12753,7 +13041,7 @@ class _ComodatosmmState extends State<Comodatosmm> {
               'Assadeiras:',
               dadosResumo['assadeiras'],
               (i, a) =>
-                  'Assadeira ${i + 1} - Tipo: ${a['tipo'] ?? 'N/I'}, Quantidade: ${a['quantidade'] ?? 0}',
+                  'Assadeira ${i + 1} - Tipo: ${a['tipo'] ?? 'N/I'}, Quantidade: ${a['quantidade']}',
             );
 
             addSection(
@@ -12767,7 +13055,7 @@ class _ComodatosmmState extends State<Comodatosmm> {
               'Conservadores:',
               dadosResumo['freezers'],
               (i, f) =>
-                  'Conservador ${i + 1} - Modelo: ${f['modelo'] ?? 'N/I'}, Volume: ${f['volume'] ?? 'N/I'}L, Tipo: ${f['tipo'] ?? 'N/I'}',
+                  'Conservador ${i + 1} - Modelo: ${f['modelo'] ?? 'N/I'}, Volume: ${f['volume']}L, Tipo: ${f['tipo'] ?? 'N/I'}',
             );
 
             widgets.add(pw.SizedBox(height: 30));
@@ -12790,34 +13078,6 @@ class _ComodatosmmState extends State<Comodatosmm> {
   }
 
   // ===================== UI =====================
-  Widget _buildSection(String title, List<Widget> children) {
-    return SizedBox(
-      width: double.infinity,
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 16),
-        elevation: 3,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue),
-              ),
-              const SizedBox(height: 12),
-              ...children,
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildItemCard(String title, String subtitle, {String? photoUrl}) {
     return SizedBox(
       width: double.infinity,
@@ -12838,7 +13098,33 @@ class _ComodatosmmState extends State<Comodatosmm> {
                       context,
                       MaterialPageRoute(
                         builder: (_) => Scaffold(
-                          appBar: AppBar(),
+                          appBar: AppBar(
+                            title: const Text('Foto'),
+                            actions: [
+                              IconButton(
+                                icon: const Icon(Icons.download),
+                                onPressed: () async {
+                                  if (photoUrl == null) return;
+                                  try {
+                                    if (kIsWeb) {
+                                      final anchor = html.AnchorElement(href: photoUrl)
+                                        ..setAttribute('download', 'imagem.jpg')
+                                        ..click();
+                                    } else {
+                                      await ImageDownloader.downloadImage(photoUrl);
+                                    }
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Imagem baixada!')),
+                                    );
+                                  } catch (e) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Erro ao baixar: $e')),
+                                    );
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
                           body: Center(
                             child: InteractiveViewer(
                               child: CachedNetworkImage(
@@ -12894,6 +13180,47 @@ class _ComodatosmmState extends State<Comodatosmm> {
     );
   }
 
+  Widget _buildSection(String title, List items, String Function(int, Map) subtitleFn) {
+    // Lazy load dos itens por ListView.builder dentro da seção
+    return SizedBox(
+      width: double.infinity,
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 16),
+        elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue),
+              ),
+              const SizedBox(height: 12),
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: items.length,
+                itemBuilder: (context, j) {
+                  final item = items[j];
+                  return _buildItemCard(
+                    '$title ${j + 1}',
+                    subtitleFn(j, item),
+                    photoUrl: item['photoUrl'],
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _scrollToStore(int index) {
     if (_storeKeys.containsKey(index)) {
       final keyContext = _storeKeys[index]!.currentContext;
@@ -12919,123 +13246,77 @@ class _ComodatosmmState extends State<Comodatosmm> {
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         actions: [
-          IconButton(
-              icon: const Icon(Icons.share), onPressed: _compartilharPdf),
+          IconButton(icon: const Icon(Icons.share), onPressed: _compartilharPdf),
         ],
       ),
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            controller: _scrollController,
-            padding: const EdgeInsets.fromLTRB(24, 24, 48, 24),
+      body: ListView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.fromLTRB(24, 24, 48, 24),
+        itemCount: lojasResumo.length,
+        itemBuilder: (context, i) {
+          final loja = lojasResumo[i];
+          final dadosResumo = loja['dados'];
+
+          return Container(
+            key: _storeKeys[i],
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: List.generate(lojasResumo.length, (i) {
-                final loja = lojasResumo[i];
-                final dadosResumo = loja['dados'];
-                return Container(
-                  key: _storeKeys[i],
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        loja['storeName'],
-                        style: const TextStyle(
-                            fontSize: 22, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 16),
-                      if (dadosResumo['fornos'].isNotEmpty)
-                        _buildSection(
-                          'Fornos (${dadosResumo['fornos'].length})',
-                          List.generate(dadosResumo['fornos'].length, (j) {
-                            final f = dadosResumo['fornos'][j];
-                            return _buildItemCard(
-                              'Forno ${j + 1}',
-                              'Modelo: ${f['modelo']}, Tipo: ${f['tipo']}, Suportes: ${f['suportes']}',
-                              photoUrl: f['photoUrl'],
-                            );
-                          }),
-                        ),
-                      if (dadosResumo['armarios'].isNotEmpty)
-                        _buildSection(
-                          'Armários (${dadosResumo['armarios'].length})',
-                          List.generate(dadosResumo['armarios'].length, (j) {
-                            final a = dadosResumo['armarios'][j];
-                            return _buildItemCard(
-                              'Armário ${j + 1}',
-                              'Tipo: ${a['tipo']}, Suportes: ${a['suportes']}',
-                              photoUrl: a['photoUrl'],
-                            );
-                          }),
-                        ),
-                      if (dadosResumo['esqueletos'].isNotEmpty)
-                        _buildSection(
-                          'Esqueletos (${dadosResumo['esqueletos'].length})',
-                          List.generate(dadosResumo['esqueletos'].length, (j) {
-                            final e = dadosResumo['esqueletos'][j];
-                            return _buildItemCard(
-                              'Esqueleto ${j + 1}',
-                              'Tipo: ${e['tipo']}, Suportes: ${e['suportes']}',
-                              photoUrl: e['photoUrl'],
-                            );
-                          }),
-                        ),
-                      if (dadosResumo['esteiras'].isNotEmpty)
-                        _buildSection(
-                          'Esteiras (${dadosResumo['esteiras'].length})',
-                          List.generate(dadosResumo['esteiras'].length, (j) {
-                            final e = dadosResumo['esteiras'][j];
-                            return _buildItemCard(
-                              'Esteira ${j + 1}',
-                              'Tipo: ${e['tipo']}, Quantidade: ${e['quantidade']}',
-                              photoUrl: e['photoUrl'],
-                            );
-                          }),
-                        ),
-                      if (dadosResumo['assadeiras'].isNotEmpty)
-                        _buildSection(
-                          'Assadeiras (${dadosResumo['assadeiras'].length})',
-                          List.generate(dadosResumo['assadeiras'].length, (j) {
-                            final a = dadosResumo['assadeiras'][j];
-                            return _buildItemCard(
-                              'Assadeira ${j + 1}',
-                              'Tipo: ${a['tipo']}, Quantidade: ${a['quantidade']}',
-                              photoUrl: a['photoUrl'],
-                            );
-                          }),
-                        ),
-                      if (dadosResumo['climaticas'].isNotEmpty)
-                        _buildSection(
-                          'Climáticas (${dadosResumo['climaticas'].length})',
-                          List.generate(dadosResumo['climaticas'].length, (j) {
-                            final c = dadosResumo['climaticas'][j];
-                            return _buildItemCard(
-                              'Climática ${j + 1}',
-                              'Modelo: ${c['modelo']}, Suportes: ${c['suportes']}',
-                              photoUrl: c['photoUrl'],
-                            );
-                          }),
-                        ),
-                      if (dadosResumo['freezers'].isNotEmpty)
-                        _buildSection(
-                          'Conservadores (${dadosResumo['freezers'].length})',
-                          List.generate(dadosResumo['freezers'].length, (j) {
-                            final f = dadosResumo['freezers'][j];
-                            return _buildItemCard(
-                              'Conservador ${j + 1}',
-                              'Modelo: ${f['modelo']}, Volume: ${f['volume']}L, Tipo: ${f['tipo']}',
-                              photoUrl: f['photoUrl'],
-                            );
-                          }),
-                        ),
-                      const SizedBox(height: 32),
-                    ],
+              children: [
+                Text(
+                  loja['storeName'],
+                  style: const TextStyle(
+                      fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                if (dadosResumo['fornos'].isNotEmpty)
+                  _buildSection(
+                    'Fornos',
+                    dadosResumo['fornos'],
+                    (j, f) =>
+                        'Modelo: ${f['modelo']}, Tipo: ${f['tipo']}, Suportes: ${f['suportes']}',
                   ),
-                );
-              }),
+                if (dadosResumo['armarios'].isNotEmpty)
+                  _buildSection(
+                    'Armários',
+                    dadosResumo['armarios'],
+                    (j, a) => 'Tipo: ${a['tipo']}, Suportes: ${a['suportes']}',
+                  ),
+                if (dadosResumo['esqueletos'].isNotEmpty)
+                  _buildSection(
+                    'Esqueletos',
+                    dadosResumo['esqueletos'],
+                    (j, e) => 'Tipo: ${e['tipo']}, Suportes: ${e['suportes']}',
+                  ),
+                if (dadosResumo['esteiras'].isNotEmpty)
+                  _buildSection(
+                    'Esteiras',
+                    dadosResumo['esteiras'],
+                    (j, e) => 'Tipo: ${e['tipo']}, Quantidade: ${e['quantidade']}',
+                  ),
+                if (dadosResumo['assadeiras'].isNotEmpty)
+                  _buildSection(
+                    'Assadeiras',
+                    dadosResumo['assadeiras'],
+                    (j, a) => 'Tipo: ${a['tipo']}, Quantidade: ${a['quantidade']}',
+                  ),
+                if (dadosResumo['climaticas'].isNotEmpty)
+                  _buildSection(
+                    'Climáticas',
+                    dadosResumo['climaticas'],
+                    (j, c) => 'Modelo: ${c['modelo']}, Suportes: ${c['suportes']}',
+                  ),
+                if (dadosResumo['freezers'].isNotEmpty)
+                  _buildSection(
+                    'Conservadores',
+                    dadosResumo['freezers'],
+                    (j, f) =>
+                        'Modelo: ${f['modelo']}, Volume: ${f['volume']}L, Tipo: ${f['tipo']}',
+                  ),
+                const SizedBox(height: 32),
+              ],
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -13569,7 +13850,7 @@ class CadastroMM extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-               _botao(
+              _botao(
                 'Climática',
                 () => Navigator.push(
                   context,
@@ -13607,7 +13888,6 @@ class CadastroMM extends StatelessWidget {
                   ),
                 ),
               ),
-
               const SizedBox(height: 16),
               _botao(
                 'Armários e Esqueletos',
@@ -13621,7 +13901,6 @@ class CadastroMM extends StatelessWidget {
                   ),
                 ),
               ),
-              
               const SizedBox(height: 16),
               _botao(
                 'Resumo',
@@ -13727,8 +14006,8 @@ class _FornoMMState extends State<FornoMM> {
   Future<void> _selecionarFoto(int index) async {
     final image = await _picker.pickImage(
       source: ImageSource.gallery,
-      maxWidth: 1024,       // ✅ garante 1024px (Android + Web)
-      imageQuality: 70,     // ✅ reduz tamanho
+      maxWidth: 1024, // ✅ garante 1024px (Android + Web)
+      imageQuality: 70, // ✅ reduz tamanho
     );
 
     if (image == null) return;
@@ -13747,8 +14026,7 @@ class _FornoMMState extends State<FornoMM> {
     }
 
     task.snapshotEvents.listen((event) {
-      final progress =
-          event.bytesTransferred / event.totalBytes;
+      final progress = event.bytesTransferred / event.totalBytes;
       setState(() {
         uploadProgress[index] = progress;
       });
@@ -13921,13 +14199,11 @@ class _FornoMMState extends State<FornoMM> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        mainAxisAlignment:
-                            MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
                             'Forno ${index + 1}',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           IconButton(
                             icon: Icon(
@@ -13943,8 +14219,7 @@ class _FornoMMState extends State<FornoMM> {
                       ),
                       if (uploadProgress[index] != null)
                         Padding(
-                          padding:
-                              const EdgeInsets.only(top: 8),
+                          padding: const EdgeInsets.only(top: 8),
                           child: LinearProgressIndicator(
                             value: uploadProgress[index],
                           ),
@@ -13957,7 +14232,7 @@ class _FornoMMState extends State<FornoMM> {
                         ),
                         onChanged: (_) => _saveFornoData(),
                       ),
-                       const SizedBox(height: 12),
+                      const SizedBox(height: 12),
                       Row(
                         children: [
                           Expanded(
@@ -14005,8 +14280,7 @@ class _FornoMMState extends State<FornoMM> {
                               decoration: const InputDecoration(
                                   labelText: 'Suportes',
                                   border: OutlineInputBorder()),
-               
-                    ),
+                            ),
                           ),
                         ],
                       ),
@@ -14017,8 +14291,8 @@ class _FornoMMState extends State<FornoMM> {
             }),
             Center(
               child: IconButton(
-                icon: const Icon(Icons.add_circle,
-                    color: Colors.green, size: 36),
+                icon:
+                    const Icon(Icons.add_circle, color: Colors.green, size: 36),
                 onPressed: _adicionarForno,
               ),
             ),
@@ -14028,8 +14302,6 @@ class _FornoMMState extends State<FornoMM> {
     );
   }
 }
-
-
 
 class ArmariosMM extends StatefulWidget {
   final String storeId;
@@ -14057,9 +14329,13 @@ class _ArmariosMMState extends State<ArmariosMM> {
   List<int> suportesEsqueleto = [];
   List<String?> fotosEsqueleto = [];
 
+  // Mapas para controlar o progresso de upload
+  Map<String, double> uploadProgress = {}; // Chave: 'armario_0', 'esqueleto_1'
+
   final List<String> tiposMaterial = ['Inox', 'Alumínio', 'Epoxi'];
   final List<int> suportes = List.generate(20, (index) => index + 1);
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -14074,31 +14350,58 @@ class _ArmariosMMState extends State<ArmariosMM> {
     fotosEsqueleto = List.generate(qtdEsqueletos, (_) => null);
   }
 
-  // ===================== FOTO =====================
+  // ===================== FOTO - COM PARÂMETROS IGUAIS À TELA FORNO =====================
   Future<void> _selecionarFoto(bool isArmario, int index) async {
-    final image =
-        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    final image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024, // ✅ mesma compressão da tela FornoMM
+      imageQuality: 70, // ✅ mesma qualidade
+    );
+
     if (image == null) return;
 
-    final ref = FirebaseStorage.instance.ref().child(
-        'MM/stores/${widget.storeName}/${isArmario ? 'armarios' : 'esqueletos'}/${isArmario ? 'armario' : 'esqueleto'}_$index.jpg');
+    final chave = isArmario ? 'armario_$index' : 'esqueleto_$index';
+    final ref = _storage.ref().child(
+          'MM/stores/${widget.storeId}/${isArmario ? 'armarios' : 'esqueletos'}/$chave.jpg',
+        );
+
+    UploadTask task;
 
     if (kIsWeb) {
       final bytes = await image.readAsBytes();
-      await ref.putData(bytes);
+      task = ref.putData(bytes);
     } else {
-      await ref.putFile(File(image.path));
+      task = ref.putFile(File(image.path));
     }
 
-    final url = await ref.getDownloadURL();
-    setState(() {
-      if (isArmario) {
-        fotosArmario[index] = url;
-      } else {
-        fotosEsqueleto[index] = url;
-      }
+    // ✅ LISTENER PARA BARRA DE PROGRESSO
+    task.snapshotEvents.listen((event) {
+      final progress = event.bytesTransferred / event.totalBytes;
+      setState(() {
+        uploadProgress[chave] = progress;
+      });
     });
-    _saveData();
+
+    // ✅ UPLOAD CONTINUA EM BACKGROUND (não usa await diretamente)
+    task.then((snapshot) async {
+      final url = await snapshot.ref.getDownloadURL();
+
+      setState(() {
+        if (isArmario) {
+          fotosArmario[index] = url;
+        } else {
+          fotosEsqueleto[index] = url;
+        }
+        uploadProgress.remove(chave);
+      });
+
+      _saveData();
+    }).catchError((error) {
+      print('Erro no upload: $error');
+      setState(() {
+        uploadProgress.remove(chave);
+      });
+    });
   }
 
   Future<void> _excluirFoto(bool isArmario, int index) async {
@@ -14106,7 +14409,7 @@ class _ArmariosMMState extends State<ArmariosMM> {
     if (url == null) return;
 
     try {
-      await FirebaseStorage.instance.refFromURL(url).delete();
+      await _storage.refFromURL(url).delete();
     } catch (_) {}
 
     setState(() {
@@ -14119,6 +14422,23 @@ class _ArmariosMMState extends State<ArmariosMM> {
     _saveData();
   }
 
+  // ===================== VISUALIZAR FOTO (IGUAL FORNOMM) =====================
+  void _visualizarFoto(String url) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: InteractiveViewer(
+          child: Image.network(
+            url,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ===================== MENU FOTO (IGUAL FORNOMM) =====================
   void _abrirMenuFoto(bool isArmario, int index) {
     showModalBottomSheet(
       context: context,
@@ -14127,15 +14447,14 @@ class _ArmariosMMState extends State<ArmariosMM> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.download),
-              title: const Text('Baixar foto'),
-              onTap: () async {
+              leading: const Icon(Icons.visibility),
+              title: const Text('Visualizar'),
+              onTap: () {
                 Navigator.pop(context);
                 final url =
                     isArmario ? fotosArmario[index] : fotosEsqueleto[index];
                 if (url != null) {
-                  await launchUrl(Uri.parse(url),
-                      mode: LaunchMode.externalApplication);
+                  _visualizarFoto(url);
                 }
               },
             ),
@@ -14165,22 +14484,25 @@ class _ArmariosMMState extends State<ArmariosMM> {
   Future<void> _saveData() async {
     try {
       final armariosData = List.generate(
-          quantidadeArmarios,
-          (i) => {
-                'tipo': tiposArmario[i],
-                'suportes': suportesArmario[i],
-                'photoUrl': fotosArmario[i],
-              });
+        quantidadeArmarios,
+        (i) => {
+          'tipo': tiposArmario[i],
+          'suportes': suportesArmario[i],
+          'photoUrl': fotosArmario[i],
+        },
+      );
 
       final esqueletosData = List.generate(
-          quantidadeEsqueletos,
-          (i) => {
-                'tipo': tiposEsqueleto[i],
-                'suportes': suportesEsqueleto[i],
-                'photoUrl': fotosEsqueleto[i],
-              });
+        quantidadeEsqueletos,
+        (i) => {
+          'tipo': tiposEsqueleto[i],
+          'suportes': suportesEsqueleto[i],
+          'photoUrl': fotosEsqueleto[i],
+        },
+      );
 
       await _firestore.collection('storesmm').doc(widget.storeId).set({
+        'storeName': widget.storeName,
         'armarios': armariosData,
         'esqueletos': esqueletosData,
         'lastUpdatedAt': FieldValue.serverTimestamp(),
@@ -14276,6 +14598,7 @@ class _ArmariosMMState extends State<ArmariosMM> {
     required String tipo,
     required int suporte,
     required String? photoUrl,
+    required String uploadKey,
     required void Function(String?) onTipoChanged,
     required void Function(int?) onSuporteChanged,
     required VoidCallback onRemove,
@@ -14291,13 +14614,16 @@ class _ArmariosMMState extends State<ArmariosMM> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(title,
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 Row(
                   children: [
                     IconButton(
                       icon: Icon(
-                          photoUrl == null ? Icons.add_a_photo : Icons.photo),
+                        photoUrl == null ? Icons.add_a_photo : Icons.photo,
+                      ),
                       onPressed: onPhotoTap,
                     ),
                     IconButton(
@@ -14308,6 +14634,16 @@ class _ArmariosMMState extends State<ArmariosMM> {
                 ),
               ],
             ),
+
+            // ✅ BARRA DE PROGRESSO (IGUAL FORNOMM)
+            if (uploadProgress.containsKey(uploadKey))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: LinearProgressIndicator(
+                  value: uploadProgress[uploadKey],
+                ),
+              ),
+
             const SizedBox(height: 8),
             Row(
               children: [
@@ -14332,7 +14668,9 @@ class _ArmariosMMState extends State<ArmariosMM> {
                     value: suporte > 0 ? suporte : null,
                     items: suportes
                         .map((s) => DropdownMenuItem(
-                            value: s, child: Text(s.toString())))
+                              value: s,
+                              child: Text(s.toString()),
+                            ))
                         .toList(),
                     onChanged: onSuporteChanged,
                     decoration: const InputDecoration(
@@ -14359,8 +14697,10 @@ class _ArmariosMMState extends State<ArmariosMM> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Armários:',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              'Armários:',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 12),
             ...List.generate(quantidadeArmarios, (index) {
               return _buildCard(
@@ -14368,6 +14708,7 @@ class _ArmariosMMState extends State<ArmariosMM> {
                 tipo: tiposArmario[index],
                 suporte: suportesArmario[index],
                 photoUrl: fotosArmario[index],
+                uploadKey: 'armario_$index',
                 onTipoChanged: (v) {
                   setState(() => tiposArmario[index] = v ?? '');
                   _saveData();
@@ -14384,13 +14725,16 @@ class _ArmariosMMState extends State<ArmariosMM> {
             }),
             Center(
               child: IconButton(
-                  icon: const Icon(Icons.add_circle,
-                      size: 36, color: Colors.green),
-                  onPressed: _adicionarArmario),
+                icon:
+                    const Icon(Icons.add_circle, size: 36, color: Colors.green),
+                onPressed: _adicionarArmario,
+              ),
             ),
             const SizedBox(height: 30),
-            const Text('Esqueletos:',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              'Esqueletos:',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 12),
             ...List.generate(quantidadeEsqueletos, (index) {
               return _buildCard(
@@ -14398,6 +14742,7 @@ class _ArmariosMMState extends State<ArmariosMM> {
                 tipo: tiposEsqueleto[index],
                 suporte: suportesEsqueleto[index],
                 photoUrl: fotosEsqueleto[index],
+                uploadKey: 'esqueleto_$index',
                 onTipoChanged: (v) {
                   setState(() => tiposEsqueleto[index] = v ?? '');
                   _saveData();
@@ -14414,9 +14759,10 @@ class _ArmariosMMState extends State<ArmariosMM> {
             }),
             Center(
               child: IconButton(
-                  icon: const Icon(Icons.add_circle,
-                      size: 36, color: Colors.green),
-                  onPressed: _adicionarEsqueleto),
+                icon:
+                    const Icon(Icons.add_circle, size: 36, color: Colors.green),
+                onPressed: _adicionarEsqueleto,
+              ),
             ),
           ],
         ),
@@ -14426,9 +14772,8 @@ class _ArmariosMMState extends State<ArmariosMM> {
 }
 
 class ClimaticaMM extends StatefulWidget {
- 
- final String storeId;
- final String storeName;
+  final String storeId;
+  final String storeName;
 
   const ClimaticaMM({
     super.key,
@@ -14442,14 +14787,16 @@ class ClimaticaMM extends StatefulWidget {
 
 class _ClimaticaMMState extends State<ClimaticaMM> {
   int quantidadeClimaticas = 0;
-
   List<TextEditingController> modeloControllers = [];
   List<int> suportesClimatica = [];
   List<String?> fotosClimatica = [];
 
-  final List<int> suportes = List.generate(40, (index) => index + 1);
+  // Mapa para controle de progresso
+  Map<int, double> uploadProgress = {};
 
+  final List<int> suportes = List.generate(40, (index) => index + 1);
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -14475,26 +14822,51 @@ class _ClimaticaMMState extends State<ClimaticaMM> {
     fotosClimatica = List.generate(quantidade, (_) => null);
   }
 
-  // ===================== FOTO =====================
+  // ===================== FOTO - COM PARÂMETROS IGUAIS =====================
   Future<void> _selecionarFoto(int index) async {
-    final image =
-        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    final image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      imageQuality: 70,
+    );
+
     if (image == null) return;
 
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child('MM/stores/${widget.storeName}/climaticas/climatica_$index.jpg');
+    final ref = _storage.ref().child(
+          'MM/stores/${widget.storeId}/climaticas/climatica_$index.jpg',
+        );
+
+    UploadTask task;
 
     if (kIsWeb) {
       final bytes = await image.readAsBytes();
-      await ref.putData(bytes);
+      task = ref.putData(bytes);
     } else {
-      await ref.putFile(File(image.path));
+      task = ref.putFile(File(image.path));
     }
 
-    final url = await ref.getDownloadURL();
-    setState(() => fotosClimatica[index] = url);
-    _saveClimaticaData();
+    // ✅ BARRA DE PROGRESSO
+    task.snapshotEvents.listen((event) {
+      final progress = event.bytesTransferred / event.totalBytes;
+      setState(() {
+        uploadProgress[index] = progress;
+      });
+    });
+
+    // ✅ UPLOAD EM BACKGROUND
+    task.then((snapshot) async {
+      final url = await snapshot.ref.getDownloadURL();
+      setState(() {
+        fotosClimatica[index] = url;
+        uploadProgress.remove(index);
+      });
+      _saveClimaticaData();
+    }).catchError((error) {
+      print('Erro no upload: $error');
+      setState(() {
+        uploadProgress.remove(index);
+      });
+    });
   }
 
   Future<void> _excluirFoto(int index) async {
@@ -14502,13 +14874,30 @@ class _ClimaticaMMState extends State<ClimaticaMM> {
     if (url == null) return;
 
     try {
-      await FirebaseStorage.instance.refFromURL(url).delete();
+      await _storage.refFromURL(url).delete();
     } catch (_) {}
 
     setState(() => fotosClimatica[index] = null);
     _saveClimaticaData();
   }
 
+  // ===================== VISUALIZAR FOTO =====================
+  void _visualizarFoto(String url) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: InteractiveViewer(
+          child: Image.network(
+            url,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ===================== MENU FOTO =====================
   void _abrirMenuFoto(int index) {
     showModalBottomSheet(
       context: context,
@@ -14517,14 +14906,13 @@ class _ClimaticaMMState extends State<ClimaticaMM> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.download),
-              title: const Text('Baixar foto'),
-              onTap: () async {
+              leading: const Icon(Icons.visibility),
+              title: const Text('Visualizar'),
+              onTap: () {
                 Navigator.pop(context);
                 final url = fotosClimatica[index];
                 if (url != null) {
-                  await launchUrl(Uri.parse(url),
-                      mode: LaunchMode.externalApplication);
+                  _visualizarFoto(url);
                 }
               },
             ),
@@ -14563,6 +14951,7 @@ class _ClimaticaMMState extends State<ClimaticaMM> {
     }
 
     await _firestore.collection('storesmm').doc(widget.storeId).set({
+      'storeName': widget.storeName,
       'climaticas': climaticaList,
       'lastUpdatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
@@ -14654,6 +15043,16 @@ class _ClimaticaMMState extends State<ClimaticaMM> {
                           )
                         ],
                       ),
+
+                      // ✅ BARRA DE PROGRESSO
+                      if (uploadProgress.containsKey(index))
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8, bottom: 8),
+                          child: LinearProgressIndicator(
+                            value: uploadProgress[index],
+                          ),
+                        ),
+
                       const SizedBox(height: 12),
                       TextField(
                         controller: modeloControllers[index],
@@ -14716,15 +15115,17 @@ class FreezerMM extends StatefulWidget {
 
 class _FreezerMMState extends State<FreezerMM> {
   int quantidadeFreezers = 0;
-
   List<TextEditingController> modeloControllers = [];
   List<TextEditingController> volumeControllers = [];
   List<String> tiposFreezer = [];
   List<String?> fotosFreezer = [];
 
-  final List<String> tipos = ['Vertical', 'Horizontal'];
+  // Mapa para controle de progresso
+  Map<int, double> uploadProgress = {};
 
+  final List<String> tipos = ['Vertical', 'Horizontal'];
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -14755,26 +15156,51 @@ class _FreezerMMState extends State<FreezerMM> {
     fotosFreezer = List.generate(quantidade, (_) => null);
   }
 
-  // ===================== FOTO =====================
+  // ===================== FOTO - COM PARÂMETROS IGUAIS =====================
   Future<void> _selecionarFoto(int index) async {
-    final image =
-        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    final image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      imageQuality: 70,
+    );
+
     if (image == null) return;
 
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child('MM/stores/${widget.storeName}/freezers/freezer_$index.jpg');
+    final ref = _storage.ref().child(
+          'MM/stores/${widget.storeId}/freezers/freezer_$index.jpg',
+        );
+
+    UploadTask task;
 
     if (kIsWeb) {
       final bytes = await image.readAsBytes();
-      await ref.putData(bytes);
+      task = ref.putData(bytes);
     } else {
-      await ref.putFile(File(image.path));
+      task = ref.putFile(File(image.path));
     }
 
-    final url = await ref.getDownloadURL();
-    setState(() => fotosFreezer[index] = url);
-    _saveFreezerData();
+    // ✅ BARRA DE PROGRESSO
+    task.snapshotEvents.listen((event) {
+      final progress = event.bytesTransferred / event.totalBytes;
+      setState(() {
+        uploadProgress[index] = progress;
+      });
+    });
+
+    // ✅ UPLOAD EM BACKGROUND
+    task.then((snapshot) async {
+      final url = await snapshot.ref.getDownloadURL();
+      setState(() {
+        fotosFreezer[index] = url;
+        uploadProgress.remove(index);
+      });
+      _saveFreezerData();
+    }).catchError((error) {
+      print('Erro no upload: $error');
+      setState(() {
+        uploadProgress.remove(index);
+      });
+    });
   }
 
   Future<void> _excluirFoto(int index) async {
@@ -14782,13 +15208,30 @@ class _FreezerMMState extends State<FreezerMM> {
     if (url == null) return;
 
     try {
-      await FirebaseStorage.instance.refFromURL(url).delete();
+      await _storage.refFromURL(url).delete();
     } catch (_) {}
 
     setState(() => fotosFreezer[index] = null);
     _saveFreezerData();
   }
 
+  // ===================== VISUALIZAR FOTO =====================
+  void _visualizarFoto(String url) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: InteractiveViewer(
+          child: Image.network(
+            url,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ===================== MENU FOTO =====================
   void _abrirMenuFoto(int index) {
     showModalBottomSheet(
       context: context,
@@ -14797,14 +15240,13 @@ class _FreezerMMState extends State<FreezerMM> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.download),
-              title: const Text('Baixar foto'),
-              onTap: () async {
+              leading: const Icon(Icons.visibility),
+              title: const Text('Visualizar'),
+              onTap: () {
                 Navigator.pop(context);
                 final url = fotosFreezer[index];
                 if (url != null) {
-                  await launchUrl(Uri.parse(url),
-                      mode: LaunchMode.externalApplication);
+                  _visualizarFoto(url);
                 }
               },
             ),
@@ -14844,6 +15286,7 @@ class _FreezerMMState extends State<FreezerMM> {
     }
 
     await _firestore.collection('storesmm').doc(widget.storeId).set({
+      'storeName': widget.storeName,
       'freezers': freezerList,
       'lastUpdatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
@@ -14939,6 +15382,16 @@ class _FreezerMMState extends State<FreezerMM> {
                           )
                         ],
                       ),
+
+                      // ✅ BARRA DE PROGRESSO
+                      if (uploadProgress.containsKey(index))
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8, bottom: 8),
+                          child: LinearProgressIndicator(
+                            value: uploadProgress[index],
+                          ),
+                        ),
+
                       const SizedBox(height: 12),
                       TextField(
                         controller: modeloControllers[index],
@@ -14996,8 +15449,11 @@ class _FreezerMMState extends State<FreezerMM> {
 class AssadeirasMM extends StatefulWidget {
   final String storeId;
   final String storeName;
-  const AssadeirasMM({super.key, required this.storeId,
-    required this.storeName,});
+  const AssadeirasMM({
+    super.key,
+    required this.storeId,
+    required this.storeName,
+  });
 
   @override
   State<AssadeirasMM> createState() => _AssadeirasMMState();
@@ -15015,6 +15471,9 @@ class _AssadeirasMMState extends State<AssadeirasMM> {
   List<int> quantidadesAssadeiras = [];
   List<String?> fotosAssadeiras = [];
 
+  // Mapas para controle de progresso
+  Map<String, double> uploadProgress = {}; // 'esteira_0', 'assadeira_1'
+
   final List<String> tiposMaterial = [
     'Alumínio',
     'Inox',
@@ -15024,6 +15483,7 @@ class _AssadeirasMMState extends State<AssadeirasMM> {
   final List<int> quantidades = List.generate(120, (index) => index + 1);
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -15035,37 +15495,61 @@ class _AssadeirasMMState extends State<AssadeirasMM> {
     });
   }
 
-  // ===================== CONTROLADORES =====================
   void criarEsteiraAssadeiraControllers(int qtdEsteiras, int qtdAssadeiras) {
     fotosEsteiras = List.generate(qtdEsteiras, (_) => null);
     fotosAssadeiras = List.generate(qtdAssadeiras, (_) => null);
   }
 
-  // ===================== FOTO =====================
+  // ===================== FOTO - COM PARÂMETROS IGUAIS =====================
   Future<void> _selecionarFoto(bool isEsteira, int index) async {
-    final image =
-        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    final image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      imageQuality: 70,
+    );
+
     if (image == null) return;
 
-    final ref = FirebaseStorage.instance.ref().child(
-        'MM/stores/${widget.storeName}/${isEsteira ? 'esteiras' : 'assadeiras'}/${isEsteira ? 'esteira' : 'assadeira'}_$index.jpg');
+    final chave = isEsteira ? 'esteira_$index' : 'assadeira_$index';
+    final ref = _storage.ref().child(
+          'MM/stores/${widget.storeId}/${isEsteira ? 'esteiras' : 'assadeiras'}/$chave.jpg',
+        );
+
+    UploadTask task;
 
     if (kIsWeb) {
       final bytes = await image.readAsBytes();
-      await ref.putData(bytes);
+      task = ref.putData(bytes);
     } else {
-      await ref.putFile(File(image.path));
+      task = ref.putFile(File(image.path));
     }
 
-    final url = await ref.getDownloadURL();
-    setState(() {
-      if (isEsteira) {
-        fotosEsteiras[index] = url;
-      } else {
-        fotosAssadeiras[index] = url;
-      }
+    // ✅ BARRA DE PROGRESSO
+    task.snapshotEvents.listen((event) {
+      final progress = event.bytesTransferred / event.totalBytes;
+      setState(() {
+        uploadProgress[chave] = progress;
+      });
     });
-    _saveData();
+
+    // ✅ UPLOAD EM BACKGROUND
+    task.then((snapshot) async {
+      final url = await snapshot.ref.getDownloadURL();
+      setState(() {
+        if (isEsteira) {
+          fotosEsteiras[index] = url;
+        } else {
+          fotosAssadeiras[index] = url;
+        }
+        uploadProgress.remove(chave);
+      });
+      _saveData();
+    }).catchError((error) {
+      print('Erro no upload: $error');
+      setState(() {
+        uploadProgress.remove(chave);
+      });
+    });
   }
 
   Future<void> _excluirFoto(bool isEsteira, int index) async {
@@ -15073,7 +15557,7 @@ class _AssadeirasMMState extends State<AssadeirasMM> {
     if (url == null) return;
 
     try {
-      await FirebaseStorage.instance.refFromURL(url).delete();
+      await _storage.refFromURL(url).delete();
     } catch (_) {}
 
     setState(() {
@@ -15086,6 +15570,23 @@ class _AssadeirasMMState extends State<AssadeirasMM> {
     _saveData();
   }
 
+  // ===================== VISUALIZAR FOTO =====================
+  void _visualizarFoto(String url) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: InteractiveViewer(
+          child: Image.network(
+            url,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ===================== MENU FOTO =====================
   void _abrirMenuFoto(bool isEsteira, int index) {
     showModalBottomSheet(
       context: context,
@@ -15094,15 +15595,14 @@ class _AssadeirasMMState extends State<AssadeirasMM> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.download),
-              title: const Text('Baixar foto'),
-              onTap: () async {
+              leading: const Icon(Icons.visibility),
+              title: const Text('Visualizar'),
+              onTap: () {
                 Navigator.pop(context);
                 final url =
                     isEsteira ? fotosEsteiras[index] : fotosAssadeiras[index];
                 if (url != null) {
-                  await launchUrl(Uri.parse(url),
-                      mode: LaunchMode.externalApplication);
+                  _visualizarFoto(url);
                 }
               },
             ),
@@ -15132,22 +15632,25 @@ class _AssadeirasMMState extends State<AssadeirasMM> {
   Future<void> _saveData() async {
     try {
       final esteirasData = List.generate(
-          quantidadeEsteiras,
-          (i) => {
-                'tipo': tiposEsteiras[i],
-                'quantidade': quantidadesEsteiras[i],
-                'photoUrl': fotosEsteiras[i],
-              });
+        quantidadeEsteiras,
+        (i) => {
+          'tipo': tiposEsteiras[i],
+          'quantidade': quantidadesEsteiras[i],
+          'photoUrl': fotosEsteiras[i],
+        },
+      );
 
       final assadeirasData = List.generate(
-          quantidadeAssadeiras,
-          (i) => {
-                'tipo': tiposAssadeiras[i],
-                'quantidade': quantidadesAssadeiras[i],
-                'photoUrl': fotosAssadeiras[i],
-              });
+        quantidadeAssadeiras,
+        (i) => {
+          'tipo': tiposAssadeiras[i],
+          'quantidade': quantidadesAssadeiras[i],
+          'photoUrl': fotosAssadeiras[i],
+        },
+      );
 
       await _firestore.collection('storesmm').doc(widget.storeId).set({
+        'storeName': widget.storeName,
         'esteiras': esteirasData,
         'assadeiras': assadeirasData,
         'lastUpdatedAt': FieldValue.serverTimestamp(),
@@ -15243,6 +15746,7 @@ class _AssadeirasMMState extends State<AssadeirasMM> {
     required String tipo,
     required int quantidade,
     required String? photoUrl,
+    required String uploadKey,
     required void Function(String?) onTipoChanged,
     required void Function(int?) onQtdChanged,
     required VoidCallback onRemove,
@@ -15275,6 +15779,16 @@ class _AssadeirasMMState extends State<AssadeirasMM> {
                 ),
               ],
             ),
+
+            // ✅ BARRA DE PROGRESSO
+            if (uploadProgress.containsKey(uploadKey))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: LinearProgressIndicator(
+                  value: uploadProgress[uploadKey],
+                ),
+              ),
+
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
               value: tipo.isNotEmpty ? tipo : null,
@@ -15321,6 +15835,7 @@ class _AssadeirasMMState extends State<AssadeirasMM> {
                 tipo: tiposEsteiras[index],
                 quantidade: quantidadesEsteiras[index],
                 photoUrl: fotosEsteiras[index],
+                uploadKey: 'esteira_$index',
                 onTipoChanged: (v) {
                   setState(() => tiposEsteiras[index] = v ?? '');
                   _saveData();
@@ -15337,9 +15852,10 @@ class _AssadeirasMMState extends State<AssadeirasMM> {
             }),
             Center(
               child: IconButton(
-                  icon: const Icon(Icons.add_circle,
-                      size: 36, color: Colors.green),
-                  onPressed: _adicionarEsteira),
+                icon:
+                    const Icon(Icons.add_circle, size: 36, color: Colors.green),
+                onPressed: _adicionarEsteira,
+              ),
             ),
             const SizedBox(height: 30),
             const Text('Assadeiras:',
@@ -15351,6 +15867,7 @@ class _AssadeirasMMState extends State<AssadeirasMM> {
                 tipo: tiposAssadeiras[index],
                 quantidade: quantidadesAssadeiras[index],
                 photoUrl: fotosAssadeiras[index],
+                uploadKey: 'assadeira_$index',
                 onTipoChanged: (v) {
                   setState(() => tiposAssadeiras[index] = v ?? '');
                   _saveData();
@@ -15367,9 +15884,10 @@ class _AssadeirasMMState extends State<AssadeirasMM> {
             }),
             Center(
               child: IconButton(
-                  icon: const Icon(Icons.add_circle,
-                      size: 36, color: Colors.green),
-                  onPressed: _adicionarAssadeira),
+                icon:
+                    const Icon(Icons.add_circle, size: 36, color: Colors.green),
+                onPressed: _adicionarAssadeira,
+              ),
             ),
           ],
         ),
@@ -15381,8 +15899,10 @@ class _AssadeirasMMState extends State<AssadeirasMM> {
 class ResumoEquipamentosMM extends StatefulWidget {
   final String storeId;
   final String storeName;
-  const ResumoEquipamentosMM({required this.storeId,
-    required this.storeName,});
+  const ResumoEquipamentosMM({
+    required this.storeId,
+    required this.storeName,
+  });
 
   @override
   State<ResumoEquipamentosMM> createState() => _ResumoEquipamentosMMState();
@@ -15649,11 +16169,13 @@ class _ResumoEquipamentosMMState extends State<ResumoEquipamentosMM> {
       String key, String Function(Map) detailsFn) {
     final list = dadosResumo[key] ?? [];
     return List<Map<String, dynamic>>.from(list.map((item) => {
-          'nome': (item['modelo'] != null && item['modelo'].toString().trim().isNotEmpty)
-    ? item['modelo']
-    : (item['tipo'] != null && item['tipo'].toString().trim().isNotEmpty)
-        ? item['tipo']
-        : 'Não informado',
+          'nome': (item['modelo'] != null &&
+                  item['modelo'].toString().trim().isNotEmpty)
+              ? item['modelo']
+              : (item['tipo'] != null &&
+                      item['tipo'].toString().trim().isNotEmpty)
+                  ? item['tipo']
+                  : 'Não informado',
           'detalhes': detailsFn(item),
           'photoUrl': item['photoUrl'],
         }));
