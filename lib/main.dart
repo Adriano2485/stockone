@@ -12244,6 +12244,7 @@ class latas extends StatelessWidget {
   }
 }
 
+
 class Comodatos extends StatefulWidget {
   const Comodatos({super.key});
 
@@ -12481,7 +12482,8 @@ class _ComodatosState extends State<Comodatos> {
     );
   }
 
-  Widget _buildItemCard(String title, String subtitle, {String? photoUrl}) {
+  Widget _buildItemCard(String title, String subtitle,
+      {String? photoUrl}) {
     return SizedBox(
       width: double.infinity,
       child: Card(
@@ -12496,27 +12498,7 @@ class _ComodatosState extends State<Comodatos> {
             children: [
               if (photoUrl != null)
                 GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => Scaffold(
-                          appBar: AppBar(),
-                          body: Center(
-                            child: InteractiveViewer(
-                              child: CachedNetworkImage(
-                                imageUrl: photoUrl,
-                                placeholder: (context, url) =>
-                                    const CircularProgressIndicator(),
-                                errorWidget: (context, url, error) =>
-                                    const Icon(Icons.error),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+                  onTap: () => _abrirFoto(photoUrl),
                   child: CachedNetworkImage(
                     imageUrl: photoUrl,
                     width: 60,
@@ -12551,6 +12533,44 @@ class _ComodatosState extends State<Comodatos> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _abrirFoto(String url) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(
+            title: const Text('Foto'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.download),
+                onPressed: () async {
+                  if (kIsWeb) {
+                    final anchor = html.AnchorElement(href: url)
+                      ..setAttribute('download', url.split('/').last)
+                      ..click();
+                  } else {
+                    await ImageDownloader.downloadImage(url);
+                  }
+                },
+              ),
+            ],
+          ),
+          body: Center(
+            child: InteractiveViewer(
+              child: CachedNetworkImage(
+                imageUrl: url,
+                placeholder: (context, url) =>
+                    const CircularProgressIndicator(),
+                errorWidget: (context, url, error) =>
+                    const Icon(Icons.error),
+              ),
+            ),
           ),
         ),
       ),
@@ -12698,6 +12718,7 @@ class _ComodatosState extends State<Comodatos> {
               }),
             ),
           ),
+          // ========== Barra lateral de atalho ==========
           Positioned(
             right: 0,
             top: 24,
@@ -12737,6 +12758,7 @@ class _ComodatosState extends State<Comodatos> {
     );
   }
 }
+
 
 class Martminas extends StatelessWidget {
   const Martminas({super.key});
@@ -13073,7 +13095,7 @@ class _ComodatosmmState extends State<Comodatosmm> {
     final bytes = await _gerarPdf();
     await Printing.sharePdf(
       bytes: bytes,
-      filename: 'Comodatos.pdf',
+      filename: 'Comodatos_MartMinas.pdf',
     );
   }
 
