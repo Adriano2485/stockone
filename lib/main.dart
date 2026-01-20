@@ -1,15 +1,14 @@
 import 'package:cached_network_image/cached_network_image.dart';
 
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:image_downloader/image_downloader.dart';
-import 'dart:html' as html; 
-
+import 'dart:html' as html;
 
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:csv/csv.dart';
@@ -10372,6 +10371,7 @@ class _ArmariosState extends State<Armarios> {
     );
   }
 }
+
 class Assadeiras extends StatefulWidget {
   final String storeName;
   const Assadeiras({super.key, required this.storeName});
@@ -12244,7 +12244,6 @@ class latas extends StatelessWidget {
   }
 }
 
-
 class Comodatos extends StatefulWidget {
   const Comodatos({super.key});
 
@@ -12482,8 +12481,7 @@ class _ComodatosState extends State<Comodatos> {
     );
   }
 
-  Widget _buildItemCard(String title, String subtitle,
-      {String? photoUrl}) {
+  Widget _buildItemCard(String title, String subtitle, {String? photoUrl}) {
     return SizedBox(
       width: double.infinity,
       child: Card(
@@ -12539,43 +12537,68 @@ class _ComodatosState extends State<Comodatos> {
     );
   }
 
-  void _abrirFoto(String url) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => Scaffold(
-          appBar: AppBar(
-            title: const Text('Foto'),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.download),
-                onPressed: () async {
-                  if (kIsWeb) {
-                    final anchor = html.AnchorElement(href: url)
-                      ..setAttribute('download', url.split('/').last)
-                      ..click();
-                  } else {
-                    await ImageDownloader.downloadImage(url);
-                  }
-                },
-              ),
-            ],
-          ),
-          body: Center(
-            child: InteractiveViewer(
-              child: CachedNetworkImage(
-                imageUrl: url,
-                placeholder: (context, url) =>
-                    const CircularProgressIndicator(),
-                errorWidget: (context, url, error) =>
-                    const Icon(Icons.error),
-              ),
+ void _abrirFoto(String url) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => Scaffold(
+        appBar: AppBar(
+          title: const Text('Foto'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.download),
+              onPressed: () async {
+                if (kIsWeb) {
+                  // Download direto no navegador
+                  final anchor = html.AnchorElement(href: url)
+                    ..setAttribute('download', url.split('/').last)
+                    ..click();
+                } else {
+                  // Download no dispositivo usando Dart puro
+                  await _baixarImagemLocal(url);
+                }
+              },
+            ),
+          ],
+        ),
+        body: Center(
+          child: InteractiveViewer(
+            child: CachedNetworkImage(
+              imageUrl: url,
+              placeholder: (context, url) =>
+                  const CircularProgressIndicator(),
+              errorWidget: (context, url, error) => const Icon(Icons.error),
             ),
           ),
         ),
       ),
+    ),
+  );
+}
+
+// Função para baixar a imagem no dispositivo local
+Future<void> _baixarImagemLocal(String url) async {
+  try {
+    final response = await http.get(Uri.parse(url));
+    if (response.statusCode == 200) {
+      final dir = await getApplicationDocumentsDirectory();
+      final filePath = '${dir.path}/${url.split('/').last}';
+      final file = File(filePath);
+      await file.writeAsBytes(response.bodyBytes);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Imagem salva em: $filePath')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao baixar imagem: ${response.statusCode}')),
+      );
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Erro ao baixar imagem: $e')),
     );
   }
+}
 
   void _scrollToStore(int index) {
     if (_storeKeys.containsKey(index)) {
@@ -12759,7 +12782,6 @@ class _ComodatosState extends State<Comodatos> {
   }
 }
 
-
 class Martminas extends StatelessWidget {
   const Martminas({super.key});
 
@@ -12888,6 +12910,7 @@ class Martminas extends StatelessWidget {
     );
   }
 }
+
 
 class Comodatosmm extends StatefulWidget {
   const Comodatosmm({super.key});
@@ -13077,7 +13100,7 @@ class _ComodatosmmState extends State<Comodatosmm> {
               'Conservadores:',
               dadosResumo['freezers'],
               (i, f) =>
-                  'Conservador ${i + 1} - Modelo: ${f['modelo'] ?? 'N/I'}, Volume: ${f['volume']}L, Tipo: ${f['tipo'] ?? 'N/I'}',
+                  'Conservador ${i + 1} - Modelo: ${f['modelo'] ?? 'N/I'}, Volume: ${f['volume'] ?? 'N/I'}L, Tipo: ${f['tipo'] ?? 'N/I'}',
             );
 
             widgets.add(pw.SizedBox(height: 30));
@@ -13099,7 +13122,30 @@ class _ComodatosmmState extends State<Comodatosmm> {
     );
   }
 
-  // ===================== UI =====================
+  // ===================== Função para baixar imagem no dispositivo =====================
+  Future<void> _baixarImagemLocal(String url) async {
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final dir = await getApplicationDocumentsDirectory();
+        final file = File('${dir.path}/${url.split('/').last}');
+        await file.writeAsBytes(response.bodyBytes);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Imagem salva em: ${file.path}')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao baixar imagem: ${response.statusCode}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao baixar imagem: $e')),
+      );
+    }
+  }
+
+  // ===================== Item Card =====================
   Widget _buildItemCard(String title, String subtitle, {String? photoUrl}) {
     return SizedBox(
       width: double.infinity,
@@ -13115,53 +13161,7 @@ class _ComodatosmmState extends State<Comodatosmm> {
             children: [
               if (photoUrl != null)
                 GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => Scaffold(
-                          appBar: AppBar(
-                            title: const Text('Foto'),
-                            actions: [
-                              IconButton(
-                                icon: const Icon(Icons.download),
-                                onPressed: () async {
-                                  if (photoUrl == null) return;
-                                  try {
-                                    if (kIsWeb) {
-                                      final anchor = html.AnchorElement(href: photoUrl)
-                                        ..setAttribute('download', 'imagem.jpg')
-                                        ..click();
-                                    } else {
-                                      await ImageDownloader.downloadImage(photoUrl);
-                                    }
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Imagem baixada!')),
-                                    );
-                                  } catch (e) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Erro ao baixar: $e')),
-                                    );
-                                  }
-                                },
-                              ),
-                            ],
-                          ),
-                          body: Center(
-                            child: InteractiveViewer(
-                              child: CachedNetworkImage(
-                                imageUrl: photoUrl,
-                                placeholder: (context, url) =>
-                                    const CircularProgressIndicator(),
-                                errorWidget: (context, url, error) =>
-                                    const Icon(Icons.error),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+                  onTap: () => _abrirFoto(photoUrl),
                   child: CachedNetworkImage(
                     imageUrl: photoUrl,
                     width: 60,
@@ -13186,12 +13186,9 @@ class _ComodatosmmState extends State<Comodatosmm> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title,
-                        style: const TextStyle(fontWeight: FontWeight.w500)),
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
                     const SizedBox(height: 4),
-                    Text(subtitle,
-                        style:
-                            TextStyle(color: Colors.grey[700], fontSize: 14)),
+                    Text(subtitle, style: TextStyle(color: Colors.grey[700], fontSize: 14)),
                   ],
                 ),
               ),
@@ -13202,41 +13199,38 @@ class _ComodatosmmState extends State<Comodatosmm> {
     );
   }
 
-  Widget _buildSection(String title, List items, String Function(int, Map) subtitleFn) {
-    // Lazy load dos itens por ListView.builder dentro da seção
-    return SizedBox(
-      width: double.infinity,
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 16),
-        elevation: 3,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue),
-              ),
-              const SizedBox(height: 12),
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: items.length,
-                itemBuilder: (context, j) {
-                  final item = items[j];
-                  return _buildItemCard(
-                    '$title ${j + 1}',
-                    subtitleFn(j, item),
-                    photoUrl: item['photoUrl'],
-                  );
+  // ===================== Abrir Foto =====================
+  void _abrirFoto(String url) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(
+            title: const Text('Foto'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.download),
+                onPressed: () async {
+                  if (url.isEmpty) return;
+                  if (kIsWeb) {
+                    final anchor = html.AnchorElement(href: url)
+                      ..setAttribute('download', url.split('/').last)
+                      ..click();
+                  } else {
+                    await _baixarImagemLocal(url);
+                  }
                 },
               ),
             ],
+          ),
+          body: Center(
+            child: InteractiveViewer(
+              child: CachedNetworkImage(
+                imageUrl: url,
+                placeholder: (context, url) => const CircularProgressIndicator(),
+                errorWidget: (context, url, error) => const Icon(Icons.error),
+              ),
+            ),
           ),
         ),
       ),
@@ -13286,54 +13280,30 @@ class _ComodatosmmState extends State<Comodatosmm> {
               children: [
                 Text(
                   loja['storeName'],
-                  style: const TextStyle(
-                      fontSize: 22, fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
                 if (dadosResumo['fornos'].isNotEmpty)
-                  _buildSection(
-                    'Fornos',
-                    dadosResumo['fornos'],
-                    (j, f) =>
-                        'Modelo: ${f['modelo']}, Tipo: ${f['tipo']}, Suportes: ${f['suportes']}',
-                  ),
+                  _buildSection('Fornos', dadosResumo['fornos'],
+                      (j, f) => 'Modelo: ${f['modelo']}, Tipo: ${f['tipo']}, Suportes: ${f['suportes']}'),
                 if (dadosResumo['armarios'].isNotEmpty)
-                  _buildSection(
-                    'Armários',
-                    dadosResumo['armarios'],
-                    (j, a) => 'Tipo: ${a['tipo']}, Suportes: ${a['suportes']}',
-                  ),
+                  _buildSection('Armários', dadosResumo['armarios'],
+                      (j, a) => 'Tipo: ${a['tipo']}, Suportes: ${a['suportes']}'),
                 if (dadosResumo['esqueletos'].isNotEmpty)
-                  _buildSection(
-                    'Esqueletos',
-                    dadosResumo['esqueletos'],
-                    (j, e) => 'Tipo: ${e['tipo']}, Suportes: ${e['suportes']}',
-                  ),
+                  _buildSection('Esqueletos', dadosResumo['esqueletos'],
+                      (j, e) => 'Tipo: ${e['tipo']}, Suportes: ${e['suportes']}'),
                 if (dadosResumo['esteiras'].isNotEmpty)
-                  _buildSection(
-                    'Esteiras',
-                    dadosResumo['esteiras'],
-                    (j, e) => 'Tipo: ${e['tipo']}, Quantidade: ${e['quantidade']}',
-                  ),
+                  _buildSection('Esteiras', dadosResumo['esteiras'],
+                      (j, e) => 'Tipo: ${e['tipo']}, Quantidade: ${e['quantidade']}'),
                 if (dadosResumo['assadeiras'].isNotEmpty)
-                  _buildSection(
-                    'Assadeiras',
-                    dadosResumo['assadeiras'],
-                    (j, a) => 'Tipo: ${a['tipo']}, Quantidade: ${a['quantidade']}',
-                  ),
+                  _buildSection('Assadeiras', dadosResumo['assadeiras'],
+                      (j, a) => 'Tipo: ${a['tipo']}, Quantidade: ${a['quantidade']}'),
                 if (dadosResumo['climaticas'].isNotEmpty)
-                  _buildSection(
-                    'Climáticas',
-                    dadosResumo['climaticas'],
-                    (j, c) => 'Modelo: ${c['modelo']}, Suportes: ${c['suportes']}',
-                  ),
+                  _buildSection('Climáticas', dadosResumo['climaticas'],
+                      (j, c) => 'Modelo: ${c['modelo']}, Suportes: ${c['suportes']}'),
                 if (dadosResumo['freezers'].isNotEmpty)
-                  _buildSection(
-                    'Conservadores',
-                    dadosResumo['freezers'],
-                    (j, f) =>
-                        'Modelo: ${f['modelo']}, Volume: ${f['volume']}L, Tipo: ${f['tipo']}',
-                  ),
+                  _buildSection('Conservadores', dadosResumo['freezers'],
+                      (j, f) => 'Modelo: ${f['modelo']}, Volume: ${f['volume']}L, Tipo: ${f['tipo']}'),
                 const SizedBox(height: 32),
               ],
             ),
@@ -13342,7 +13312,38 @@ class _ComodatosmmState extends State<Comodatosmm> {
       ),
     );
   }
+
+  Widget _buildSection(String title, List items, String Function(int, Map) subtitleFn) {
+    return SizedBox(
+      width: double.infinity,
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 16),
+        elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue)),
+              const SizedBox(height: 12),
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: items.length,
+                itemBuilder: (context, j) {
+                  final item = items[j];
+                  return _buildItemCard('$title ${j + 1}', subtitleFn(j, item), photoUrl: item['photoUrl']);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
+
 
 class StoreSelectionMM extends StatefulWidget {
   const StoreSelectionMM({Key? key}) : super(key: key);
