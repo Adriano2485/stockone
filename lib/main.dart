@@ -16,6 +16,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -13682,6 +13683,9 @@ class _FornoMMState extends State<FornoMM> {
   List<int> suportesForno = [];
   List<String?> fotosForno = [];
 
+  /// progresso de upload por forno
+  Map<int, double> uploadProgress = {};
+
   final List<String> tipos = ['Elétrico', 'Gás'];
   final List<int> suportes = [1, 2, 3, 4, 5, 6, 7, 8];
 
@@ -13723,26 +13727,39 @@ class _FornoMMState extends State<FornoMM> {
   Future<void> _selecionarFoto(int index) async {
     final image = await _picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 70,
+      maxWidth: 1024,       // ✅ garante 1024px (Android + Web)
+      imageQuality: 70,     // ✅ reduz tamanho
     );
 
     if (image == null) return;
 
-    final ref = FirebaseStorage.instance.ref().child(
-          'MM/stores/${widget.storeId}/fornos/forno_$index.jpg',
-        );
+    final ref = FirebaseStorage.instance.ref(
+      'MM/stores/${widget.storeId}/fornos/forno_$index.jpg',
+    );
+
+    UploadTask task;
 
     if (kIsWeb) {
       final bytes = await image.readAsBytes();
-      await ref.putData(bytes);
+      task = ref.putData(bytes);
     } else {
-      await ref.putFile(File(image.path));
+      task = ref.putFile(File(image.path));
     }
 
-    final url = await ref.getDownloadURL();
+    task.snapshotEvents.listen((event) {
+      final progress =
+          event.bytesTransferred / event.totalBytes;
+      setState(() {
+        uploadProgress[index] = progress;
+      });
+    });
+
+    final snapshot = await task;
+    final url = await snapshot.ref.getDownloadURL();
 
     setState(() {
       fotosForno[index] = url;
+      uploadProgress.remove(index);
     });
 
     _saveFornoData();
@@ -13763,6 +13780,23 @@ class _FornoMMState extends State<FornoMM> {
     _saveFornoData();
   }
 
+  // ===================== VISUALIZAR FOTO =====================
+
+  void _visualizarFoto(String url) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: InteractiveViewer(
+          child: Image.network(
+            url,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
+    );
+  }
+
   void _abrirMenuFoto(int index) {
     showModalBottomSheet(
       context: context,
@@ -13771,16 +13805,13 @@ class _FornoMMState extends State<FornoMM> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.download),
-              title: const Text('Baixar foto'),
-              onTap: () async {
+              leading: const Icon(Icons.visibility),
+              title: const Text('Visualizar'),
+              onTap: () {
                 Navigator.pop(context);
                 final url = fotosForno[index];
                 if (url != null) {
-                  await launchUrl(
-                    Uri.parse(url),
-                    mode: LaunchMode.externalApplication,
-                  );
+                  _visualizarFoto(url);
                 }
               },
             ),
@@ -13808,7 +13839,6 @@ class _FornoMMState extends State<FornoMM> {
 
   // ===================== FIRESTORE =====================
 
- 
   Future<void> _saveFornoData() async {
     final List<Map<String, dynamic>> fornoList = [];
 
@@ -13885,49 +13915,49 @@ class _FornoMMState extends State<FornoMM> {
             ...List.generate(quantidadeFornos, (index) {
               return Card(
                 margin: const EdgeInsets.only(bottom: 16),
-                elevation: 2,
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment:
+                            MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
                             'Forno ${index + 1}',
                             style: const TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold),
+                                fontWeight: FontWeight.bold),
                           ),
-                          Row(
-                            children: [
-                              IconButton(
-                                icon: Icon(
-                                  fotosForno[index] == null
-                                      ? Icons.add_a_photo
-                                      : Icons.photo,
-                                ),
-                                onPressed: fotosForno[index] == null
-                                    ? () => _selecionarFoto(index)
-                                    : () => _abrirMenuFoto(index),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete,
-                                    color: Colors.red),
-                                onPressed: () => _removerForno(index),
-                              ),
-                            ],
-                          )
+                          IconButton(
+                            icon: Icon(
+                              fotosForno[index] == null
+                                  ? Icons.add_a_photo
+                                  : Icons.photo,
+                            ),
+                            onPressed: fotosForno[index] == null
+                                ? () => _selecionarFoto(index)
+                                : () => _abrirMenuFoto(index),
+                          ),
                         ],
                       ),
+                      if (uploadProgress[index] != null)
+                        Padding(
+                          padding:
+                              const EdgeInsets.only(top: 8),
+                          child: LinearProgressIndicator(
+                            value: uploadProgress[index],
+                          ),
+                        ),
                       const SizedBox(height: 12),
                       TextField(
                         controller: modeloControllers[index],
-                        decoration:
-                            const InputDecoration(labelText: 'Modelo'),
+                        decoration: const InputDecoration(
+                          labelText: 'Modelo',
+                        ),
                         onChanged: (_) => _saveFornoData(),
                       ),
-                      const SizedBox(height: 12),
+                       const SizedBox(height: 12),
                       Row(
                         children: [
                           Expanded(
@@ -13975,7 +14005,8 @@ class _FornoMMState extends State<FornoMM> {
                               decoration: const InputDecoration(
                                   labelText: 'Suportes',
                                   border: OutlineInputBorder()),
-                            ),
+               
+                    ),
                           ),
                         ],
                       ),
@@ -13997,6 +14028,8 @@ class _FornoMMState extends State<FornoMM> {
     );
   }
 }
+
+
 
 class ArmariosMM extends StatefulWidget {
   final String storeId;
