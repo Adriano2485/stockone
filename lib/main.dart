@@ -1,7 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 
 import 'package:firebase_storage/firebase_storage.dart';
-import 'dart:html' as html;
+
 
 import 'dart:convert';
 import 'dart:io';
@@ -12365,15 +12365,9 @@ class _ComodatosState extends State<Comodatos> {
                     children: [
                       pw.Bullet(text: fn(i, item)),
                       if (item['photoUrl'] != null)
-                        pw.UrlLink(
-                          destination: item['photoUrl'],
-                          child: pw.Text(
-                            'Ver foto',
-                            style: pw.TextStyle(
-                              color: PdfColors.blue,
-                              decoration: pw.TextDecoration.underline,
-                            ),
-                          ),
+                        pw.Text(
+                          'Foto disponível: ${item['photoUrl']}',
+                          style: pw.TextStyle(color: PdfColors.blue),
                         ),
                       pw.SizedBox(height: 4),
                     ],
@@ -12537,68 +12531,68 @@ class _ComodatosState extends State<Comodatos> {
     );
   }
 
- void _abrirFoto(String url) {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => Scaffold(
-        appBar: AppBar(
-          title: const Text('Foto'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.download),
-              onPressed: () async {
-                if (kIsWeb) {
-                  // Download direto no navegador
-                  final anchor = html.AnchorElement(href: url)
-                    ..setAttribute('download', url.split('/').last)
-                    ..click();
-                } else {
-                  // Download no dispositivo usando Dart puro
-                  await _baixarImagemLocal(url);
-                }
-              },
-            ),
-          ],
-        ),
-        body: Center(
-          child: InteractiveViewer(
-            child: CachedNetworkImage(
-              imageUrl: url,
-              placeholder: (context, url) =>
-                  const CircularProgressIndicator(),
-              errorWidget: (context, url, error) => const Icon(Icons.error),
+  void _abrirFoto(String url) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(
+            title: const Text('Foto'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.download),
+                onPressed: () async {
+                  if (kIsWeb) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                            'Download Web não implementado. Use mobile para salvar.'),
+                      ),
+                    );
+                  } else {
+                    await _baixarImagemLocal(url);
+                  }
+                },
+              ),
+            ],
+          ),
+          body: Center(
+            child: InteractiveViewer(
+              child: CachedNetworkImage(
+                imageUrl: url,
+                placeholder: (context, url) =>
+                    const CircularProgressIndicator(),
+                errorWidget: (context, url, error) => const Icon(Icons.error),
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
-}
-
-// Função para baixar a imagem no dispositivo local
-Future<void> _baixarImagemLocal(String url) async {
-  try {
-    final response = await http.get(Uri.parse(url));
-    if (response.statusCode == 200) {
-      final dir = await getApplicationDocumentsDirectory();
-      final filePath = '${dir.path}/${url.split('/').last}';
-      final file = File(filePath);
-      await file.writeAsBytes(response.bodyBytes);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Imagem salva em: $filePath')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao baixar imagem: ${response.statusCode}')),
-      );
-    }
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Erro ao baixar imagem: $e')),
     );
   }
-}
+
+  Future<void> _baixarImagemLocal(String url) async {
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final dir = await getApplicationDocumentsDirectory();
+        final filePath = '${dir.path}/${url.split('/').last}';
+        final file = File(filePath);
+        await file.writeAsBytes(response.bodyBytes);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Imagem salva em: $filePath')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao baixar imagem: ${response.statusCode}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao baixar imagem: $e')),
+      );
+    }
+  }
 
   void _scrollToStore(int index) {
     if (_storeKeys.containsKey(index)) {
@@ -12741,7 +12735,6 @@ Future<void> _baixarImagemLocal(String url) async {
               }),
             ),
           ),
-          // ========== Barra lateral de atalho ==========
           Positioned(
             right: 0,
             top: 24,
@@ -12781,6 +12774,7 @@ Future<void> _baixarImagemLocal(String url) async {
     );
   }
 }
+
 
 class Martminas extends StatelessWidget {
   const Martminas({super.key});
@@ -12911,7 +12905,6 @@ class Martminas extends StatelessWidget {
   }
 }
 
-
 class Comodatosmm extends StatefulWidget {
   const Comodatosmm({super.key});
 
@@ -13035,16 +13028,7 @@ class _ComodatosmmState extends State<Comodatosmm> {
                     children: [
                       pw.Bullet(text: fn(i, item)),
                       if (item['photoUrl'] != null)
-                        pw.UrlLink(
-                          destination: item['photoUrl'],
-                          child: pw.Text(
-                            'Ver foto',
-                            style: pw.TextStyle(
-                              color: PdfColors.blue,
-                              decoration: pw.TextDecoration.underline,
-                            ),
-                          ),
-                        ),
+                        pw.Text('Foto disponível', style: pw.TextStyle(color: PdfColors.blue)),
                       pw.SizedBox(height: 4),
                     ],
                   ),
@@ -13086,7 +13070,7 @@ class _ComodatosmmState extends State<Comodatosmm> {
               'Assadeiras:',
               dadosResumo['assadeiras'],
               (i, a) =>
-                  'Assadeira ${i + 1} - Tipo: ${a['tipo'] ?? 'N/I'}, Quantidade: ${a['quantidade']}',
+                  'Assadeira ${i + 1} - Tipo: ${a['tipo'] ?? 'N/I'}, Quantidade: ${a['quantidade'] ?? 0}',
             );
 
             addSection(
@@ -13122,7 +13106,7 @@ class _ComodatosmmState extends State<Comodatosmm> {
     );
   }
 
-  // ===================== Função para baixar imagem no dispositivo =====================
+  // ===================== Download Mobile =====================
   Future<void> _baixarImagemLocal(String url) async {
     try {
       final response = await http.get(Uri.parse(url));
@@ -13211,13 +13195,14 @@ class _ComodatosmmState extends State<Comodatosmm> {
               IconButton(
                 icon: const Icon(Icons.download),
                 onPressed: () async {
-                  if (url.isEmpty) return;
-                  if (kIsWeb) {
-                    final anchor = html.AnchorElement(href: url)
-                      ..setAttribute('download', url.split('/').last)
-                      ..click();
-                  } else {
+                  if (!kIsWeb) {
                     await _baixarImagemLocal(url);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Download de imagens Web não implementado'),
+                      ),
+                    );
                   }
                 },
               ),
@@ -13237,6 +13222,7 @@ class _ComodatosmmState extends State<Comodatosmm> {
     );
   }
 
+  // ===================== Scroll =====================
   void _scrollToStore(int index) {
     if (_storeKeys.containsKey(index)) {
       final keyContext = _storeKeys[index]!.currentContext;
@@ -13250,6 +13236,7 @@ class _ComodatosmmState extends State<Comodatosmm> {
     }
   }
 
+  // ===================== Build =====================
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -13284,26 +13271,26 @@ class _ComodatosmmState extends State<Comodatosmm> {
                 ),
                 const SizedBox(height: 16),
                 if (dadosResumo['fornos'].isNotEmpty)
-                  _buildSection('Fornos', dadosResumo['fornos'],
-                      (j, f) => 'Modelo: ${f['modelo']}, Tipo: ${f['tipo']}, Suportes: ${f['suportes']}'),
+                  _buildItemSection('Fornos', dadosResumo['fornos'], (j, f) =>
+                      'Modelo: ${f['modelo']}, Tipo: ${f['tipo']}, Suportes: ${f['suportes']}'),
                 if (dadosResumo['armarios'].isNotEmpty)
-                  _buildSection('Armários', dadosResumo['armarios'],
-                      (j, a) => 'Tipo: ${a['tipo']}, Suportes: ${a['suportes']}'),
+                  _buildItemSection('Armários', dadosResumo['armarios'], (j, a) =>
+                      'Tipo: ${a['tipo']}, Suportes: ${a['suportes']}'),
                 if (dadosResumo['esqueletos'].isNotEmpty)
-                  _buildSection('Esqueletos', dadosResumo['esqueletos'],
-                      (j, e) => 'Tipo: ${e['tipo']}, Suportes: ${e['suportes']}'),
+                  _buildItemSection('Esqueletos', dadosResumo['esqueletos'], (j, e) =>
+                      'Tipo: ${e['tipo']}, Suportes: ${e['suportes']}'),
                 if (dadosResumo['esteiras'].isNotEmpty)
-                  _buildSection('Esteiras', dadosResumo['esteiras'],
-                      (j, e) => 'Tipo: ${e['tipo']}, Quantidade: ${e['quantidade']}'),
+                  _buildItemSection('Esteiras', dadosResumo['esteiras'], (j, e) =>
+                      'Tipo: ${e['tipo']}, Quantidade: ${e['quantidade']}'),
                 if (dadosResumo['assadeiras'].isNotEmpty)
-                  _buildSection('Assadeiras', dadosResumo['assadeiras'],
-                      (j, a) => 'Tipo: ${a['tipo']}, Quantidade: ${a['quantidade']}'),
+                  _buildItemSection('Assadeiras', dadosResumo['assadeiras'], (j, a) =>
+                      'Tipo: ${a['tipo']}, Quantidade: ${a['quantidade']}'),
                 if (dadosResumo['climaticas'].isNotEmpty)
-                  _buildSection('Climáticas', dadosResumo['climaticas'],
-                      (j, c) => 'Modelo: ${c['modelo']}, Suportes: ${c['suportes']}'),
+                  _buildItemSection('Climáticas', dadosResumo['climaticas'], (j, c) =>
+                      'Modelo: ${c['modelo']}, Suportes: ${c['suportes']}'),
                 if (dadosResumo['freezers'].isNotEmpty)
-                  _buildSection('Conservadores', dadosResumo['freezers'],
-                      (j, f) => 'Modelo: ${f['modelo']}, Volume: ${f['volume']}L, Tipo: ${f['tipo']}'),
+                  _buildItemSection('Conservadores', dadosResumo['freezers'], (j, f) =>
+                      'Modelo: ${f['modelo']}, Volume: ${f['volume']}L, Tipo: ${f['tipo']}'),
                 const SizedBox(height: 32),
               ],
             ),
@@ -13313,7 +13300,8 @@ class _ComodatosmmState extends State<Comodatosmm> {
     );
   }
 
-  Widget _buildSection(String title, List items, String Function(int, Map) subtitleFn) {
+  // Helper para gerar seções rapidamente
+  Widget _buildItemSection(String title, List items, String Function(int, Map) subtitleFn) {
     return SizedBox(
       width: double.infinity,
       child: Card(
@@ -13343,6 +13331,7 @@ class _ComodatosmmState extends State<Comodatosmm> {
     );
   }
 }
+
 
 
 class StoreSelectionMM extends StatefulWidget {
