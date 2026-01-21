@@ -85,7 +85,7 @@ const RESOURCES = {"flutter.js": "24bc71911b75b5f8135c949e27a2984e",
 "assets/assets/images/sanduichebahamas.jpg": "bb78f7adf97624879a21503c932a0146",
 "assets/assets/images/baixas2371.png": "ec83e5eb8c820f817d7d7dd142ba6cd1",
 "assets/fonts/MaterialIcons-Regular.otf": "d008d330be19d2460b3e6d468d19b733",
-"assets/NOTICES": "0cfe0239265bb532f3ac2b46fdde134c",
+"assets/NOTICES": "bd2ae90467e9494fb9420bd046ae1c39",
 "assets/packages/wakelock_plus/assets/no_sleep.js": "7748a45cd593f33280669b29c2c8919a",
 "assets/FontManifest.json": "7b2a36307916a9721811788013e65289",
 "assets/AssetManifest.bin": "26fc371c1718850203752a194b0a686b",
@@ -102,9 +102,9 @@ const RESOURCES = {"flutter.js": "24bc71911b75b5f8135c949e27a2984e",
 "canvaskit/canvaskit.js.symbols": "a3c9f77715b642d0437d9c275caba91e",
 "canvaskit/skwasm.js.symbols": "3a4aadf4e8141f284bd524976b1d6bdc",
 "favicon.png": "5dcef449791fa27946b3d35ad8803796",
-"flutter_bootstrap.js": "95be7360e9911ea407b628f70acb1f6d",
+"flutter_bootstrap.js": "e12f26ae23f7dd8972985935962ca4c4",
 "version.json": "612e4e55171a338fd7e6799af11cbbf3",
-"main.dart.js": "379937e09806ed0b2b560f5ef633b395"};
+"main.dart.js": "5e4c1eb31f381049a61d138585187dd0"};
 // The application shell files that are downloaded before a service worker can
 // start.
 const CORE = ["main.dart.js",
