@@ -9790,124 +9790,135 @@ class _FornoState extends State<Forno> {
   // ===================== UI =====================
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Fornos')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            ...List.generate(quantidadeFornos, (index) {
-              return Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Forno ${index + 1}',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          IconButton(
-                            icon: Icon(
-                              fotosForno[index] == null
-                                  ? Icons.add_a_photo
-                                  : Icons.photo,
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(title: const Text('Fornos')),
+    body: SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          ...List.generate(quantidadeFornos, (index) {
+            return Card(
+              margin: const EdgeInsets.only(bottom: 16),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Forno ${index + 1}',
+                          style:
+                              const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                fotosForno[index] == null
+                                    ? Icons.add_a_photo
+                                    : Icons.photo,
+                              ),
+                              onPressed: fotosForno[index] == null
+                                  ? () => _selecionarFoto(index)
+                                  : () => _abrirMenuFoto(index),
                             ),
-                            onPressed: fotosForno[index] == null
-                                ? () => _selecionarFoto(index)
-                                : () => _abrirMenuFoto(index),
-                          ),
-                        ],
+                            IconButton(
+                              icon: const Icon(Icons.delete,
+                                  color: Colors.red),
+                              onPressed: () => _removerForno(index),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    if (uploadProgress[index] != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: LinearProgressIndicator(
+                          value: uploadProgress[index],
+                        ),
                       ),
-                      if (uploadProgress[index] != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: LinearProgressIndicator(
-                            value: uploadProgress[index],
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: modeloControllers[index],
+                      decoration: const InputDecoration(
+                        labelText: 'Modelo',
+                      ),
+                      onChanged: (_) => _saveFornoData(),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            isExpanded: true,
+                            value: tiposForno[index].isNotEmpty
+                                ? tiposForno[index]
+                                : null,
+                            hint: const Text('Tipo'),
+                            items: tipos
+                                .map((t) => DropdownMenuItem(
+                                      value: t,
+                                      child: Text(t),
+                                    ))
+                                .toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                tiposForno[index] = value ?? '';
+                                _saveFornoData();
+                              });
+                            },
+                            decoration: const InputDecoration(
+                                border: OutlineInputBorder()),
                           ),
                         ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: modeloControllers[index],
-                        decoration: const InputDecoration(
-                          labelText: 'Modelo',
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: DropdownButtonFormField<int>(
+                            isExpanded: true,
+                            value: suportesForno[index] > 0
+                                ? suportesForno[index]
+                                : null,
+                            items: suportes
+                                .map((s) => DropdownMenuItem(
+                                      value: s,
+                                      child: Text(s.toString()),
+                                    ))
+                                .toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                suportesForno[index] = value ?? 0;
+                                _saveFornoData();
+                              });
+                            },
+                            decoration: const InputDecoration(
+                                labelText: 'Suportes',
+                                border: OutlineInputBorder()),
+                          ),
                         ),
-                        onChanged: (_) => _saveFornoData(),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              isExpanded: true,
-                              value: tiposForno[index].isNotEmpty
-                                  ? tiposForno[index]
-                                  : null,
-                              hint: const Text('Tipo'),
-                              items: tipos
-                                  .map((t) => DropdownMenuItem(
-                                        value: t,
-                                        child: Text(t),
-                                      ))
-                                  .toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  tiposForno[index] = value ?? '';
-                                  _saveFornoData();
-                                });
-                              },
-                              decoration: const InputDecoration(
-                                  border: OutlineInputBorder()),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: DropdownButtonFormField<int>(
-                              isExpanded: true,
-                              value: suportesForno[index] > 0
-                                  ? suportesForno[index]
-                                  : null,
-                              items: suportes
-                                  .map((s) => DropdownMenuItem(
-                                        value: s,
-                                        child: Text(s.toString()),
-                                      ))
-                                  .toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  suportesForno[index] = value ?? 0;
-                                  _saveFornoData();
-                                });
-                              },
-                              decoration: const InputDecoration(
-                                  labelText: 'Suportes',
-                                  border: OutlineInputBorder()),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ),
-              );
-            }),
-            Center(
-              child: IconButton(
-                icon:
-                    const Icon(Icons.add_circle, color: Colors.green, size: 36),
-                onPressed: _adicionarForno,
               ),
+            );
+          }),
+          Center(
+            child: IconButton(
+              icon: const Icon(Icons.add_circle,
+                  color: Colors.green, size: 36),
+              onPressed: _adicionarForno,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
+
 }
 
 class Armarios extends StatefulWidget {
@@ -12571,28 +12582,31 @@ class _ComodatosState extends State<Comodatos> {
     );
   }
 
-  Future<void> _baixarImagemLocal(String url) async {
-    try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final dir = await getApplicationDocumentsDirectory();
-        final filePath = '${dir.path}/${url.split('/').last}';
-        final file = File(filePath);
-        await file.writeAsBytes(response.bodyBytes);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Imagem salva em: $filePath')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao baixar imagem: ${response.statusCode}')),
-        );
-      }
-    } catch (e) {
+ Future<void> _baixarImagemLocal(String url) async {
+  try {
+    final Uri uri = Uri.parse(url);
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao baixar imagem: $e')),
+        const SnackBar(content: Text('Download iniciado')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Não foi possível iniciar o download')),
       );
     }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Erro ao baixar imagem')),
+    );
   }
+}
+
 
   void _scrollToStore(int index) {
     if (_storeKeys.containsKey(index)) {
@@ -13108,26 +13122,29 @@ class _ComodatosmmState extends State<Comodatosmm> {
 
   // ===================== Download Mobile =====================
   Future<void> _baixarImagemLocal(String url) async {
-    try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final dir = await getApplicationDocumentsDirectory();
-        final file = File('${dir.path}/${url.split('/').last}');
-        await file.writeAsBytes(response.bodyBytes);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Imagem salva em: ${file.path}')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao baixar imagem: ${response.statusCode}')),
-        );
-      }
-    } catch (e) {
+  try {
+    final Uri uri = Uri.parse(url);
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao baixar imagem: $e')),
+        const SnackBar(content: Text('Download iniciado')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Não foi possível iniciar o download')),
       );
     }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Erro ao baixar imagem')),
+    );
   }
+}
 
   // ===================== Item Card =====================
   Widget _buildItemCard(String title, String subtitle, {String? photoUrl}) {
@@ -14195,124 +14212,135 @@ class _FornoMMState extends State<FornoMM> {
   // ===================== UI =====================
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Fornos')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            ...List.generate(quantidadeFornos, (index) {
-              return Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Forno ${index + 1}',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          IconButton(
-                            icon: Icon(
-                              fotosForno[index] == null
-                                  ? Icons.add_a_photo
-                                  : Icons.photo,
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(title: const Text('Fornos')),
+    body: SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          ...List.generate(quantidadeFornos, (index) {
+            return Card(
+              margin: const EdgeInsets.only(bottom: 16),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Forno ${index + 1}',
+                          style:
+                              const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                fotosForno[index] == null
+                                    ? Icons.add_a_photo
+                                    : Icons.photo,
+                              ),
+                              onPressed: fotosForno[index] == null
+                                  ? () => _selecionarFoto(index)
+                                  : () => _abrirMenuFoto(index),
                             ),
-                            onPressed: fotosForno[index] == null
-                                ? () => _selecionarFoto(index)
-                                : () => _abrirMenuFoto(index),
-                          ),
-                        ],
+                            IconButton(
+                              icon: const Icon(Icons.delete,
+                                  color: Colors.red),
+                              onPressed: () => _removerForno(index),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    if (uploadProgress[index] != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: LinearProgressIndicator(
+                          value: uploadProgress[index],
+                        ),
                       ),
-                      if (uploadProgress[index] != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: LinearProgressIndicator(
-                            value: uploadProgress[index],
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: modeloControllers[index],
+                      decoration: const InputDecoration(
+                        labelText: 'Modelo',
+                      ),
+                      onChanged: (_) => _saveFornoData(),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            isExpanded: true,
+                            value: tiposForno[index].isNotEmpty
+                                ? tiposForno[index]
+                                : null,
+                            hint: const Text('Tipo'),
+                            items: tipos
+                                .map((t) => DropdownMenuItem(
+                                      value: t,
+                                      child: Text(t),
+                                    ))
+                                .toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                tiposForno[index] = value ?? '';
+                                _saveFornoData();
+                              });
+                            },
+                            decoration: const InputDecoration(
+                                border: OutlineInputBorder()),
                           ),
                         ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: modeloControllers[index],
-                        decoration: const InputDecoration(
-                          labelText: 'Modelo',
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: DropdownButtonFormField<int>(
+                            isExpanded: true,
+                            value: suportesForno[index] > 0
+                                ? suportesForno[index]
+                                : null,
+                            items: suportes
+                                .map((s) => DropdownMenuItem(
+                                      value: s,
+                                      child: Text(s.toString()),
+                                    ))
+                                .toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                suportesForno[index] = value ?? 0;
+                                _saveFornoData();
+                              });
+                            },
+                            decoration: const InputDecoration(
+                                labelText: 'Suportes',
+                                border: OutlineInputBorder()),
+                          ),
                         ),
-                        onChanged: (_) => _saveFornoData(),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              isExpanded: true,
-                              value: tiposForno[index].isNotEmpty
-                                  ? tiposForno[index]
-                                  : null,
-                              hint: const Text('Tipo'),
-                              items: tipos
-                                  .map((t) => DropdownMenuItem(
-                                        value: t,
-                                        child: Text(t),
-                                      ))
-                                  .toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  tiposForno[index] = value ?? '';
-                                  _saveFornoData();
-                                });
-                              },
-                              decoration: const InputDecoration(
-                                  border: OutlineInputBorder()),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: DropdownButtonFormField<int>(
-                              isExpanded: true,
-                              value: suportesForno[index] > 0
-                                  ? suportesForno[index]
-                                  : null,
-                              items: suportes
-                                  .map((s) => DropdownMenuItem(
-                                        value: s,
-                                        child: Text(s.toString()),
-                                      ))
-                                  .toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  suportesForno[index] = value ?? 0;
-                                  _saveFornoData();
-                                });
-                              },
-                              decoration: const InputDecoration(
-                                  labelText: 'Suportes',
-                                  border: OutlineInputBorder()),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ),
-              );
-            }),
-            Center(
-              child: IconButton(
-                icon:
-                    const Icon(Icons.add_circle, color: Colors.green, size: 36),
-                onPressed: _adicionarForno,
               ),
+            );
+          }),
+          Center(
+            child: IconButton(
+              icon: const Icon(Icons.add_circle,
+                  color: Colors.green, size: 36),
+              onPressed: _adicionarForno,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
+
 }
 
 class ArmariosMM extends StatefulWidget {
