@@ -6822,12 +6822,12 @@ class _DocumentosState extends State<Documentos> {
     {
       'label': 'Baixas Motivo (8,9,49)',
       'url':
-          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/requisi%C3%A7%C3%A3o%20motivos%208%2C9%2C49.pdf?alt=media&token=cca98f50-84f6-4c9f-94d9-3fcf28b329cc'
+          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/requisi%C3%A7%C3%A3o%20motivos%208%2C9%2C49.pdf?alt=media&token=3b549708-5853-4831-af61-432ee5717b79'
     },
     {
       'label': 'Baixas Motivo (23,71)',
       'url':
-          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/motivo%2071%20e%2023.pdf?alt=media&token=afbf42b8-adb9-4e0d-8712-4beec098bdd6'
+          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/requisi%C3%A7%C3%A3o%20motivos%2071%20e%2023.pdf?alt=media&token=0a17349a-699b-492d-84d7-4107d409a6a4'
     },
     {
       'label': 'Etiqueta Validade',
@@ -6852,12 +6852,17 @@ class _DocumentosState extends State<Documentos> {
     {
       'label': 'Catálogo de Códigos CX-OPERADOR',
       'url':
-          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/catalogo%20codigo%20caixa-operador.pdf?alt=media&token=412537c0-a780-4f30-b7a1-0c0799f91bc1'
+          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/Cat%C3%A1golo%20c%C3%B3digos%20cx-operador.pdf?alt=media&token=c9988046-404d-478a-933c-838128f920ba'
     },
     {
       'label': 'Última atualização de baixas Bahamas',
       'url':
           'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/baixas%20padaria%2C%20inclus%C3%A3o%20e%20perda%20d%C3%A1gua.pdf?alt=media&token=9f38b83f-decc-4a6e-b749-6c2aacc44e89'
+    },
+    {
+      'label': 'Códigos de venda',
+      'url':
+          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/Codigos.pdf?alt=media&token=feb52948-3726-4ced-9817-ecbdc02497f3'
     },
   ];
 
