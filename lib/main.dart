@@ -1,7 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
-
+import 'package:flutter/services.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-
 
 import 'dart:convert';
 import 'dart:io';
@@ -1675,6 +1674,25 @@ class ThirdScreen extends StatefulWidget {
   _ThirdScreenState createState() => _ThirdScreenState();
 }
 
+// Formatter personalizado que aceita vírgula e ponto
+class DecimalWithCommaFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // Permite números, vírgula e ponto
+    final regex = RegExp(r'^\d*([,.]?\d{0,2})?$');
+
+    // Se não corresponder ao padrão, retorna o valor antigo
+    if (!regex.hasMatch(newValue.text)) {
+      return oldValue;
+    }
+
+    return newValue;
+  }
+}
+
 class _ThirdScreenState extends State<ThirdScreen> {
   final List<String> subprodutos = [
     'Pão Francês',
@@ -1751,6 +1769,29 @@ class _ThirdScreenState extends State<ThirdScreen> {
     }
   }
 
+  // Função auxiliar para converter string com vírgula/ponto para double
+  double _parseDecimalString(String value) {
+    if (value.isEmpty) return 0.0;
+
+    // Substitui vírgula por ponto para garantir o parse correto
+    final normalizedValue = value.replaceAll(',', '.');
+
+    // Tenta fazer o parse
+    final parsedValue = double.tryParse(normalizedValue);
+
+    // Se não conseguir fazer o parse, tenta remover caracteres não numéricos
+    if (parsedValue == null) {
+      // Remove tudo que não for dígito, ponto ou vírgula
+      final cleanedValue = value.replaceAll(RegExp(r'[^\d,.]'), '');
+      if (cleanedValue.isEmpty) return 0.0;
+
+      final normalizedCleanedValue = cleanedValue.replaceAll(',', '.');
+      return double.tryParse(normalizedCleanedValue) ?? 0.0;
+    }
+
+    return parsedValue;
+  }
+
   Future<void> _loadAllData() async {
     if (_dataLoaded) return;
 
@@ -1784,21 +1825,24 @@ class _ThirdScreenState extends State<ThirdScreen> {
           final vendas = vendasData[produto];
           final estoque = estoqueData[produto];
           if (vendas != null) {
-            // ✅ Como é número, verifica se é inteiro
-            if (vendas % 1 == 0) {
+            // Converter para string mantendo decimais
+            final doubleVendas = vendas is double ? vendas : vendas.toDouble();
+
+            // Formatar: se for inteiro, mostra sem decimais, senão mostra com 2 casas
+            if (doubleVendas % 1 == 0) {
               vendasControllers[produto]!.text =
-                  vendas.toInt().toString(); // "1500"
+                  doubleVendas.toInt().toString();
             } else {
-              vendasControllers[produto]!.text = vendas.toString(); // "1500.5"
+              // Usar ponto como padrão, mas o usuário pode digitar vírgula depois
+              vendasControllers[produto]!.text =
+                  doubleVendas.toStringAsFixed(2);
             }
           }
 
           if (estoque != null) {
-            // ✅ CORREÇÃO: MIN. PCTS sempre como número inteiro
             final numero = double.tryParse(estoque.toString());
             if (numero != null) {
-              estoqueControllers[produto]!.text =
-                  numero.floor().toString(); // 🔥 Número inteiro
+              estoqueControllers[produto]!.text = numero.floor().toString();
             } else {
               estoqueControllers[produto]!.text = estoque.toString();
             }
@@ -1821,12 +1865,11 @@ class _ThirdScreenState extends State<ThirdScreen> {
     }
   }
 
-  // ✅ MUDANÇA: Atualização automática sempre funciona
   void _onVendasChanged(String produto) {
-    final valorMensal = double.tryParse(vendasControllers[produto]!.text) ?? 0;
+    final textoVenda = vendasControllers[produto]!.text;
+    final valorMensal = _parseDecimalString(textoVenda);
     final estoqueMax = _calcularEstoqueMaximo(valorMensal, produto);
 
-    // ✅ SEMPRE atualiza automaticamente + marca como cálculo automático
     setState(() {
       estoqueControllers[produto]!.text = estoqueMax.toInt().toString();
       estoqueEditadoManual[produto] = false;
@@ -1845,7 +1888,8 @@ class _ThirdScreenState extends State<ThirdScreen> {
         final estoqueText = estoqueControllers[prod]!.text;
 
         if (vendaText.isNotEmpty) {
-          vendasData[prod] = double.tryParse(vendaText) ?? 0;
+          // Usar a função de parse que aceita vírgula
+          vendasData[prod] = _parseDecimalString(vendaText);
         }
         if (estoqueText.isNotEmpty) {
           estoqueData[prod] = double.tryParse(estoqueText) ?? 0;
@@ -1881,14 +1925,14 @@ class _ThirdScreenState extends State<ThirdScreen> {
     }
   }
 
-  // ✅ MUDANÇA: Método atualizado para cálculo
   void _calculateAndSave(String produto) {
-    final valorMensal = double.tryParse(vendasControllers[produto]!.text) ?? 0;
+    final textoVenda = vendasControllers[produto]!.text;
+    final valorMensal = _parseDecimalString(textoVenda);
     final estoqueMax = _calcularEstoqueMaximo(valorMensal, produto);
 
     setState(() {
       estoqueControllers[produto]!.text = estoqueMax.toInt().toString();
-      estoqueEditadoManual[produto] = false; // ✅ Marca como automático
+      estoqueEditadoManual[produto] = false;
     });
 
     _saveProductData(produto);
@@ -1901,11 +1945,10 @@ class _ThirdScreenState extends State<ThirdScreen> {
     _saveProductData(produto);
   }
 
-  // ✅ MUDANÇA: Botão refresh atualizado
   void _refreshEstoque(String produto) {
     if (vendasControllers[produto]!.text.isNotEmpty) {
       setState(() {
-        estoqueEditadoManual[produto] = false; // Libera para cálculo automático
+        estoqueEditadoManual[produto] = false;
         _calculateAndSave(produto);
       });
     }
@@ -1917,8 +1960,8 @@ class _ThirdScreenState extends State<ThirdScreen> {
     for (var produto in subprodutos) {
       if (estoqueEditadoManual[produto]! && !force) continue;
 
-      final valorMensal =
-          double.tryParse(vendasControllers[produto]!.text) ?? 0;
+      final textoVenda = vendasControllers[produto]!.text;
+      final valorMensal = _parseDecimalString(textoVenda);
       final estoqueMax = _calcularEstoqueMaximo(valorMensal, produto);
       estoqueControllers[produto]!.text = estoqueMax.toInt().toString();
 
@@ -1938,7 +1981,6 @@ class _ThirdScreenState extends State<ThirdScreen> {
     }
   }
 
-  // ✅ MUDANÇA: Garantia de números inteiros nos cálculos
   double _calcularEstoqueMaximo(double valorMensal, String produto) {
     if (diasDeGiro == null || diasDeGiro! <= 0) return 0;
 
@@ -2064,27 +2106,6 @@ class _ThirdScreenState extends State<ThirdScreen> {
         estoqueMax =
             (valorMensal * 0.085 * 1.20 / diasDeGiro! / 3.3) * deliveries;
         break;
-      case 'Profiteroles Brigadeiro':
-        estoqueMax = (valorMensal * 1.20 / diasDeGiro! / 1) * deliveries;
-        break;
-      case 'Profiteroles Brigadeiro Branco':
-        estoqueMax = (valorMensal * 1.20 / diasDeGiro! / 1) * deliveries;
-        break;
-      case 'Profiteroles Doce de Leite':
-        estoqueMax = (valorMensal * 1.20 / diasDeGiro! / 1) * deliveries;
-        break;
-      case 'Pão Baguete Francesa Queijo':
-        estoqueMax = (valorMensal * 1.40 / diasDeGiro! / 3.3) * deliveries;
-        break;
-      case 'Pão Baguete Francesa':
-        estoqueMax = (valorMensal * 1.40 / diasDeGiro! / 3.3) * deliveries;
-        break;
-      case 'Pão Baguete Francesa Gergelim':
-        estoqueMax = (valorMensal * 1.40 / diasDeGiro! / 3.3) * deliveries;
-        break;
-      case 'Mini Pão Francês Gergelim':
-        estoqueMax = (valorMensal * 1.40 / diasDeGiro! / 3.3) * deliveries;
-        break;
       case 'Torta Chocomousse':
         estoqueMax = (valorMensal * 1.20 / diasDeGiro!) * deliveries;
         break;
@@ -2100,7 +2121,7 @@ class _ThirdScreenState extends State<ThirdScreen> {
       default:
         estoqueMax = 0.0;
     }
-    return estoqueMax.ceilToDouble(); // ✅ Sempre retorna número inteiro
+    return estoqueMax.ceilToDouble();
   }
 
   Future<void> _resetAllData() async {
@@ -2321,7 +2342,7 @@ class _ThirdScreenState extends State<ThirdScreen> {
                             const SizedBox(height: 12),
                             Row(
                               children: [
-                                // ✅ MUDANÇA: Campo VENDA com decimais
+                                // Campo VENDA - aceita vírgula e ponto
                                 Expanded(
                                   flex: 5,
                                   child: TextField(
@@ -2330,11 +2351,11 @@ class _ThirdScreenState extends State<ThirdScreen> {
                                         TextInputType.numberWithOptions(
                                             decimal: true),
                                     inputFormatters: [
-                                      FilteringTextInputFormatter.allow(RegExp(
-                                          r'^\d+\.?\d{0,2}')), // 2 casas decimais
+                                      DecimalWithCommaFormatter(),
                                     ],
                                     decoration: InputDecoration(
                                       labelText: 'Venda',
+                                      hintText: 'Ex: 1500 ou 1500,50',
                                       border: const OutlineInputBorder(),
                                       filled: true,
                                       fillColor: Colors.grey.shade100,
@@ -2349,15 +2370,14 @@ class _ThirdScreenState extends State<ThirdScreen> {
                                   onPressed: () => _refreshEstoque(produto),
                                 ),
                                 const SizedBox(width: 4),
-                                // ✅ MUDANÇA: Campo MIN. PCTS apenas inteiros
+                                // Campo MIN. PCTS - apenas inteiros
                                 Expanded(
                                   flex: 5,
                                   child: TextField(
                                     controller: estoqueControllers[produto],
                                     keyboardType: TextInputType.number,
                                     inputFormatters: [
-                                      FilteringTextInputFormatter
-                                          .digitsOnly, // Apenas números inteiros
+                                      FilteringTextInputFormatter.digitsOnly,
                                     ],
                                     decoration: InputDecoration(
                                       labelText: 'Min. Pcts',
@@ -3562,13 +3582,12 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
 class FourthScreen extends StatefulWidget {
   final String storeName;
   const FourthScreen({required this.storeName});
+
   @override
   _FourthScreenState createState() => _FourthScreenState();
 }
 
 class _FourthScreenState extends State<FourthScreen> {
-  TextEditingController resultadoPedidoController = TextEditingController();
-  TextEditingController estoqueAtualController = TextEditingController();
   TextEditingController dateController = TextEditingController();
 
   final Map<String, TextEditingController> controllers = {
@@ -3650,6 +3669,98 @@ class _FourthScreenState extends State<FourthScreen> {
     'Torta Chocolate/Coco': false,
     'Torta Doce De Leite Amendoim': false,
     'Torta Dois Amores': false,
+  };
+
+  // Agora armazenamos o estado completo: valor + se foi editado
+  final Map<String, Map<String, dynamic>> _produtoState = {
+    'Massa Pão Francês': {'valor': 0.0, 'editado': false, 'carregado': false},
+    'Massa Pão Fofinho': {'valor': 0.0, 'editado': false, 'carregado': false},
+    'Massa Pão Francês Fibras': {
+      'valor': 0.0,
+      'editado': false,
+      'carregado': false
+    },
+    'Massa Pão Cervejinha': {
+      'valor': 0.0,
+      'editado': false,
+      'carregado': false
+    },
+    'Massa Mini Baguete 40g': {
+      'valor': 0.0,
+      'editado': false,
+      'carregado': false
+    },
+    'Massa Mini Pão Francês': {
+      'valor': 0.0,
+      'editado': false,
+      'carregado': false
+    },
+    'Massa Mini Baguete 80g': {
+      'valor': 0.0,
+      'editado': false,
+      'carregado': false
+    },
+    'Massa Baguete 330g': {'valor': 0.0, 'editado': false, 'carregado': false},
+    'Massa Pão De Queijo Coq': {
+      'valor': 0.0,
+      'editado': false,
+      'carregado': false
+    },
+    'Massa Pão Biscoito Queijo': {
+      'valor': 0.0,
+      'editado': false,
+      'carregado': false
+    },
+    'Massa Pão De Queijo Trad.': {
+      'valor': 0.0,
+      'editado': false,
+      'carregado': false
+    },
+    'Massa Biscoito Polvilho': {
+      'valor': 0.0,
+      'editado': false,
+      'carregado': false
+    },
+    'Massa Pão Para Rabanada': {
+      'valor': 0.0,
+      'editado': false,
+      'carregado': false
+    },
+    'Massa Pão Doce Comprido': {
+      'valor': 0.0,
+      'editado': false,
+      'carregado': false
+    },
+    'Massa Rosca Doce': {'valor': 0.0, 'editado': false, 'carregado': false},
+    'Massa Pão Doce Caracol': {
+      'valor': 0.0,
+      'editado': false,
+      'carregado': false
+    },
+    'Massa Pão Doce Ferradura': {
+      'valor': 0.0,
+      'editado': false,
+      'carregado': false
+    },
+    'Massa Bambino': {'valor': 0.0, 'editado': false, 'carregado': false},
+    'Massa Mini Pão Marta Rocha': {
+      'valor': 0.0,
+      'editado': false,
+      'carregado': false
+    },
+    'Massa Pão Tatu': {'valor': 0.0, 'editado': false, 'carregado': false},
+    'Torta Chocomousse': {'valor': 0.0, 'editado': false, 'carregado': false},
+    'Torta Chocolate/Coco': {
+      'valor': 0.0,
+      'editado': false,
+      'carregado': false
+    },
+    'Torta Doce De Leite Amendoim': {
+      'valor': 0.0,
+      'editado': false,
+      'carregado': false
+    },
+    'Torta Dois Amores': {'valor': 0.0, 'editado': false, 'carregado': false},
   };
 
   double estoqueMaxPaoFrances = 0.0;
@@ -3747,7 +3858,7 @@ class _FourthScreenState extends State<FourthScreen> {
 
   final List<String> massas = [
     'Massa Pão Francês',
-    'Massa Pão Francês Fibras',
+    'Massa Pão Fofinho',
     'Massa Pão Cervejinha',
     'Massa Mini Baguete 40g',
     'Massa Mini Pão Francês',
@@ -3774,6 +3885,12 @@ class _FourthScreenState extends State<FourthScreen> {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // Flag para controlar se estamos atualizando programaticamente
+  bool _atualizandoProgramaticamente = false;
+
+  // Flag para saber se já terminamos o carregamento inicial
+  bool _carregamentoInicialCompleto = false;
+
   @override
   void initState() {
     super.initState();
@@ -3789,7 +3906,7 @@ class _FourthScreenState extends State<FourthScreen> {
     }
   }
 
-  // ✅ MIGRADO: Carregar tudo de uma vez do Firebase
+  // ✅ Carregar tudo de uma vez do Firebase
   Future<void> _loadAllData() async {
     try {
       final doc =
@@ -3975,7 +4092,6 @@ class _FourthScreenState extends State<FourthScreen> {
               (vendasData['Torta Doce De Leite Amendoim'] ?? 0).toDouble();
           vendaMensalTortaDoisAmores =
               (vendasData['Torta Dois Amores'] ?? 0).toDouble();
-
           // ✅ Carregar estoques atuais
           final estoqueAtualData = data['acerto'] ?? {};
           for (String produto in massas) {
@@ -3987,45 +4103,56 @@ class _FourthScreenState extends State<FourthScreen> {
             }
           }
 
-          // ✅ Carregar pedidos salvos
+          // ✅ Carregar pedidos salvos (valores e se foram editados)
           final pedidosSalvosData = data['pedidosSalvos'] ?? {};
+          final pedidosEditadosData = data['pedidosEditados'] ?? {};
+
           for (String produto in massas) {
             final pedido = pedidosSalvosData[produto];
+            final editado = pedidosEditadosData[produto];
+
             if (pedido != null) {
               resultadoControllers[produto]!.text = pedido.toString();
+              _produtoState[produto]!['valor'] = pedido.toDouble();
+              _produtoState[produto]!['editado'] = (editado == true);
+              _produtoState[produto]!['carregado'] = true;
             } else {
               resultadoControllers[produto]!.text = '0';
+              _produtoState[produto]!['valor'] = 0.0;
+              _produtoState[produto]!['editado'] = false;
+              _produtoState[produto]!['carregado'] = false;
             }
           }
         });
 
-        // Calcular todos os pedidos após carregar os dados
+        // APENAS calcular produtos que não foram carregados do Firebase
         for (String produto in massas) {
-          _calcularPedidoIndividual(produto);
+          if (!_produtoState[produto]!['carregado']) {
+            _calcularPedidoIndividual(produto, false);
+          }
         }
+
+        _carregamentoInicialCompleto = true;
       }
     } catch (e) {
       print('Erro ao carregar dados: $e');
     }
   }
 
-  // ✅ MIGRADO: Salvar configurações do pedido
-  Future<void> _saveInputs() async {
+  // ✅ Salvar valores editados pelo usuário no Firebase
+  Future<void> _saveUserInputs() async {
     try {
-      final pedidoConfig = {
-        'intervaloEntrega': intervaloEntrega,
-      };
-
       final pedidosSalvos = {};
+      final pedidosEditados = {};
+      final estoqueAtual = {};
+
       for (String produto in massas) {
         if (resultadoControllers[produto]!.text.isNotEmpty) {
           pedidosSalvos[produto] =
               double.tryParse(resultadoControllers[produto]!.text) ?? 0;
+          pedidosEditados[produto] = _produtoState[produto]!['editado'];
         }
-      }
 
-      final estoqueAtual = {};
-      for (String produto in massas) {
         if (controllers[produto]!.text.isNotEmpty) {
           estoqueAtual[produto] =
               double.tryParse(controllers[produto]!.text) ?? 0;
@@ -4033,11 +4160,32 @@ class _FourthScreenState extends State<FourthScreen> {
       }
 
       await _firestore.collection('stores').doc(widget.storeName).set({
+        'pedidosSalvos': pedidosSalvos,
+        'pedidosEditados': pedidosEditados,
+        'acerto': estoqueAtual,
+        'lastUpdatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      print('Valores salvos: $pedidosSalvos');
+      print('Editados: $pedidosEditados');
+    } catch (e) {
+      print('Erro ao salvar inputs: $e');
+    }
+  }
+
+  // ✅ Salvar configurações do pedido
+  Future<void> _savePedidoConfig() async {
+    try {
+      final pedidoConfig = {
+        'intervaloEntrega': intervaloEntrega,
+      };
+
+      await _firestore.collection('stores').doc(widget.storeName).set({
         'pedidoConfig': pedidoConfig,
         'lastUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (e) {
-      print('Erro ao salvar inputs: $e');
+      print('Erro ao salvar configurações: $e');
     }
   }
 
@@ -4047,7 +4195,12 @@ class _FourthScreenState extends State<FourthScreen> {
     });
   }
 
-  void _calcularPedidoIndividual(String produto) {
+  void _calcularPedidoIndividual(String produto, bool isUserAction) {
+    // Se foi editado manualmente E não é uma ação do usuário (botão Atualizar), não recalcula
+    if (_produtoState[produto]!['editado'] && !isUserAction) {
+      return;
+    }
+
     double estoqueAtual =
         double.tryParse(controllers[produto]?.text ?? '0') ?? 0.0;
     double estoqueCalculado = 0.0;
@@ -4410,10 +4563,53 @@ class _FourthScreenState extends State<FourthScreen> {
     }
 
     resultadoPedido = resultadoPedido.ceilToDouble();
-    resultadoControllers[produto]?.text =
+    final novoValor =
         resultadoPedido > 0 ? resultadoPedido.toInt().toString() : '0';
 
-    _saveInputs(); // ✅ Salva automaticamente após cálculo
+    // Atualizar o estado ANTES de modificar o controller
+    setState(() {
+      _produtoState[produto]!['valor'] = resultadoPedido;
+      if (isUserAction) {
+        _produtoState[produto]!['editado'] = false;
+      }
+      _produtoState[produto]!['carregado'] = true;
+    });
+
+    // Setar flag para evitar que o onChanged do TextField marque como editado manualmente
+    _atualizandoProgramaticamente = true;
+
+    // Agora atualizar o controller
+    resultadoControllers[produto]?.text = novoValor;
+
+    // Resetar flag após um pequeno delay
+    Future.delayed(Duration(milliseconds: 100), () {
+      _atualizandoProgramaticamente = false;
+    });
+
+    // Salvar os novos valores
+    _saveUserInputs();
+  }
+
+  // ✅ Atualizar TODOS os produtos (ignorando edições manuais)
+  void _atualizarTodos() {
+    setState(() {
+      for (String produto in massas) {
+        _produtoState[produto]!['editado'] = false;
+        _calcularPedidoIndividual(produto, true);
+      }
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Todos os produtos atualizados!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  // ✅ Atualizar um produto individualmente
+  void _atualizarProduto(String produto) {
+    _calcularPedidoIndividual(produto, true);
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -4430,7 +4626,7 @@ class _FourthScreenState extends State<FourthScreen> {
       });
   }
 
-  // ✅ MIGRADO: Gerar pedido no Firebase
+  // ✅ Gerar pedido no Firebase
   void _gerarPedido() async {
     try {
       Map<String, dynamic> pedidos = {};
@@ -4447,16 +4643,13 @@ class _FourthScreenState extends State<FourthScreen> {
         'timestamp': FieldValue.serverTimestamp(),
       };
 
-      // ✅ Salvar no Firebase como histórico de pedidos
       await _firestore.collection('pedidos').add(pedidoCompleto);
 
-      // ✅ Também salvar como último pedido na loja
       await _firestore.collection('stores').doc(widget.storeName).set({
         'ultimoPedido': pedidoCompleto,
         'lastUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      // Mostrar alerta de sucesso
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Pedido gerado com sucesso'),
@@ -4477,229 +4670,298 @@ class _FourthScreenState extends State<FourthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          backgroundColor: Color(0xff955a97),
-          centerTitle: true,
-          title: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset(
-                'assets/images/Logo StockOne.png',
-                height: 30,
+      appBar: AppBar(
+        backgroundColor: Color(0xff955a97),
+        centerTitle: true,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/images/Logo StockOne.png',
+              height: 30,
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              "PEDIDO",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+                fontFamily: 'Lora',
+                color: Colors.white,
               ),
-              const SizedBox(width: 10),
-              const Text(
-                "PEDIDO",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 22,
-                  fontFamily: 'Lora',
-                  color: Colors.white,
+            ),
+          ],
+        ),
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.blueGrey, Colors.blueGrey],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Botão para atualizar todos os produtos
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: ElevatedButton.icon(
+                  onPressed: _atualizarTodos,
+                  icon: Icon(Icons.refresh, color: Colors.black),
+                  label: Text(
+                    'ATUALIZAR TUDO',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xff955a97),
+                    minimumSize: Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    DateFormat('dd/MM/yy').format(selectedDate),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.calendar_today, color: Colors.white),
+                    onPressed: () => _selectDate(context),
+                  ),
+                ],
+              ),
+              Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      'INTERVALO DE ENTREGA (DIAS):',
+                      style: TextStyle(
+                        color: Color(0xff240217),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(width: 10),
+                    Container(
+                      width: 50,
+                      padding: EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: DropdownButton<int>(
+                        value: intervaloEntrega,
+                        isExpanded: true,
+                        alignment: Alignment.center,
+                        underline: SizedBox(),
+                        onChanged: (int? novoIntervalo) {
+                          setState(() {
+                            intervaloEntrega = novoIntervalo ?? 1;
+                            // Quando muda o intervalo, atualiza apenas os não editados manualmente
+                            for (String produto in massas) {
+                              if (!_produtoState[produto]!['editado']) {
+                                _calcularPedidoIndividual(produto, false);
+                              }
+                            }
+                            _savePedidoConfig();
+                          });
+                        },
+                        items: List.generate(9, (index) => index + 1)
+                            .map((days) => DropdownMenuItem(
+                                  value: days,
+                                  child: Text(
+                                    '$days',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(color: Color(0xff240217)),
+                                  ),
+                                ))
+                            .toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: massas.length,
+                  itemBuilder: (context, index) {
+                    String produto = massas[index];
+                    double estoque =
+                        double.tryParse(controllers[produto]?.text ?? '0') ??
+                            0.0;
+                    String estoqueFormatado = estoque % 1 == 0
+                        ? estoque.toInt().toString()
+                        : estoque.toStringAsFixed(1);
+
+                    // Verificar se foi editado manualmente
+                    bool editadoManual = _produtoState[produto]!['editado'];
+
+                    return Card(
+                      color: Colors.white70,
+                      margin: EdgeInsets.symmetric(vertical: 8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(produto,
+                                    style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold)),
+                                if (editadoManual)
+                                  Container(
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.amber[100],
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      'Editado',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.amber[800],
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Text('Estoque pct(s): $estoqueFormatado'),
+                                SizedBox(width: 10),
+                                if (estoqueInsuficiente[produto] == true)
+                                  Text('Abaixo do giro',
+                                      style: TextStyle(color: Colors.red)),
+                              ],
+                            ),
+                            SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: resultadoControllers[produto],
+                                    keyboardType: TextInputType.number,
+                                    decoration: InputDecoration(
+                                      labelText: 'caixa(s)',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    style: TextStyle(fontSize: 16),
+                                    onChanged: (value) {
+                                      // Só marca como editado manualmente se não estiver sendo atualizado programaticamente
+                                      if (!_atualizandoProgramaticamente &&
+                                          value.isNotEmpty) {
+                                        setState(() {
+                                          _produtoState[produto]!['editado'] =
+                                              true;
+                                          _produtoState[produto]!['carregado'] =
+                                              true;
+                                        });
+                                        // Salvar imediatamente quando o usuário edita
+                                        _saveUserInputs();
+                                      }
+                                    },
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    _atualizarProduto(produto);
+                                  },
+                                  child: Text('Atualizar'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Color(0xff955a97),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 10, bottom: 5),
+                child: Card(
+                  elevation: 4,
+                  margin: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton(
+                          onPressed: _gerarPedido,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xff955a97),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text(
+                            "Gerar Pedido",
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        ElevatedButton(
+                          onPressed: () async {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => PedidosSalvosScreen(
+                                      storeName: widget.storeName)),
+                            );
+                            if (result == true) {
+                              _loadAllData();
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text(
+                            "Ver Pedidos",
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
         ),
-        body: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.blueGrey, Colors.blueGrey],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      DateFormat('dd/MM/yy').format(selectedDate),
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    IconButton(
-                      icon:
-                          const Icon(Icons.calendar_today, color: Colors.white),
-                      onPressed: () => _selectDate(context),
-                    ),
-                  ],
-                ),
-                Center(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        'INTERVALO DE ENTREGA (DIAS):',
-                        style: TextStyle(
-                          color: Color(0xff240217),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(width: 10),
-                      Container(
-                        width: 50,
-                        padding: EdgeInsets.symmetric(horizontal: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: DropdownButton<int>(
-                          value: intervaloEntrega,
-                          isExpanded: true,
-                          alignment: Alignment.center,
-                          underline: SizedBox(),
-                          onChanged: (int? novoIntervalo) {
-                            setState(() {
-                              intervaloEntrega = novoIntervalo ?? 1;
-                              massas.forEach(_calcularPedidoIndividual);
-                            });
-                          },
-                          items: List.generate(9, (index) => index + 1)
-                              .map((days) => DropdownMenuItem(
-                                    value: days,
-                                    child: Text(
-                                      '$days',
-                                      textAlign: TextAlign.center,
-                                      style:
-                                          TextStyle(color: Color(0xff240217)),
-                                    ),
-                                  ))
-                              .toList(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: massas.length,
-                    itemBuilder: (context, index) {
-                      String produto = massas[index];
-                      double estoque =
-                          double.tryParse(controllers[produto]?.text ?? '0') ??
-                              0.0;
-                      String estoqueFormatado = estoque % 1 == 0
-                          ? estoque.toInt().toString()
-                          : estoque.toStringAsFixed(1);
-
-                      return Card(
-                        color: Colors.white70,
-                        margin: EdgeInsets.symmetric(vertical: 8),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(produto,
-                                  style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold)),
-                              SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Text('Estoque pct(s): $estoqueFormatado'),
-                                  SizedBox(width: 10),
-                                  if (estoqueInsuficiente[produto] == true)
-                                    Text('Abaixo do giro',
-                                        style: TextStyle(color: Colors.red)),
-                                ],
-                              ),
-                              SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextField(
-                                      controller: resultadoControllers[produto],
-                                      keyboardType: TextInputType.number,
-                                      decoration: InputDecoration(
-                                        labelText: 'caixa(s)',
-                                        border: OutlineInputBorder(),
-                                      ),
-                                      style: TextStyle(fontSize: 16),
-                                    ),
-                                  ),
-                                  SizedBox(width: 8),
-                                  ElevatedButton(
-                                    onPressed: () => setState(() =>
-                                        _calcularPedidoIndividual(produto)),
-                                    child: Text('Atualizar'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Color(0xff955a97),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 10, bottom: 5),
-                  child: Card(
-                    elevation: 4,
-                    margin: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Padding(
-                      padding: const EdgeInsets.all(10),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          ElevatedButton(
-                            onPressed: _gerarPedido,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xff955a97),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: const Text(
-                              "Gerar Pedido",
-                              style: TextStyle(fontSize: 12),
-                            ),
-                          ),
-                          const SizedBox(width: 20),
-                          ElevatedButton(
-                            onPressed: () async {
-                              final result = await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => PedidosSalvosScreen(
-                                        storeName: widget.storeName)),
-                              );
-                              if (result == true) {
-                                _loadAllData();
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.grey,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: const Text(
-                              "Ver Pedidos",
-                              style: TextStyle(fontSize: 12),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ));
+      ),
+    );
   }
 }
 
@@ -6863,11 +7125,6 @@ class _DocumentosState extends State<Documentos> {
       'label': 'Códigos de venda',
       'url':
           'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/Codigos.pdf?alt=media&token=feb52948-3726-4ced-9817-ecbdc02497f3'
-    },
-     {
-      'label': 'Requisição Express',
-      'url':
-          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/requisi%C3%A7%C3%A3o%20express.pdf?alt=media&token=08057e29-1ab0-49ac-a498-e88f27594ff4'
     },
   ];
 
@@ -9800,135 +10057,133 @@ class _FornoState extends State<Forno> {
   // ===================== UI =====================
 
   @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(title: const Text('Fornos')),
-    body: SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          ...List.generate(quantidadeFornos, (index) {
-            return Card(
-              margin: const EdgeInsets.only(bottom: 16),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Forno ${index + 1}',
-                          style:
-                              const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Row(
-                          children: [
-                            IconButton(
-                              icon: Icon(
-                                fotosForno[index] == null
-                                    ? Icons.add_a_photo
-                                    : Icons.photo,
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Fornos')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            ...List.generate(quantidadeFornos, (index) {
+              return Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Forno ${index + 1}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  fotosForno[index] == null
+                                      ? Icons.add_a_photo
+                                      : Icons.photo,
+                                ),
+                                onPressed: fotosForno[index] == null
+                                    ? () => _selecionarFoto(index)
+                                    : () => _abrirMenuFoto(index),
                               ),
-                              onPressed: fotosForno[index] == null
-                                  ? () => _selecionarFoto(index)
-                                  : () => _abrirMenuFoto(index),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete,
-                                  color: Colors.red),
-                              onPressed: () => _removerForno(index),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    if (uploadProgress[index] != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: LinearProgressIndicator(
-                          value: uploadProgress[index],
-                        ),
+                              IconButton(
+                                icon:
+                                    const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () => _removerForno(index),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: modeloControllers[index],
-                      decoration: const InputDecoration(
-                        labelText: 'Modelo',
-                      ),
-                      onChanged: (_) => _saveFornoData(),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            isExpanded: true,
-                            value: tiposForno[index].isNotEmpty
-                                ? tiposForno[index]
-                                : null,
-                            hint: const Text('Tipo'),
-                            items: tipos
-                                .map((t) => DropdownMenuItem(
-                                      value: t,
-                                      child: Text(t),
-                                    ))
-                                .toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                tiposForno[index] = value ?? '';
-                                _saveFornoData();
-                              });
-                            },
-                            decoration: const InputDecoration(
-                                border: OutlineInputBorder()),
+                      if (uploadProgress[index] != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: LinearProgressIndicator(
+                            value: uploadProgress[index],
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: DropdownButtonFormField<int>(
-                            isExpanded: true,
-                            value: suportesForno[index] > 0
-                                ? suportesForno[index]
-                                : null,
-                            items: suportes
-                                .map((s) => DropdownMenuItem(
-                                      value: s,
-                                      child: Text(s.toString()),
-                                    ))
-                                .toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                suportesForno[index] = value ?? 0;
-                                _saveFornoData();
-                              });
-                            },
-                            decoration: const InputDecoration(
-                                labelText: 'Suportes',
-                                border: OutlineInputBorder()),
-                          ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: modeloControllers[index],
+                        decoration: const InputDecoration(
+                          labelText: 'Modelo',
                         ),
-                      ],
-                    ),
-                  ],
+                        onChanged: (_) => _saveFornoData(),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              isExpanded: true,
+                              value: tiposForno[index].isNotEmpty
+                                  ? tiposForno[index]
+                                  : null,
+                              hint: const Text('Tipo'),
+                              items: tipos
+                                  .map((t) => DropdownMenuItem(
+                                        value: t,
+                                        child: Text(t),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  tiposForno[index] = value ?? '';
+                                  _saveFornoData();
+                                });
+                              },
+                              decoration: const InputDecoration(
+                                  border: OutlineInputBorder()),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: DropdownButtonFormField<int>(
+                              isExpanded: true,
+                              value: suportesForno[index] > 0
+                                  ? suportesForno[index]
+                                  : null,
+                              items: suportes
+                                  .map((s) => DropdownMenuItem(
+                                        value: s,
+                                        child: Text(s.toString()),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  suportesForno[index] = value ?? 0;
+                                  _saveFornoData();
+                                });
+                              },
+                              decoration: const InputDecoration(
+                                  labelText: 'Suportes',
+                                  border: OutlineInputBorder()),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
+              );
+            }),
+            Center(
+              child: IconButton(
+                icon:
+                    const Icon(Icons.add_circle, color: Colors.green, size: 36),
+                onPressed: _adicionarForno,
               ),
-            );
-          }),
-          Center(
-            child: IconButton(
-              icon: const Icon(Icons.add_circle,
-                  color: Colors.green, size: 36),
-              onPressed: _adicionarForno,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
-
+    );
+  }
 }
 
 class Armarios extends StatefulWidget {
@@ -12592,31 +12847,30 @@ class _ComodatosState extends State<Comodatos> {
     );
   }
 
- Future<void> _baixarImagemLocal(String url) async {
-  try {
-    final Uri uri = Uri.parse(url);
+  Future<void> _baixarImagemLocal(String url) async {
+    try {
+      final Uri uri = Uri.parse(url);
 
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
 
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Download iniciado')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Não foi possível iniciar o download')),
+        );
+      }
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Download iniciado')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Não foi possível iniciar o download')),
+        SnackBar(content: Text('Erro ao baixar imagem')),
       );
     }
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Erro ao baixar imagem')),
-    );
   }
-}
-
 
   void _scrollToStore(int index) {
     if (_storeKeys.containsKey(index)) {
@@ -12798,7 +13052,6 @@ class _ComodatosState extends State<Comodatos> {
     );
   }
 }
-
 
 class Martminas extends StatelessWidget {
   const Martminas({super.key});
@@ -13052,7 +13305,8 @@ class _ComodatosmmState extends State<Comodatosmm> {
                     children: [
                       pw.Bullet(text: fn(i, item)),
                       if (item['photoUrl'] != null)
-                        pw.Text('Foto disponível', style: pw.TextStyle(color: PdfColors.blue)),
+                        pw.Text('Foto disponível',
+                            style: pw.TextStyle(color: PdfColors.blue)),
                       pw.SizedBox(height: 4),
                     ],
                   ),
@@ -13132,29 +13386,29 @@ class _ComodatosmmState extends State<Comodatosmm> {
 
   // ===================== Download Mobile =====================
   Future<void> _baixarImagemLocal(String url) async {
-  try {
-    final Uri uri = Uri.parse(url);
+    try {
+      final Uri uri = Uri.parse(url);
 
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
 
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Download iniciado')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Não foi possível iniciar o download')),
+        );
+      }
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Download iniciado')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Não foi possível iniciar o download')),
+        SnackBar(content: Text('Erro ao baixar imagem')),
       );
     }
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Erro ao baixar imagem')),
-    );
   }
-}
 
   // ===================== Item Card =====================
   Widget _buildItemCard(String title, String subtitle, {String? photoUrl}) {
@@ -13197,9 +13451,12 @@ class _ComodatosmmState extends State<Comodatosmm> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
+                    Text(title,
+                        style: const TextStyle(fontWeight: FontWeight.w500)),
                     const SizedBox(height: 4),
-                    Text(subtitle, style: TextStyle(color: Colors.grey[700], fontSize: 14)),
+                    Text(subtitle,
+                        style:
+                            TextStyle(color: Colors.grey[700], fontSize: 14)),
                   ],
                 ),
               ),
@@ -13227,7 +13484,8 @@ class _ComodatosmmState extends State<Comodatosmm> {
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Download de imagens Web não implementado'),
+                        content:
+                            Text('Download de imagens Web não implementado'),
                       ),
                     );
                   }
@@ -13239,7 +13497,8 @@ class _ComodatosmmState extends State<Comodatosmm> {
             child: InteractiveViewer(
               child: CachedNetworkImage(
                 imageUrl: url,
-                placeholder: (context, url) => const CircularProgressIndicator(),
+                placeholder: (context, url) =>
+                    const CircularProgressIndicator(),
                 errorWidget: (context, url, error) => const Icon(Icons.error),
               ),
             ),
@@ -13276,7 +13535,8 @@ class _ComodatosmmState extends State<Comodatosmm> {
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         actions: [
-          IconButton(icon: const Icon(Icons.share), onPressed: _compartilharPdf),
+          IconButton(
+              icon: const Icon(Icons.share), onPressed: _compartilharPdf),
         ],
       ),
       body: ListView.builder(
@@ -13294,30 +13554,52 @@ class _ComodatosmmState extends State<Comodatosmm> {
               children: [
                 Text(
                   loja['storeName'],
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
                 if (dadosResumo['fornos'].isNotEmpty)
-                  _buildItemSection('Fornos', dadosResumo['fornos'], (j, f) =>
-                      'Modelo: ${f['modelo']}, Tipo: ${f['tipo']}, Suportes: ${f['suportes']}'),
+                  _buildItemSection(
+                      'Fornos',
+                      dadosResumo['fornos'],
+                      (j, f) =>
+                          'Modelo: ${f['modelo']}, Tipo: ${f['tipo']}, Suportes: ${f['suportes']}'),
                 if (dadosResumo['armarios'].isNotEmpty)
-                  _buildItemSection('Armários', dadosResumo['armarios'], (j, a) =>
-                      'Tipo: ${a['tipo']}, Suportes: ${a['suportes']}'),
+                  _buildItemSection(
+                      'Armários',
+                      dadosResumo['armarios'],
+                      (j, a) =>
+                          'Tipo: ${a['tipo']}, Suportes: ${a['suportes']}'),
                 if (dadosResumo['esqueletos'].isNotEmpty)
-                  _buildItemSection('Esqueletos', dadosResumo['esqueletos'], (j, e) =>
-                      'Tipo: ${e['tipo']}, Suportes: ${e['suportes']}'),
+                  _buildItemSection(
+                      'Esqueletos',
+                      dadosResumo['esqueletos'],
+                      (j, e) =>
+                          'Tipo: ${e['tipo']}, Suportes: ${e['suportes']}'),
                 if (dadosResumo['esteiras'].isNotEmpty)
-                  _buildItemSection('Esteiras', dadosResumo['esteiras'], (j, e) =>
-                      'Tipo: ${e['tipo']}, Quantidade: ${e['quantidade']}'),
+                  _buildItemSection(
+                      'Esteiras',
+                      dadosResumo['esteiras'],
+                      (j, e) =>
+                          'Tipo: ${e['tipo']}, Quantidade: ${e['quantidade']}'),
                 if (dadosResumo['assadeiras'].isNotEmpty)
-                  _buildItemSection('Assadeiras', dadosResumo['assadeiras'], (j, a) =>
-                      'Tipo: ${a['tipo']}, Quantidade: ${a['quantidade']}'),
+                  _buildItemSection(
+                      'Assadeiras',
+                      dadosResumo['assadeiras'],
+                      (j, a) =>
+                          'Tipo: ${a['tipo']}, Quantidade: ${a['quantidade']}'),
                 if (dadosResumo['climaticas'].isNotEmpty)
-                  _buildItemSection('Climáticas', dadosResumo['climaticas'], (j, c) =>
-                      'Modelo: ${c['modelo']}, Suportes: ${c['suportes']}'),
+                  _buildItemSection(
+                      'Climáticas',
+                      dadosResumo['climaticas'],
+                      (j, c) =>
+                          'Modelo: ${c['modelo']}, Suportes: ${c['suportes']}'),
                 if (dadosResumo['freezers'].isNotEmpty)
-                  _buildItemSection('Conservadores', dadosResumo['freezers'], (j, f) =>
-                      'Modelo: ${f['modelo']}, Volume: ${f['volume']}L, Tipo: ${f['tipo']}'),
+                  _buildItemSection(
+                      'Conservadores',
+                      dadosResumo['freezers'],
+                      (j, f) =>
+                          'Modelo: ${f['modelo']}, Volume: ${f['volume']}L, Tipo: ${f['tipo']}'),
                 const SizedBox(height: 32),
               ],
             ),
@@ -13328,7 +13610,8 @@ class _ComodatosmmState extends State<Comodatosmm> {
   }
 
   // Helper para gerar seções rapidamente
-  Widget _buildItemSection(String title, List items, String Function(int, Map) subtitleFn) {
+  Widget _buildItemSection(
+      String title, List items, String Function(int, Map) subtitleFn) {
     return SizedBox(
       width: double.infinity,
       child: Card(
@@ -13340,7 +13623,11 @@ class _ComodatosmmState extends State<Comodatosmm> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue)),
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue)),
               const SizedBox(height: 12),
               ListView.builder(
                 shrinkWrap: true,
@@ -13348,7 +13635,8 @@ class _ComodatosmmState extends State<Comodatosmm> {
                 itemCount: items.length,
                 itemBuilder: (context, j) {
                   final item = items[j];
-                  return _buildItemCard('$title ${j + 1}', subtitleFn(j, item), photoUrl: item['photoUrl']);
+                  return _buildItemCard('$title ${j + 1}', subtitleFn(j, item),
+                      photoUrl: item['photoUrl']);
                 },
               ),
             ],
@@ -13358,8 +13646,6 @@ class _ComodatosmmState extends State<Comodatosmm> {
     );
   }
 }
-
-
 
 class StoreSelectionMM extends StatefulWidget {
   const StoreSelectionMM({Key? key}) : super(key: key);
@@ -14222,135 +14508,133 @@ class _FornoMMState extends State<FornoMM> {
   // ===================== UI =====================
 
   @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(title: const Text('Fornos')),
-    body: SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          ...List.generate(quantidadeFornos, (index) {
-            return Card(
-              margin: const EdgeInsets.only(bottom: 16),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Forno ${index + 1}',
-                          style:
-                              const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Row(
-                          children: [
-                            IconButton(
-                              icon: Icon(
-                                fotosForno[index] == null
-                                    ? Icons.add_a_photo
-                                    : Icons.photo,
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Fornos')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            ...List.generate(quantidadeFornos, (index) {
+              return Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Forno ${index + 1}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  fotosForno[index] == null
+                                      ? Icons.add_a_photo
+                                      : Icons.photo,
+                                ),
+                                onPressed: fotosForno[index] == null
+                                    ? () => _selecionarFoto(index)
+                                    : () => _abrirMenuFoto(index),
                               ),
-                              onPressed: fotosForno[index] == null
-                                  ? () => _selecionarFoto(index)
-                                  : () => _abrirMenuFoto(index),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete,
-                                  color: Colors.red),
-                              onPressed: () => _removerForno(index),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    if (uploadProgress[index] != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: LinearProgressIndicator(
-                          value: uploadProgress[index],
-                        ),
+                              IconButton(
+                                icon:
+                                    const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () => _removerForno(index),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: modeloControllers[index],
-                      decoration: const InputDecoration(
-                        labelText: 'Modelo',
-                      ),
-                      onChanged: (_) => _saveFornoData(),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            isExpanded: true,
-                            value: tiposForno[index].isNotEmpty
-                                ? tiposForno[index]
-                                : null,
-                            hint: const Text('Tipo'),
-                            items: tipos
-                                .map((t) => DropdownMenuItem(
-                                      value: t,
-                                      child: Text(t),
-                                    ))
-                                .toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                tiposForno[index] = value ?? '';
-                                _saveFornoData();
-                              });
-                            },
-                            decoration: const InputDecoration(
-                                border: OutlineInputBorder()),
+                      if (uploadProgress[index] != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: LinearProgressIndicator(
+                            value: uploadProgress[index],
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: DropdownButtonFormField<int>(
-                            isExpanded: true,
-                            value: suportesForno[index] > 0
-                                ? suportesForno[index]
-                                : null,
-                            items: suportes
-                                .map((s) => DropdownMenuItem(
-                                      value: s,
-                                      child: Text(s.toString()),
-                                    ))
-                                .toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                suportesForno[index] = value ?? 0;
-                                _saveFornoData();
-                              });
-                            },
-                            decoration: const InputDecoration(
-                                labelText: 'Suportes',
-                                border: OutlineInputBorder()),
-                          ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: modeloControllers[index],
+                        decoration: const InputDecoration(
+                          labelText: 'Modelo',
                         ),
-                      ],
-                    ),
-                  ],
+                        onChanged: (_) => _saveFornoData(),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              isExpanded: true,
+                              value: tiposForno[index].isNotEmpty
+                                  ? tiposForno[index]
+                                  : null,
+                              hint: const Text('Tipo'),
+                              items: tipos
+                                  .map((t) => DropdownMenuItem(
+                                        value: t,
+                                        child: Text(t),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  tiposForno[index] = value ?? '';
+                                  _saveFornoData();
+                                });
+                              },
+                              decoration: const InputDecoration(
+                                  border: OutlineInputBorder()),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: DropdownButtonFormField<int>(
+                              isExpanded: true,
+                              value: suportesForno[index] > 0
+                                  ? suportesForno[index]
+                                  : null,
+                              items: suportes
+                                  .map((s) => DropdownMenuItem(
+                                        value: s,
+                                        child: Text(s.toString()),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  suportesForno[index] = value ?? 0;
+                                  _saveFornoData();
+                                });
+                              },
+                              decoration: const InputDecoration(
+                                  labelText: 'Suportes',
+                                  border: OutlineInputBorder()),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
+              );
+            }),
+            Center(
+              child: IconButton(
+                icon:
+                    const Icon(Icons.add_circle, color: Colors.green, size: 36),
+                onPressed: _adicionarForno,
               ),
-            );
-          }),
-          Center(
-            child: IconButton(
-              icon: const Icon(Icons.add_circle,
-                  color: Colors.green, size: 36),
-              onPressed: _adicionarForno,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
-
+    );
+  }
 }
 
 class ArmariosMM extends StatefulWidget {
