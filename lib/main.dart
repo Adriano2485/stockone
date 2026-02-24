@@ -3858,7 +3858,7 @@ class _FourthScreenState extends State<FourthScreen> {
 
   final List<String> massas = [
     'Massa Pão Francês',
-    'Massa Pão Fofinho',
+    'Massa Pão Francês Fibras',
     'Massa Pão Cervejinha',
     'Massa Mini Baguete 40g',
     'Massa Mini Pão Francês',
@@ -3888,15 +3888,15 @@ class _FourthScreenState extends State<FourthScreen> {
   // Flag para controlar se estamos atualizando programaticamente
   bool _atualizandoProgramaticamente = false;
 
-  // Flag para saber se já terminamos o carregamento inicial
-  bool _carregamentoInicialCompleto = false;
+  // Flag para controlar se já carregou os dados iniciais
+  bool _dadosCarregados = false;
 
   @override
   void initState() {
     super.initState();
     _inicializarControllers();
-    _loadAllData();
     dateController.text = DateFormat('dd/MM/yy').format(selectedDate);
+    _loadAllData(); // Carrega dados do Firebase ao iniciar
   }
 
   void _inicializarControllers() {
@@ -3906,7 +3906,7 @@ class _FourthScreenState extends State<FourthScreen> {
     }
   }
 
-  // ✅ Carregar tudo de uma vez do Firebase
+  // ✅ Carregar tudo de uma vez do Firebase e atualizar automaticamente
   Future<void> _loadAllData() async {
     try {
       final doc =
@@ -4092,6 +4092,7 @@ class _FourthScreenState extends State<FourthScreen> {
               (vendasData['Torta Doce De Leite Amendoim'] ?? 0).toDouble();
           vendaMensalTortaDoisAmores =
               (vendasData['Torta Dois Amores'] ?? 0).toDouble();
+
           // ✅ Carregar estoques atuais
           final estoqueAtualData = data['acerto'] ?? {};
           for (String produto in massas) {
@@ -4103,18 +4104,18 @@ class _FourthScreenState extends State<FourthScreen> {
             }
           }
 
-          // ✅ Carregar pedidos salvos (valores e se foram editados)
+          // ✅ Carregar pedidos salvos e estado de edição
           final pedidosSalvosData = data['pedidosSalvos'] ?? {};
           final pedidosEditadosData = data['pedidosEditados'] ?? {};
 
           for (String produto in massas) {
             final pedido = pedidosSalvosData[produto];
-            final editado = pedidosEditadosData[produto];
+            final editado = pedidosEditadosData[produto] ?? false;
 
             if (pedido != null) {
               resultadoControllers[produto]!.text = pedido.toString();
               _produtoState[produto]!['valor'] = pedido.toDouble();
-              _produtoState[produto]!['editado'] = (editado == true);
+              _produtoState[produto]!['editado'] = editado;
               _produtoState[produto]!['carregado'] = true;
             } else {
               resultadoControllers[produto]!.text = '0';
@@ -4125,14 +4126,15 @@ class _FourthScreenState extends State<FourthScreen> {
           }
         });
 
-        // APENAS calcular produtos que não foram carregados do Firebase
+        // ✅ ATUALIZAÇÃO AUTOMÁTICA: recalcula apenas produtos NÃO editados manualmente
         for (String produto in massas) {
-          if (!_produtoState[produto]!['carregado']) {
+          // Só recalcula se NÃO foi editado manualmente
+          if (!_produtoState[produto]!['editado']) {
             _calcularPedidoIndividual(produto, false);
           }
         }
 
-        _carregamentoInicialCompleto = true;
+        _dadosCarregados = true;
       }
     } catch (e) {
       print('Erro ao carregar dados: $e');
@@ -4706,30 +4708,7 @@ class _FourthScreenState extends State<FourthScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Botão para atualizar todos os produtos
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: ElevatedButton.icon(
-                  onPressed: _atualizarTodos,
-                  icon: Icon(Icons.refresh, color: Colors.black),
-                  label: Text(
-                    'ATUALIZAR TUDO',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xff955a97),
-                    minimumSize: Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ),
-
+              
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -4790,8 +4769,33 @@ class _FourthScreenState extends State<FourthScreen> {
                                   ),
                                 ))
                             .toList(),
-                      ),
+
+                       ),
+                       
                     ),
+                  
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: ElevatedButton.icon(
+                  onPressed: _atualizarTodos,
+                  icon: Icon(Icons.refresh, color: Colors.black),
+                  label: Text(
+                    'ATUALIZAR TODOS',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xff955a97),
+                    minimumSize: Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
                   ],
                 ),
               ),
@@ -16635,6 +16639,123 @@ class _ResumoEquipamentosMMState extends State<ResumoEquipamentosMM> {
                 ],
               ),
             ),
+    );
+  }
+}
+class ChatPage extends StatefulWidget {
+  const ChatPage({super.key});
+
+  @override
+  State<ChatPage> createState() => _ChatPageState();
+}
+
+class _ChatPageState extends State<ChatPage> {
+  final TextEditingController _controller = TextEditingController();
+  final List<Map<String, dynamic>> messages = [
+    {"text": "Oi!", "isMe": false},
+    {"text": "Olá 👋", "isMe": true},
+    {"text": "Tudo bem?", "isMe": false},
+  ];
+
+  void sendMessage() {
+    if (_controller.text.trim().isEmpty) return;
+
+    setState(() {
+      messages.add({
+        "text": _controller.text,
+        "isMe": true,
+      });
+    });
+
+    _controller.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[200],
+      appBar: AppBar(
+        title: const Row(
+          children: [
+            CircleAvatar(
+              backgroundImage: NetworkImage(
+                "https://i.pravatar.cc/150?img=3",
+              ),
+            ),
+            SizedBox(width: 10),
+            Text("Usuário"),
+          ],
+        ),
+      ),
+      body: Column(
+        children: [
+          /// LISTA DE MENSAGENS
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(10),
+              itemCount: messages.length,
+              itemBuilder: (context, index) {
+                final message = messages[index];
+                final isMe = message["isMe"];
+
+                return Align(
+                  alignment:
+                      isMe ? Alignment.centerRight : Alignment.centerLeft,
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 5),
+                    padding: const EdgeInsets.all(12),
+                    constraints: const BoxConstraints(maxWidth: 250),
+                    decoration: BoxDecoration(
+                      color: isMe ? Colors.green[400] : Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      message["text"],
+                      style: TextStyle(
+                        color: isMe ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+
+          /// CAMPO DE DIGITAÇÃO
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            color: Colors.white,
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    decoration: InputDecoration(
+                      hintText: "Digite uma mensagem...",
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 15, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(25),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                CircleAvatar(
+                  backgroundColor: Colors.green,
+                  child: IconButton(
+                    icon: const Icon(Icons.send, color: Colors.white),
+                    onPressed: sendMessage,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
