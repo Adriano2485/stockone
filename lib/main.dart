@@ -550,7 +550,7 @@ class Bahamas extends StatelessWidget {
                 _menuCard(
                   context,
                   Icons.kitchen,
-                  'COMODATOS',
+                  'COMODATO',
                   const Comodatos(),
                   Colors.white,
                 ),
@@ -4774,28 +4774,7 @@ class _FourthScreenState extends State<FourthScreen> {
                        
                     ),
                   
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: ElevatedButton.icon(
-                  onPressed: _atualizarTodos,
-                  icon: Icon(Icons.refresh, color: Colors.black),
-                  label: Text(
-                    'ATUALIZAR TODOS',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xff955a97),
-                    minimumSize: Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ),
+          
                   ],
                 ),
               ),
