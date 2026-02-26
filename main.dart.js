@@ -111308,7 +111308,7 @@ A.pM.prototype={
 fd(a,b,c,d,e){var s=null,r=A.c7(16),q=A.c7(16),p=A.aL(B.n.aw(76.5),B.bv.D()>>>16&255,B.bv.D()>>>8&255,B.bv.D()&255)
 return A.er(A.he(!1,q,!0,A.bW(B.aC,A.aW(A.b([A.e7(b,B.bX,s,28),B.b_,A.a7(c,s,s,s,B.jQ,B.bC,s,s)],t.p),B.L,B.F,B.an,0,s),B.U,s,s,s,s,s,s,s,B.am,s,s,s),s,!0,s,s,s,s,s,s,s,s,s,s,new A.adu(a,d),s,s,p,s,s),e,4,s,new A.c4(r,B.O))},
 E(a){var s=this,r=null,q=t.p
-return new A.kg(A.aP(A.cr(r,!1,B.co,!0,r,r,A.au(r,r,r,B.eM,r,r,new A.adw(a),r,r,r,r),A.aW(A.b([A.b4("assets/images/Logo StockOne.png",r,32,r),B.b_,A.b4("assets/images/logobahamas.jpg",r,40,r)],q),B.L,B.F,B.an,0,r)),r,A.bW(r,new A.aq(B.am,A.up(3,A.b([s.fd(a,B.iS,"RECEITU\xc1RIO",new A.A1(r),B.H),s.fd(a,B.qj,"DOCUMENTOS",new A.tZ(r),B.H),s.fd(a,B.ql,"C\xd3DIGOS",new A.xX(r),B.H),s.fd(a,B.lk,"ATENDIMENTO",new A.l4(r),B.H),s.fd(a,B.qk,"COMODATO",B.V1,B.H)],q),1,16,16),r),B.U,r,r,B.cy,r,r,r,r,r,r,r,r)),new A.adx(),r)}}
+return new A.kg(A.aP(A.cr(r,!1,B.co,!0,r,r,A.au(r,r,r,B.eM,r,r,new A.adw(a),r,r,r,r),A.aW(A.b([A.b4("assets/images/Logo StockOne.png",r,32,r),B.b_,A.b4("assets/images/logobahamas.jpg",r,40,r)],q),B.L,B.F,B.an,0,r)),r,A.bW(r,new A.aq(B.am,A.up(3,A.b([s.fd(a,B.iS,"RECEITU\xc1RIO",new A.A1(r),B.H),s.fd(a,B.qj,"DOCUMENTOS",new A.tZ(r),B.H),s.fd(a,B.ql,"C\xd3DIGOS",new A.xX(r),B.H),s.fd(a,B.lk,"ATENDIMENTO",new A.l4(r),B.H),s.fd(a,B.qk,"COMODATOS",B.V1,B.H)],q),1,16,16),r),B.U,r,r,B.cy,r,r,r,r,r,r,r,r)),new A.adx(),r)}}
 A.adu.prototype={
 $0(){var s=A.bI(new A.adt(this.b),null,t.z)
 A.a5(this.a,!1).by(s)},
