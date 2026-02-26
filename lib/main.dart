@@ -550,7 +550,7 @@ class Bahamas extends StatelessWidget {
                 _menuCard(
                   context,
                   Icons.kitchen,
-                  'COMODATO',
+                  'COMODATOS',
                   const Comodatos(),
                   Colors.white,
                 ),
