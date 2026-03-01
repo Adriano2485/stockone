@@ -113566,7 +113566,7 @@ q=l.w.h(0,k).h(0,"editado")
 j=t.p
 p=A.b([A.a7(k,m,m,m,A.cL(m,m,m,m,m,m,m,m,m,m,m,18,m,m,B.aY,m,m,!0,m,m,m,m,m,m,m,m),m,m,m)],j)
 if(q){o=A.c7(12)
-p.push(A.bW(m,A.a7("Editado",m,m,m,A.cL(m,m,B.vv,m,m,m,m,m,m,m,m,10,m,m,B.aY,m,m,!0,m,m,m,m,m,m,m,m),m,m,m),B.U,m,m,new A.dt(B.vx,m,m,o,m,m,B.bb),m,m,m,m,new A.al(8,2,8,2),m,m,m))}p=A.aW(p,B.L,B.cc,B.K,0,m)
+p.push(A.bW(m,A.a7("Editado",m,m,m,A.cL(m,m,B.vv,m,m,m,m,m,m,m,m,15,m,m,B.aY,m,m,!0,m,m,m,m,m,m,m,m),m,m,m),B.U,m,m,new A.dt(B.vx,m,m,o,m,m,B.bb),m,m,m,m,new A.al(12,3,12,3),m,m,m))}p=A.aW(p,B.L,B.cc,B.K,0,m)
 o=A.cd(m,8,m)
 n=A.b([A.a7("Estoque pct(s): "+r,m,m,m,m,m,m,m),A.cd(m,m,10)],j)
 if(l.r.h(0,k)===!0)n.push(A.a7("Abaixo do giro",m,m,m,A.cL(m,m,B.cV,m,m,m,m,m,m,m,m,m,m,m,m,m,m,!0,m,m,m,m,m,m,m,m),m,m,m))
