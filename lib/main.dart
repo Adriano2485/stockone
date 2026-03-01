@@ -4811,7 +4811,7 @@ class _FourthScreenState extends State<FourthScreen> {
                                 if (editadoManual)
                                   Container(
                                     padding: EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 3),
+                                        horizontal: 8, vertical: 2),
                                     decoration: BoxDecoration(
                                       color: Colors.amber[100],
                                       borderRadius: BorderRadius.circular(12),
@@ -4819,7 +4819,7 @@ class _FourthScreenState extends State<FourthScreen> {
                                     child: Text(
                                       'Editado',
                                       style: TextStyle(
-                                        fontSize: 15,
+                                        fontSize: 10,
                                         color: Colors.amber[800],
                                         fontWeight: FontWeight.bold,
                                       ),
