@@ -1702,7 +1702,6 @@ class _ThirdScreenState extends State<ThirdScreen> {
     'Pão Baguete Francesa Queijo',
     'Pão Baguete Francesa',
     'Pão Baguete Francesa Gergelim',
-    'Mini Pão Francês Gergelim',
     'Baguete Francesa Queijo',
     'Baguete Francesa',
     'Pão Queijo Tradicional',
@@ -1733,7 +1732,6 @@ class _ThirdScreenState extends State<ThirdScreen> {
     'Pão Milho',
     'Pão de Alho da Casa',
     'Pão de Alho da Casa Picante',
-    'Pão de Alho da Casa Refri.',
     'Torta Chocomousse',
     'Torta Chocolate/Coco',
     'Torta Doce De Leite Amendoim',
@@ -1988,6 +1986,15 @@ class _ThirdScreenState extends State<ThirdScreen> {
     switch (produto) {
       case 'Pão Francês':
         estoqueMax = (valorMensal * 1.40 / diasDeGiro! / 10.5) * deliveries;
+        break;
+      case 'Pão Baguete Francesa':
+        estoqueMax = (valorMensal * 1.20 / diasDeGiro! / 3.3) * deliveries;
+        break;
+      case 'Pão Baguete Francesa Gergelim':
+        estoqueMax = (valorMensal * 1.40 / diasDeGiro! / 3.3) * deliveries;
+        break;
+      case 'Pão Baguete Francesa Queijo':
+        estoqueMax = (valorMensal * 1.40 / diasDeGiro! / 3.3) * deliveries;
         break;
       case 'Pão Fofinho':
         estoqueMax = (valorMensal * 1.30 / diasDeGiro! / 3.3) * deliveries;
@@ -2497,10 +2504,7 @@ class _MapeamentoEstoqueScreenState extends State<MapeamentoEstoqueScreen> {
             'Pão Baguete Francesa',
             'Pão Baguete Francesa Gergelim'
           ],
-          'Massa Mini Pão Francês': [
-            'Pão de Alho da Casa Refri.',
-            'Mini Pão Francês Gergelim'
-          ],
+         
           'Massa Mini Baguete 40g': ['Pão Francês com Queijo'],
           'Massa Baguete 330g': ['Baguete Francesa Queijo', 'Baguete Francesa'],
           'Massa Pão Rabanada 330g': [
@@ -2698,7 +2702,6 @@ class _LayoutDistribuicaoScreenState extends State<LayoutDistribuicaoScreen> {
     'Massa Pão Queijo Tradicional',
     'Massa Baguete 330g',
     'Massa Mini Baguete 40g',
-    'Massa Mini Pão Francês',
     'Massa Mini Baguete 80g',
     'Massa Pão Francês Fibras',
     'Massa Cervejinha',
@@ -4708,7 +4711,6 @@ class _FourthScreenState extends State<FourthScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -4769,12 +4771,8 @@ class _FourthScreenState extends State<FourthScreen> {
                                   ),
                                 ))
                             .toList(),
-
-                       ),
-                       
+                      ),
                     ),
-                  
-          
                   ],
                 ),
               ),
@@ -6268,14 +6266,6 @@ $qtdRetirada Kilos
 $lotesRetirados Kilos
 #Biscoito de Queijo: 
 $qtdSobra Kilos
-#Pão de Alho da Casa: 
-$paodealhodacasa Unidades
-#Pão de Alho da Casa Picante: 
-$paodealhodacasapicante Unidades
-#Pão Para Rabanada: 
-$paopararabanada Unidades
-#Rabanada Assada: 
-$rabanadaassada Kilos
 
 *Rupturas: 
 
@@ -6631,70 +6621,6 @@ ${_formatarRupturas()}
                       TextPosition(offset: qtdSobra.length)),
                 onChanged: (v) {
                   qtdSobra = v;
-                  _salvarPreferencias();
-                },
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Pão Para Rabanada (Unid)',
-                  labelStyle: TextStyle(fontSize: 16),
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                controller: TextEditingController(text: paopararabanada)
-                  ..selection = TextSelection.fromPosition(
-                      TextPosition(offset: paopararabanada.length)),
-                onChanged: (v) {
-                  paopararabanada = v;
-                  _salvarPreferencias();
-                },
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Rabanada Assada (Kg)',
-                  labelStyle: TextStyle(fontSize: 16),
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                controller: TextEditingController(text: rabanadaassada)
-                  ..selection = TextSelection.fromPosition(
-                      TextPosition(offset: rabanadaassada.length)),
-                onChanged: (v) {
-                  rabanadaassada = v;
-                  _salvarPreferencias();
-                },
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Pão de Alho da Casa (Unid)',
-                  labelStyle: TextStyle(fontSize: 16),
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                controller: TextEditingController(text: paodealhodacasa)
-                  ..selection = TextSelection.fromPosition(
-                      TextPosition(offset: paodealhodacasa.length)),
-                onChanged: (v) {
-                  paodealhodacasa = v;
-                  _salvarPreferencias();
-                },
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Pão de Alho da Casa Picante (Unid)',
-                  labelStyle: TextStyle(fontSize: 16),
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                controller: TextEditingController(text: paodealhodacasapicante)
-                  ..selection = TextSelection.fromPosition(
-                      TextPosition(offset: paodealhodacasapicante.length)),
-                onChanged: (v) {
-                  paodealhodacasapicante = v;
                   _salvarPreferencias();
                 },
               ),
@@ -16621,6 +16547,7 @@ class _ResumoEquipamentosMMState extends State<ResumoEquipamentosMM> {
     );
   }
 }
+
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
 
