@@ -16970,31 +16970,34 @@ class _MetaTabelaScreenState extends State<MetaTabelaScreen> {
           const SizedBox(height: 12),
 
           Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: vendaControllers[p.codigo],
-                  keyboardType: TextInputType.number,
-                  style: const TextStyle(fontSize: 16),
-                  decoration:
-                      const InputDecoration(labelText: 'Venda Base (R\$)'),
-                  onChanged: (_) => calcular(),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TextField(
-                  controller: precoControllers[p.codigo],
-                  keyboardType: TextInputType.number,
-                  style: const TextStyle(fontSize: 16),
-                  decoration: const InputDecoration(
-                      labelText: 'Preço Atual (Kg/Unid)'),
-                  onChanged: (_) => calcular(),
-                ),
-              ),
-            ],
-          ),
-
+  children: [
+    Expanded(
+      child: TextField(
+        controller: vendaControllers[p.codigo],
+        keyboardType: TextInputType.number,
+        style: const TextStyle(fontSize: 14),
+        decoration: const InputDecoration(
+          labelText: 'Venda Base',
+          prefixText: 'R\$ ', // 👈 agora fica dentro do campo
+        ),
+        onChanged: (_) => calcular(),
+      ),
+    ),
+    const SizedBox(width: 10),
+    Expanded(
+      child: TextField(
+        controller: precoControllers[p.codigo],
+        keyboardType: TextInputType.number,
+        style: const TextStyle(fontSize: 14),
+        decoration: const InputDecoration(
+          labelText: 'Preço Atual',
+          prefixText: 'R\$ ', // 👈 dentro do campo
+        ),
+        onChanged: (_) => calcular(),
+      ),
+    ),
+  ],
+),
           const SizedBox(height: 14),
 
           Text('Meta',
@@ -17006,22 +17009,20 @@ class _MetaTabelaScreenState extends State<MetaTabelaScreen> {
 
           const SizedBox(height: 12),
 
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              buildIndicador('Quantidade (Kg/Unid)',
-                  quantidade[p.codigo] ?? 0, 0),
-              buildIndicador(
-                  'Pacotes/Mês', pacotesMes[p.codigo] ?? 0, 1),
-              buildIndicador(
-                  'Pacotes/Dia', pacotesDia[p.codigo] ?? 0, 1,
-                  destaque: true),
-            ],
-          ),
-
+Column(
+  children: [
+    buildIndicador(
+        'Quantidade (Kg/Unid)', quantidade[p.codigo] ?? 0, 0),
+    buildIndicador(
+        'Pacotes/Mês', pacotesMes[p.codigo] ?? 0, 1),
+    buildIndicador(
+        'Pacotes/Dia', pacotesDia[p.codigo] ?? 0, 1,
+        destaque: true),
+  ],
+),
           const SizedBox(height: 8),
           Text(
-            'Quantidade/mês atual: ${(qtdReal[p.codigo] ?? 0).toStringAsFixed(0)} (${diffQtd >= 0 ? '+' : ''}${diffQtd.toStringAsFixed(0)})',
+            'Quantidade atual: ${(qtdReal[p.codigo] ?? 0).toStringAsFixed(0)} (${diffQtd >= 0 ? '+' : ''}${diffQtd.toStringAsFixed(0)})',
             style: TextStyle(color: cor, fontSize: 15),
           ),
           Text(
@@ -17037,24 +17038,27 @@ class _MetaTabelaScreenState extends State<MetaTabelaScreen> {
     );
   }
 
-  Widget buildIndicador(String label, double valor, int casas,
-      {bool destaque = false}) {
-    return Column(
+ Widget buildIndicador(String label, double valor, int casas,
+    {bool destaque = false}) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label,
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-        const SizedBox(height: 4),
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
         Text(
           (valor).toStringAsFixed(casas),
           style: TextStyle(
-            fontSize: destaque ? 18 : 16,
+            fontSize: destaque ? 16 : 14,
             fontWeight: FontWeight.bold,
             color: destaque ? Colors.blue : Colors.black,
           ),
         ),
       ],
-    );
-  }
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
