@@ -1620,6 +1620,17 @@ class _SecondScreenState extends State<SecondScreen> {
                           ),
                         );
                       }),
+                       _padariaCard(
+                          Icons.track_changes, "Metas", Colors.teal.shade300,
+                          () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                Meta(storeName: widget.storeName),
+                          ),
+                        );
+                      }),
                     ],
                   ),
                 ),
@@ -16661,6 +16672,447 @@ class _ChatPageState extends State<ChatPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+class Meta extends StatelessWidget {
+  final String storeName;
+
+  const Meta({
+    super.key,
+    required this.storeName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        scaffoldBackgroundColor: const Color(0xFFF5F6FA),
+        inputDecorationTheme: const InputDecorationTheme(
+          border: OutlineInputBorder(),
+          isDense: true,
+        ),
+      ),
+      home: MetaTabelaScreen(storeName: storeName),
+    );
+  }
+}
+
+class Produto {
+  final String nome;
+  final String codigo;
+  final double fatorPacote;
+
+  Produto({
+    required this.nome,
+    required this.codigo,
+    this.fatorPacote = 8.4,
+  });
+}
+
+final List<Produto> produtos = [
+  Produto(nome: 'Pão Francês', codigo: '510', fatorPacote: 8.4),
+  Produto(nome: 'Pão Francês Fibras', codigo: '164967', fatorPacote: 2.7),
+  Produto(nome: 'Pão Francês Panhoca', codigo: '137975', fatorPacote: 2.7),
+  Produto(nome: 'Pão Queijo Tradicional', codigo: '62948', fatorPacote: 2.3),
+  Produto(nome: 'Pão Queijo Coquetel', codigo: '65139', fatorPacote: 2.3),
+  Produto(nome: 'Biscoito Queijo', codigo: '146428', fatorPacote: 2.3),
+  Produto(nome: 'Baguete Francesa', codigo: '132472', fatorPacote: 10),
+  Produto(nome: 'Baguete Francesa Queijo', codigo: '135582', fatorPacote: 10),
+  Produto(nome: 'Pão Francês com Queijo', codigo: '635', fatorPacote: 3.3),
+  Produto(nome: 'Biscoito Polvilho', codigo: '97921', fatorPacote: 0.78),
+  Produto(nome: 'Pão Tatu', codigo: '511', fatorPacote: 2.9),
+  Produto(nome: 'Caseirinho', codigo: '114913', fatorPacote: 2.75),
+  Produto(nome: 'Pão Doce Ferradura', codigo: '33724', fatorPacote: 4.6),
+  Produto(nome: 'Mini Pão Sonho', codigo: '112730', fatorPacote: 8),
+  Produto(nome: 'Sanduíche Bahamas', codigo: '55961', fatorPacote: 37),
+];
+
+class MetaTabelaScreen extends StatefulWidget {
+  final String storeName;
+
+  const MetaTabelaScreen({
+    super.key,
+    required this.storeName,
+  });
+
+  @override
+  State<MetaTabelaScreen> createState() => _MetaTabelaScreenState();
+}
+
+class _MetaTabelaScreenState extends State<MetaTabelaScreen> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  final TextEditingController percentualController =
+      TextEditingController(text: '20');
+
+  final Map<String, TextEditingController> vendaControllers = {};
+  final Map<String, TextEditingController> precoControllers = {};
+
+  final Map<String, double> meta = {};
+  final Map<String, double> quantidade = {};
+  final Map<String, double> pacotesMes = {};
+  final Map<String, double> pacotesDia = {};
+
+  final Map<String, double> qtdReal = {};
+  final Map<String, double> mesReal = {};
+  final Map<String, double> diaReal = {};
+
+  double diasGiro = 0;
+
+  double _parse(String value) {
+    value = value.replaceAll(',', '.');
+    return double.tryParse(value) ?? 0.0;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    for (var p in produtos) {
+      vendaControllers[p.codigo] = TextEditingController();
+      precoControllers[p.codigo] = TextEditingController();
+
+      meta[p.codigo] = 0;
+      quantidade[p.codigo] = 0;
+      pacotesMes[p.codigo] = 0;
+      pacotesDia[p.codigo] = 0;
+
+      qtdReal[p.codigo] = 0;
+      mesReal[p.codigo] = 0;
+      diaReal[p.codigo] = 0;
+    }
+
+    carregarDados();
+    carregarVendasFirebase();
+  }
+
+  Future<void> carregarVendasFirebase() async {
+    try {
+      final lojaDoc =
+          await _firestore.collection('stores').doc(widget.storeName).get();
+
+      if (!lojaDoc.exists) {
+        print('❌ Loja não encontrada');
+        return;
+      }
+
+      final data = lojaDoc.data() ?? {};
+
+      var dias = data['diasGiro'];
+
+      if (dias is int) {
+        diasGiro = dias.toDouble();
+      } else if (dias is double) {
+        diasGiro = dias;
+      } else {
+        diasGiro = 0;
+      }
+
+      final vendasData = data['vendas'] ?? {};
+
+      qtdReal.clear();
+      mesReal.clear();
+      diaReal.clear();
+
+      for (var p in produtos) {
+        var valorFirebase = vendasData[p.nome];
+
+        double valor = 0;
+
+        if (valorFirebase is int) {
+          valor = valorFirebase.toDouble();
+        } else if (valorFirebase is double) {
+          valor = valorFirebase;
+        } else if (valorFirebase is String) {
+          valor =
+              double.tryParse(valorFirebase.replaceAll(',', '.')) ?? 0;
+        }
+
+        if (diasGiro > 0) {
+          double quantidadeCalc = 0;
+          double mesCalc = 0;
+          double diaCalc = 0;
+
+          if (valor > 0) {
+            quantidadeCalc = (valor / diasGiro) * 30.5;
+            mesCalc = quantidadeCalc / p.fatorPacote;
+            diaCalc = mesCalc / 26;
+          }
+
+          qtdReal[p.codigo] = quantidadeCalc;
+          mesReal[p.codigo] = mesCalc;
+          diaReal[p.codigo] = diaCalc;
+        }
+      }
+
+      setState(() {});
+    } catch (e) {
+      print('❌ ERRO: $e');
+    }
+  }
+
+  Future<void> salvarDados() async {
+    Map<String, dynamic> dados = {};
+
+    for (var p in produtos) {
+      dados[p.codigo] = {
+        'nome': p.nome,
+        'venda': _parse(vendaControllers[p.codigo]!.text),
+        'preco': _parse(precoControllers[p.codigo]!.text),
+        'meta': meta[p.codigo],
+        'quantidade': quantidade[p.codigo],
+        'pacotesMes': pacotesMes[p.codigo],
+        'pacotesDia': pacotesDia[p.codigo],
+      };
+    }
+
+    await _firestore.collection('metas').doc(widget.storeName).set({
+      'percentual': _parse(percentualController.text),
+      'produtos': dados,
+    });
+  }
+
+  Future<void> carregarDados() async {
+    final doc =
+        await _firestore.collection('metas').doc(widget.storeName).get();
+
+    if (!doc.exists) return;
+
+    final data = doc.data()!;
+
+    percentualController.text = (data['percentual'] ?? 20).toString();
+
+    final produtosData = data['produtos'] ?? {};
+
+    for (var p in produtos) {
+      if (produtosData[p.codigo] != null) {
+        vendaControllers[p.codigo]!.text =
+            (produtosData[p.codigo]['venda'] ?? '').toString();
+
+        precoControllers[p.codigo]!.text =
+            (produtosData[p.codigo]['preco'] ?? '').toString();
+      }
+    }
+
+    calcular();
+  }
+
+  void calcular() {
+    double percentual = _parse(percentualController.text);
+
+    setState(() {
+      for (var p in produtos) {
+        double venda = _parse(vendaControllers[p.codigo]!.text);
+        double preco = _parse(precoControllers[p.codigo]!.text);
+
+        double novaMeta = venda * (1 + percentual / 100);
+
+        double novaQuantidade = 0;
+        double novosPacotesMes = 0;
+        double novosPacotesDia = 0;
+
+        if (preco > 0) {
+          novaQuantidade = novaMeta / preco;
+          novosPacotesMes = novaQuantidade / p.fatorPacote;
+          novosPacotesDia = novosPacotesMes / 26;
+        }
+
+        meta[p.codigo] = novaMeta;
+        quantidade[p.codigo] = novaQuantidade;
+        pacotesMes[p.codigo] = novosPacotesMes;
+        pacotesDia[p.codigo] = novosPacotesDia;
+      }
+    });
+
+    salvarDados();
+  }
+
+  Widget buildProduto(Produto p) {
+    double diffQtd =
+        (qtdReal[p.codigo] ?? 0) - (quantidade[p.codigo] ?? 0);
+    double diffMes =
+        (mesReal[p.codigo] ?? 0) - (pacotesMes[p.codigo] ?? 0);
+    double diffDia =
+        (diaReal[p.codigo] ?? 0) - (pacotesDia[p.codigo] ?? 0);
+
+    Color cor = diffQtd >= 0 ? Colors.green : Colors.red;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(p.nome,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 16)),
+              Text(p.codigo, style: TextStyle(color: Color(0xff4b48ed))),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: vendaControllers[p.codigo],
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(fontSize: 16),
+                  decoration:
+                      const InputDecoration(labelText: 'Venda Base (R\$)'),
+                  onChanged: (_) => calcular(),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: precoControllers[p.codigo],
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(fontSize: 16),
+                  decoration: const InputDecoration(
+                      labelText: 'Preço Atual (Kg/Unid)'),
+                  onChanged: (_) => calcular(),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+
+          Text('Meta',
+              style: TextStyle(color: Color(0xff08550c), fontSize: 18)),
+
+          Text('R\$ ${(meta[p.codigo] ?? 0).toStringAsFixed(2)}',
+              style:
+                  const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+
+          const SizedBox(height: 12),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              buildIndicador('Quantidade (Kg/Unid)',
+                  quantidade[p.codigo] ?? 0, 0),
+              buildIndicador(
+                  'Pacotes/Mês', pacotesMes[p.codigo] ?? 0, 1),
+              buildIndicador(
+                  'Pacotes/Dia', pacotesDia[p.codigo] ?? 0, 1,
+                  destaque: true),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+          Text(
+            'Quantidade/mês atual: ${(qtdReal[p.codigo] ?? 0).toStringAsFixed(0)} (${diffQtd >= 0 ? '+' : ''}${diffQtd.toStringAsFixed(0)})',
+            style: TextStyle(color: cor, fontSize: 15),
+          ),
+          Text(
+            'Pacotes/Mês atual: ${(mesReal[p.codigo] ?? 0).toStringAsFixed(1)} (${diffMes >= 0 ? '+' : ''}${diffMes.toStringAsFixed(1)})',
+            style: TextStyle(color: cor, fontSize: 15),
+          ),
+          Text(
+            'Pacotes/Dia atual: ${(diaReal[p.codigo] ?? 0).toStringAsFixed(1)} (${diffDia >= 0 ? '+' : ''}${diffDia.toStringAsFixed(1)})',
+            style: TextStyle(color: cor, fontSize: 15),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildIndicador(String label, double valor, int casas,
+      {bool destaque = false}) {
+    return Column(
+      children: [
+        Text(label,
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+        const SizedBox(height: 4),
+        Text(
+          (valor).toStringAsFixed(casas),
+          style: TextStyle(
+            fontSize: destaque ? 18 : 16,
+            fontWeight: FontWeight.bold,
+            color: destaque ? Colors.blue : Colors.black,
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0x762586e5),
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    SecondScreen(storeName: widget.storeName),
+              ),
+            );
+          },
+        ),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset('assets/images/Logo StockOne.png', height: 32),
+            const SizedBox(width: 8),
+            const Text("METAS",
+                style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Lora',
+                    color: Colors.white)),
+          ],
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14)),
+              child: TextField(
+                controller: percentualController,
+                keyboardType: TextInputType.number,
+                decoration:
+                    const InputDecoration(labelText: 'Percentual (%)'),
+                onChanged: (_) => calcular(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: ListView(
+                children: produtos.map(buildProduto).toList(),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
