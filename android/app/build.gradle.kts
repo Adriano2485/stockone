@@ -1,42 +1,88 @@
-name: Build do App (AAB)
+import java.util.Properties
+import java.io.FileInputStream
 
-on:
-  push:
-    branches: [ master ]
+plugins {
+    id("com.android.application") 
+    id("kotlin-android")
+    id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.gms.google-services")
+}
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+android {
+    namespace = "com.example.stockone"
+    compileSdk = 36
+    ndkVersion = "27.0.12077973"
 
-    steps:
-    - name: 📥 Baixar código
-      uses: actions/checkout@v4
+    buildFeatures {
+        buildConfig = true // necessário para Firebase
+    }
 
-    - name: 🐦 Configurar Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: '3.38.3'
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
 
-    - name: ⚙️ Criar local.properties
-      run: |
-        cat > android/local.properties << EOF
-        sdk.dir=$ANDROID_HOME
-        flutter.sdk=$FLUTTER_ROOT
-        EOF
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_11.toString()
+    }
 
-    - name: 📦 Instalar dependências
-      run: flutter pub get
+    defaultConfig {
+        applicationId = "com.example.stockone"
+        minSdk = 23
+        targetSdk = 36
+        versionCode = 30 // se quiser, pode usar flutter.versionCode
+        versionName = "2.0.0" // se quiser, pode usar flutter.versionName
+    }
 
-    - name: 🧹 Limpar build
-      run: flutter clean
+    // Configuração da keystore
+    val keystorePropertiesFile = file("../key.properties")
+    val keystoreProperties = Properties()
 
-    # ---------------- ANDROID ----------------
-    - name: 🤖 Build AAB (Release)
-      run: flutter build appbundle --release
+    if (keystorePropertiesFile.exists()) {
+        keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+        println("✅ key.properties encontrado e carregado")
+    } else {
+        println("⚠️ key.properties NÃO encontrado em ${keystorePropertiesFile.absolutePath}")
+    }
 
-    - name: 📦 Upload AAB
-      uses: actions/upload-artifact@v4
-      with:
-        name: StockOne-AAB
-        path: build/app/outputs/bundle/release/app-release.aab
-        retention-days: 30
+    signingConfigs {
+        create("release") {
+            if (keystorePropertiesFile.exists()) {
+                val storePath = keystoreProperties["storeFile"] as String
+                val storeFileObj = file(storePath)
+                if (storeFileObj.exists()) {
+                    storeFile = storeFileObj
+                    storePassword = keystoreProperties["storePassword"] as String
+                    keyAlias = keystoreProperties["keyAlias"] as String
+                    keyPassword = keystoreProperties["keyPassword"] as String
+                    println("✅ Keystore encontrada em $storePath")
+                } else {
+                    println("⚠️ Keystore NÃO encontrada em $storePath")
+                }
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+}
+
+flutter {
+    source = "../.."
+}
+
+dependencies {
+    // 🔹 Firebase BoM para alinhar versões compatíveis
+    implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
+    
+    // 🔹 Firebase Analytics (opcional)
+    implementation("com.google.firebase:firebase-analytics")
+}
