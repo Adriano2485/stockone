@@ -16857,7 +16857,14 @@ class _MetaTabelaScreenState extends State<MetaTabelaScreen> {
       'ate10': "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Pintura e corte devem estar bem atrativos, o cliente come com os olhos... O controle de produção deve ser bem equilibrado: não deixe faltar mas também não produza em excesso, pão fresco e macio é o que o cliente procura. E não se esqueça de embalar o produto caso fique no armário para o dia seguinte. Vamos que vamos!!!",
       'ate1': "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
     },
-    'Mini Pão Sonho': {},
+    'Mini Pão Sonho': {
+      'acimaMeta': "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero': "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50': "Vamos com calma que nada está perdido. Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Como está a qualidade? O cliente come com os olhos... Pra cima que ainda dá tempo!!!",
+      'ate20': "Calma Amigo que nada está perdido.  Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Como está a qualidade? O cliente come com os olhos... Use sempre creme de confeiteiro fresco e opte por uma produção diária. Mesmo que a validade seja 3 dias, em dias quentes o produto pode não aguentar até o último dia de validade. Pra cima que ainda dá tempo!!!",
+      'ate10': "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Como está a qualidade? O cliente come com os olhos... Use sempre creme de confeiteiro fresco e opte por uma produção diária. Mesmo que a validade seja 3 dias, em dias quentes o produto pode não aguentar até o último dia de validade. Já possui ponto extra? Vamos que vamos!!!",
+      'ate1': "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+    },
     'Pão Doce Ferradura': {
       'acimaMeta': "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
       'zero': "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
@@ -16874,7 +16881,14 @@ class _MetaTabelaScreenState extends State<MetaTabelaScreen> {
       'ate10': "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz.  Pintura deve estar bem atrativa, o cliente come com os olhos... Procure retirar e assar o produto no mesmo dia, isso garante mais 'força' na estrutura da massa. O controle de produção deve ser bem equilibrado: não deixe faltar mas também não produza em excesso, pão fresco e macio é o que o cliente procura. E não se esqueça de embalar o produto caso fique no armário para o dia seguinte. Vamos que vamos!!!",
       'ate1': "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
     },
-    'Sanduíche Bahamas': {},
+    'Sanduíche Bahamas': {
+      'acimaMeta': "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero': "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50': "Vamos com calma que nada está perdido. Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção, o item têm validade de 4 dias no refrigerado. Pra cima que ainda dá tempo!!!",
+      'ate20': "Calma Amigo que nada está perdido.  Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção, o item têm validade de 4 dias no refrigerado. Pra cima que ainda dá tempo!!!",
+      'ate10': "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Como está a qualidade? Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção, o item têm validade de 4 dias no refrigerado. Vamos que vamos!!!",
+      'ate1': "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+    },
   };
 
   String getComentario(String produto, double atual, double quantidadeMeta) {
