@@ -16675,7 +16675,8 @@ class _ChatPageState extends State<ChatPage> {
       ),
     );
   }
-}class Meta extends StatelessWidget {
+}
+class Meta extends StatelessWidget {
   final String storeName;
 
   const Meta({
@@ -16770,21 +16771,28 @@ class _MetaTabelaScreenState extends State<MetaTabelaScreen> {
     'Pão Francês': {
       'acimaMeta': "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
       'zero': "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
-      'ate50': "Vamos com calma que nada está perdido. Verifique se não está faltando pão para o cliente em horários de pico. Garanta que a produção esteja alinhada com o fluxo de movimento da loja, há dias em que vende mais pão, fique atento e use como referência a venda diária, assim se programa pra cada dia da semana. Pra cima que ainda dá tempo!!!",
+      'ate50': "Vamos com calma que nada está perdido. Verifique se não está faltando pão para o cliente em horários de pico. Garanta que a produção esteja alinhada com o fluxo de movimento da loja, há dias em que vende mais pão, fique atento e use como referência o relatório de venda diária, assim se programa pra cada dia da semana. Pra cima que ainda dá tempo!!!",
       'ate20': "Calma Amigo que nada está perdido. Foque em pão quentinho nos horários de pico, mantendo o fluxo de forneamento de acordo com a venda, nada de assar muito pão de uma vez e deixar o cliente da tarde pegar o pão assado de manhã, eles são chatinhos né, mas vale mais um cliente na mão do que dois voando, rsrs... E não menos importante: controle as sobras de geladeira pois o aspecto desse produto faz cair muito a venda. Pão feio ninguém merece né. Pra cima que ainda dá tempo!!!",
-      'ate10': "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Foque em pão quentinho nos horários de pico, mantendo o fluxo de forneamento de acordo com a venda, nada de assar muito pão de uma vez e deixar o cliente da tarde pegar o pão assado de manhã, eles são chatinhos né, mas vale mais um cliente na mão do que dois voando, rsrs... E não menos importante: controle as sobras de geladeira pois o aspecto desse produto faz cair muito a venda. Pão feio ninguém merece né. Pra cima que ainda dá tempo!!!",
-      'ate1': "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!"
+      'ate10': "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Foque em pão quentinho nos horários de pico, mantendo o fluxo de forneamento de acordo com a venda, nada de assar muito pão de uma vez e deixar o cliente da tarde pegar o pão assado de manhã. E não menos importante: controle as sobras de geladeira pois o aspecto desse produto faz cair muito a venda. Pão feio ninguém merece né. Pra cima que ainda dá, tempo!!!",
+      'ate1': "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
     },
 
     'Pão Francês Fibras': {
       'acimaMeta': "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
       'zero': "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
-      'ate50': "Vamos com calma que nada está perdido. Verifique se não está faltando pão para o cliente em horários de pico. Garanta que a produção esteja alinhada com o fluxo de movimento da loja, há dias em que vende mais pão, fique atento e use como referência a venda diária, assim se programa pra cada dia da semana. Pra cima que ainda dá tempo!!!",
-      'ate20': "Calma Amigo que nada está perdido. Foque em pão quentinho nos horários de pico, mantendo o fluxo de forneamento de acordo com a venda...",
-      'ate10': "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência...",
-      'ate1': "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor..."
+      'ate50': "Vamos com calma que nada está perdido. Verifique se não está faltando pão para o cliente em horários de pico. Garanta que a produção esteja alinhada com o fluxo de movimento da loja, há dias em que vende mais pão, fique atento e use como referência o relatório de venda diária, assim se programa pra cada dia da semana. Pra cima que ainda dá tempo!!!",
+      'ate20': "Não desanime, foco e paciência é tudo. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, fique atento a venda no período da manhã para engatilhar a produção da tarde. Pra cima que ainda dá, tempo!!!",
+      'ate10': "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência mas você é capaz. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, fique atento a venda no período da manhã para engatilhar a produção da tarde. Pra cima que ainda dá, tempo!!!",
+      'ate1':  "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
     },
-    'Pão Francês Panhoca': {},
+    'Pão Francês Panhoca': {
+      'acimaMeta': "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero': "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50': "Vamos com calma que nada está perdido. Verifique se não está faltando pão para o cliente em horários de pico. Garanta que a produção esteja alinhada com o fluxo de movimento da loja, há dias em que vende mais pão, fique atento e use como referência o relatório de venda diária, assim se programa pra cada dia da semana. Pra cima que ainda dá tempo!!!",
+      'ate20': "Não desanime, foco e paciência é tudo. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, fique atento a venda no período da manhã para engatilhar a produção da tarde. Pra cima que ainda dá, tempo!!!",
+      'ate10': "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência mas você é capaz. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, fique atento a venda no período da manhã para engatilhar a produção da tarde. Pra cima que ainda dá, tempo!!!",
+      'ate1':  "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+    },
     'Pão Francês com Queijo': {},
     'Baguete Francesa Queijo': {},
     'Baguete Francesa': {},
