@@ -893,6 +893,8 @@ class PaiseFilhos extends StatelessWidget {
   }
 }
 
+
+
 class StoreSelectionScreen extends StatefulWidget {
   @override
   _StoreSelectionScreenState createState() => _StoreSelectionScreenState();
@@ -948,7 +950,7 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
         ),
       );
     } else {
-      // Verificar se já existe cadastro para esta loja
+      // Verificar se já existe caderno para esta loja
       bool hasExistingPassword = await _checkExistingPassword(storeName);
 
       await prefs.setString('selectedStore', storeName);
@@ -1011,14 +1013,16 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final sortedStores = [
-      ...stores.where((store) => favoriteStores.contains(store)),
-      ...stores.where((store) => !favoriteStores.contains(store))
-    ];
-
-    // Calcula quantas colunas cabem com largura mínima de 110px
     final screenWidth = MediaQuery.of(context).size.width;
-    final crossAxisCount = (screenWidth / 120).floor().clamp(2, 6);
+    final crossAxisCount = (screenWidth / 85).floor().clamp(3, 8);
+
+    // Separar lojas favoritas das normais
+    final favoriteList = stores
+        .where((store) => favoriteStores.contains(store))
+        .toList();
+    final normalList = stores
+        .where((store) => !favoriteStores.contains(store))
+        .toList();
 
     return WillPopScope(
       onWillPop: () async {
@@ -1067,33 +1071,142 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(12.0),
             child: Column(
               children: [
                 const Text(
                   "SELECIONE A LOJA:",
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.w600,
                     color: Colors.brown,
                     fontFamily: 'Lora',
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
                 Expanded(
-                  child: GridView.builder(
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: crossAxisCount,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 1.0, // quadrado
-                    ),
-                    itemCount: sortedStores.length,
-                    itemBuilder: (context, index) {
-                      final store = sortedStores[index];
-                      final isFavorite = favoriteStores.contains(store);
-                      return _buildStoreTile(store, isFavorite);
-                    },
+                  child: ListView(
+                    children: [
+                      // Seção de Favoritos
+                      if (favoriteList.isNotEmpty) ...[
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.star,
+                                color: Colors.amber.shade600,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                "FAVORITOS",
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.amber.shade800,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.shade100,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  "${favoriteList.length}",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.amber.shade800,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: crossAxisCount,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
+                            childAspectRatio: 0.9,
+                          ),
+                          itemCount: favoriteList.length,
+                          itemBuilder: (context, index) {
+                            final store = favoriteList[index];
+                            return _buildStoreTile(
+                              store,
+                              true,
+                              isFavoriteSection: true,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        // Divisor
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Divider(
+                                  color: Colors.grey.shade300,
+                                  thickness: 1,
+                                ),
+                              ),
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8),
+                                child: Text(
+                                  "TODAS AS LOJAS",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.grey.shade600,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Divider(
+                                  color: Colors.grey.shade300,
+                                  thickness: 1,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      
+                      // Seção de Todas as Lojas
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: crossAxisCount,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                          childAspectRatio: 0.9,
+                        ),
+                        itemCount: normalList.length,
+                        itemBuilder: (context, index) {
+                          final store = normalList[index];
+                          return _buildStoreTile(
+                            store,
+                            false,
+                            isFavoriteSection: false,
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -1104,40 +1217,80 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
     );
   }
 
-  Widget _buildStoreTile(String store, bool isFavorite) {
+  Widget _buildStoreTile(
+    String store,
+    bool isFavorite, {
+    required bool isFavoriteSection,
+  }) {
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => _onStoreSelected(context, store),
-        child: Stack(
-          children: [
-            Center(
-              child: Text(
-                store,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.brown,
+      elevation: isFavoriteSection ? 3 : 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: isFavoriteSection
+            ? BorderSide(color: Colors.amber.shade300, width: 1.5)
+            : BorderSide.none,
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          gradient: isFavoriteSection
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.amber.shade50,
+                    Colors.orange.shade50,
+                  ],
+                )
+              : null,
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => _onStoreSelected(context, store),
+          child: Stack(
+            children: [
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 8,
+                  ),
+                  child: Text(
+                    store,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: isFavoriteSection
+                          ? FontWeight.w700
+                          : FontWeight.w600,
+                      color: isFavoriteSection
+                          ? Colors.brown.shade800
+                          : Colors.brown.shade700,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
-            ),
-            Positioned(
-              top: 8,
-              right: 8,
-              child: IconButton(
-                icon: Icon(
-                  isFavorite ? Icons.star : Icons.star_border,
-                  color: Colors.amber,
-                  size: 24,
+              Positioned(
+                top: 4,
+                right: 4,
+                child: IconButton(
+                  icon: Icon(
+                    isFavorite ? Icons.star : Icons.star_border,
+                    color: isFavorite ? Colors.amber.shade600 : Colors.grey.shade400,
+                    size: 18,
+                  ),
+                  onPressed: () => _toggleFavorite(store),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 28,
+                    minHeight: 28,
+                  ),
                 ),
-                onPressed: () => _toggleFavorite(store),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
