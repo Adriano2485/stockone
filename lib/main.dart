@@ -2352,7 +2352,7 @@ class _ThirdScreenState extends State<ThirdScreen> {
                         children: [
                           // Seletor de dias de giro
                           Container(
-                            width: 70,
+                            width: 100,
                             child: TextFormField(
                               controller: giroController,
                               keyboardType: TextInputType.number,
