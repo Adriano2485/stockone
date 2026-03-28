@@ -347,12 +347,7 @@ class _RedeScreenState extends State<RedeScreen> {
         ),
 
         // ======== ÍCONE DE AJUDA AQUI ========
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline, color: Colors.white),
-            onPressed: _mostrarAjuda,
-          ),
-        ],
+
         // =====================================
       ),
       body: Stack(
@@ -416,88 +411,42 @@ class _RedeScreenState extends State<RedeScreen> {
 class Bahamas extends StatelessWidget {
   const Bahamas({super.key});
 
-  // 🔹 Card estilo Android
-  Widget _menuCard(
-    BuildContext context,
-    IconData icon, // novo parâmetro
-    String label,
-    Widget destination,
-    Color color,
-  ) {
-    return Card(
-      color: color,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 4,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        splashColor: Colors.brown.withOpacity(0.3),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => destination),
-          );
-        },
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          alignment: Alignment.center,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 28,
-                color: const Color(0xFF5D4037),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  fontFamily: 'Roboto',
-                  color: Color(0xFF5D4037),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        // Botão físico de voltar: fecha o app ou navega para outra tela se quiser
-        return true; // true permite o comportamento padrão (fecha o app)
+        // Botão físico de voltar: volta para a tela de seleção de loja
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => RedeScreen()),
+        );
+        return false;
       },
       child: Scaffold(
+        backgroundColor: const Color(0xFFFFF8F0),
         appBar: AppBar(
           backgroundColor: const Color(0xFFD2691E),
+          elevation: 4,
           centerTitle: true,
-          automaticallyImplyLeading:
-              false, // se quiser ícone custom, use leading
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => RedeScreen()),
-              ); // volta para a tela anterior
-            },
-          ),
           title: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Image.asset('assets/images/Logo StockOne.png', height: 32),
               const SizedBox(width: 8),
               Image.asset(
                 'assets/images/logobahamas.jpg',
                 height: 40,
-              ), // imagem no lugar do texto
+              ),
             ],
+          ),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => RedeScreen()),
+              );
+            },
           ),
         ),
         body: Container(
@@ -513,49 +462,137 @@ class Bahamas extends StatelessWidget {
           ),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
-            child: GridView.count(
-              crossAxisCount: 1, // 1 card por linha
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: 3,
+            child: Column(
               children: [
-                _menuCard(
-                  context,
-                  Icons.menu_book,
-                  'RECEITUÁRIO',
-                  ReceituarioScreen(),
-                  Colors.white,
-                ),
-                _menuCard(
-                  context,
-                  Icons.folder,
-                  'DOCUMENTOS',
-                  Documentos(),
-                  Colors.white,
-                ),
-                _menuCard(
-                  context,
-                  Icons.list_alt,
-                  'CÓDIGOS',
-                  Codigos(),
-                  Colors.white,
-                ),
-                _menuCard(
-                  context,
-                  Icons.store,
-                  'ATENDIMENTO',
-                  StoreSelectionScreen(),
-                  Colors.white,
-                ),
-                _menuCard(
-                  context,
-                  Icons.kitchen,
-                  'COMODATOS',
-                  const Comodatos(),
-                  Colors.white,
+                const SizedBox(height: 20),
+                Expanded(
+                  child: GridView.count(
+                    crossAxisCount: 2, // 2 cards por linha
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 1.2,
+                    children: [
+                      _bahamasCard(
+                        Icons.menu_book,
+                        'RECEITUÁRIO',
+                        Colors.orange.shade300,
+                        () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ReceituarioScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      _bahamasCard(
+                        Icons.folder,
+                        'DOCUMENTOS',
+                        Colors.brown.shade300,
+                        () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => Documentos(),
+                            ),
+                          );
+                        },
+                      ),
+                      _bahamasCard(
+                        Icons.list_alt,
+                        'CÓDIGOS',
+                        Colors.green.shade300,
+                        () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => Codigos(),
+                            ),
+                          );
+                        },
+                      ),
+                      _bahamasCard(
+                        Icons.store,
+                        'ATENDIMENTO',
+                        Colors.teal.shade300,
+                        () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => StoreSelectionScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      _bahamasCard(
+                        Icons.kitchen,
+                        'COMODATOS',
+                        Colors.brown.shade400,
+                        () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const Comodatos(),
+                            ),
+                          );
+                        },
+                      ),
+                      _bahamasCard(
+                        Icons.bar_chart,
+                        'METAS',
+                        Colors.teal.shade300,
+                        () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ManutencaoScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _bahamasCard(
+    IconData icon,
+    String label,
+    Color color,
+    VoidCallback onPressed,
+  ) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      elevation: 4,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(16),
+        splashColor: color.withOpacity(0.3),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 36, color: color),
+              const SizedBox(height: 12),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Roboto',
+                  color: Color(0xFF5D4037),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -695,6 +732,13 @@ class BH extends StatelessWidget {
                   Icons.store,
                   'ATENDIMENTO',
                   StoreSelectionScreen(),
+                  Colors.white,
+                ),
+                _menuCard(
+                  context,
+                  Icons.folder,
+                  'METAS',
+                  Documentos(),
                   Colors.white,
                 ),
               ],
@@ -972,6 +1016,10 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
       ...stores.where((store) => !favoriteStores.contains(store))
     ];
 
+    // Calcula quantas colunas cabem com largura mínima de 110px
+    final screenWidth = MediaQuery.of(context).size.width;
+    final crossAxisCount = (screenWidth / 120).floor().clamp(2, 6);
+
     return WillPopScope(
       onWillPop: () async {
         Navigator.pushReplacement(
@@ -1018,12 +1066,12 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
               end: Alignment.bottomCenter,
             ),
           ),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
                 const Text(
-                  "SELECIONE:",
+                  "SELECIONE A LOJA:",
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
@@ -1031,50 +1079,65 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
                     fontFamily: 'Lora',
                   ),
                 ),
-                const SizedBox(height: 30),
-                ...sortedStores.map((store) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              icon: const Icon(Icons.store),
-                              label: Text(store),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.brown.shade300,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 40,
-                                  vertical: 16,
-                                ),
-                                textStyle: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                elevation: 4,
-                              ),
-                              onPressed: () => _onStoreSelected(context, store),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            icon: Icon(
-                              favoriteStores.contains(store)
-                                  ? Icons.star
-                                  : Icons.star_border,
-                              color: Colors.amber,
-                            ),
-                            onPressed: () => _toggleFavorite(store),
-                          ),
-                        ],
-                      ),
-                    )),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: GridView.builder(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: crossAxisCount,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 1.0, // quadrado
+                    ),
+                    itemCount: sortedStores.length,
+                    itemBuilder: (context, index) {
+                      final store = sortedStores[index];
+                      final isFavorite = favoriteStores.contains(store);
+                      return _buildStoreTile(store, isFavorite);
+                    },
+                  ),
+                ),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStoreTile(String store, bool isFavorite) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _onStoreSelected(context, store),
+        child: Stack(
+          children: [
+            Center(
+              child: Text(
+                store,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.brown,
+                ),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                icon: Icon(
+                  isFavorite ? Icons.star : Icons.star_border,
+                  color: Colors.amber,
+                  size: 24,
+                ),
+                onPressed: () => _toggleFavorite(store),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1092,32 +1155,23 @@ class FirstTimeScreen extends StatefulWidget {
 class _FirstTimeScreenState extends State<FirstTimeScreen> {
   final TextEditingController _userNameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  String? _selectedDeliveries;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   void _saveData() async {
     String userName = _userNameController.text.trim();
     String password = _passwordController.text.trim();
 
-    if (userName.isEmpty || _selectedDeliveries == null || password.isEmpty) {
+    if (userName.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Por favor, preencha todos os campos!")),
       );
       return;
     }
 
-    int deliveriesValue = switch (_selectedDeliveries) {
-      '1' => 7,
-      '2' => 4,
-      '3' => 3,
-      _ => 0,
-    };
-
     try {
       // Salvar dados no Firestore
       await _firestore.collection('stores').doc(widget.storeName).set({
         'userName': userName,
-        'deliveries': deliveriesValue,
         'password': password, // EM PRODUÇÃO: usar hash seguro
         'isFirstLaunch': false,
         'createdAt': FieldValue.serverTimestamp(),
@@ -1180,27 +1234,6 @@ class _FirstTimeScreenState extends State<FirstTimeScreen> {
                   labelText: "Criar Senha",
                   hintText: "Senha que outros dispositivos usarão",
                   border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 20),
-              InputDecorator(
-                decoration: InputDecoration(
-                  labelText: 'Entregas por semana',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedDeliveries,
-                    onChanged: (newValue) =>
-                        setState(() => _selectedDeliveries = newValue),
-                    items: const [
-                      DropdownMenuItem(child: Text('1'), value: '1'),
-                      DropdownMenuItem(child: Text('2'), value: '2'),
-                      DropdownMenuItem(child: Text('3'), value: '3'),
-                    ],
-                    hint: const Text("Escolha"),
-                  ),
                 ),
               ),
               const SizedBox(height: 30),
@@ -1507,8 +1540,7 @@ class _SecondScreenState extends State<SecondScreen> {
                           ListTile(
                             leading: const Icon(Icons.refresh,
                                 color: Color(0xFFD2691E)),
-                            title:
-                                const Text("Resetar dados de loja e usuário"),
+                            title: const Text("Alterar usuário/senha"),
                             onTap: () async {
                               Navigator.pop(context);
                               await _resetStoreData();
@@ -1620,7 +1652,7 @@ class _SecondScreenState extends State<SecondScreen> {
                           ),
                         );
                       }),
-                       _padariaCard(
+                      _padariaCard(
                           Icons.track_changes, "Metas", Colors.teal.shade300,
                           () {
                         Navigator.push(
@@ -1731,15 +1763,11 @@ class _ThirdScreenState extends State<ThirdScreen> {
     'Rosca Caseira',
     'Rosca Caseira Côco',
     'Rosca Caseira Leite em Pó',
-    'Rosca Côco/Queijo',
     'Sanduíche Bahamas',
-    'Rabanada Assada',
     'Pão Fofinho',
     'Sanduíche Fofinho',
     'Rosca Fofinha Temperada',
     'Caseirinho',
-    'Pão P/ Rabanada',
-    'Pão Doce Comprido',
     'Pão Milho',
     'Pão de Alho da Casa',
     'Pão de Alho da Casa Picante',
@@ -1749,7 +1777,8 @@ class _ThirdScreenState extends State<ThirdScreen> {
     'Torta Dois Amores',
   ];
 
-  int deliveries = 0;
+  int deliveriesValue = 7; // Valor real das entregas (7, 4 ou 3)
+  int selectedOption = 1; // Opção selecionada (1, 2 ou 3)
   int? diasDeGiro;
 
   final Map<String, TextEditingController> vendasControllers = {};
@@ -1761,6 +1790,34 @@ class _ThirdScreenState extends State<ThirdScreen> {
 
   bool _isLoading = true;
   bool _dataLoaded = false;
+
+  // Mapeamento das opções para valores reais de entregas
+  int _getDeliveriesValueFromOption(int option) {
+    switch (option) {
+      case 1:
+        return 7;
+      case 2:
+        return 4;
+      case 3:
+        return 3;
+      default:
+        return 7;
+    }
+  }
+
+  // Mapeamento do valor real para a opção
+  int _getOptionFromDeliveriesValue(int deliveriesValue) {
+    switch (deliveriesValue) {
+      case 7:
+        return 1;
+      case 4:
+        return 2;
+      case 3:
+        return 3;
+      default:
+        return 1;
+    }
+  }
 
   @override
   void initState() {
@@ -1813,8 +1870,12 @@ class _ThirdScreenState extends State<ThirdScreen> {
       if (doc.exists) {
         final data = doc.data() ?? {};
 
+        // Carrega o valor real das entregas salvo no Firebase
+        int loadedDeliveriesValue = data['deliveriesValue'] ?? 7;
+
         setState(() {
-          deliveries = data['deliveries'] ?? 0;
+          deliveriesValue = loadedDeliveriesValue;
+          selectedOption = _getOptionFromDeliveriesValue(loadedDeliveriesValue);
         });
 
         final diasGiroData = data['diasGiro'];
@@ -1871,6 +1932,31 @@ class _ThirdScreenState extends State<ThirdScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  Future<void> _saveDeliveries(int option) async {
+    int newDeliveriesValue = _getDeliveriesValueFromOption(option);
+
+    try {
+      await _firestore.collection('stores').doc(widget.storeName).set({
+        'deliveriesValue': newDeliveriesValue,
+        'deliveriesOption':
+            option, // Opcional: salvar também a opção para referência
+        'lastUpdatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      setState(() {
+        deliveriesValue = newDeliveriesValue;
+        selectedOption = option;
+      });
+
+      // Recalcula todos os produtos quando as entregas mudam
+      if (diasDeGiro != null && diasDeGiro! > 0) {
+        _recalculateAllAutocalc(force: true);
+      }
+    } catch (e) {
+      print('Erro ao salvar entregas por semana: $e');
     }
   }
 
@@ -1996,145 +2082,129 @@ class _ThirdScreenState extends State<ThirdScreen> {
     double estoqueMax = 0;
     switch (produto) {
       case 'Pão Francês':
-        estoqueMax = (valorMensal * 1.40 / diasDeGiro! / 10.5) * deliveries;
+        estoqueMax =
+            (valorMensal * 1.40 / diasDeGiro! / 10.5) * deliveriesValue;
         break;
       case 'Pão Baguete Francesa':
-        estoqueMax = (valorMensal * 1.20 / diasDeGiro! / 3.3) * deliveries;
+        estoqueMax = (valorMensal * 1.20 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Pão Baguete Francesa Gergelim':
-        estoqueMax = (valorMensal * 1.40 / diasDeGiro! / 3.3) * deliveries;
+        estoqueMax = (valorMensal * 1.40 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Pão Baguete Francesa Queijo':
-        estoqueMax = (valorMensal * 1.40 / diasDeGiro! / 3.3) * deliveries;
+        estoqueMax = (valorMensal * 1.40 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Pão Fofinho':
-        estoqueMax = (valorMensal * 1.30 / diasDeGiro! / 3.3) * deliveries;
+        estoqueMax = (valorMensal * 1.30 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Sanduíche Fofinho':
         estoqueMax =
-            (valorMensal * 0.06 * 1.30 / diasDeGiro! / 3.3) * deliveries;
+            (valorMensal * 0.06 * 1.30 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Rosca Fofinha Temperada':
         estoqueMax =
-            (valorMensal * 0.3 * 1.30 / diasDeGiro! / 3.3) * deliveries;
+            (valorMensal * 0.3 * 1.30 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Caseirinho':
-        estoqueMax = (valorMensal * 1.30 / diasDeGiro! / 3.3) * deliveries;
+        estoqueMax = (valorMensal * 1.30 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Pão Francês Fibras':
-        estoqueMax = (valorMensal * 1.40 / diasDeGiro! / 3.3) * deliveries;
+        estoqueMax = (valorMensal * 1.40 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Pão Francês Panhoca':
-        estoqueMax = (valorMensal * 1.40 / diasDeGiro! / 3.3) * deliveries;
+        estoqueMax = (valorMensal * 1.40 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Pão Francês com Queijo':
-        estoqueMax = (valorMensal * 1.40 / diasDeGiro! / 3.3) * deliveries;
+        estoqueMax = (valorMensal * 1.40 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Baguete Francesa Queijo':
         estoqueMax =
-            (valorMensal * 0.33 * 1.20 / diasDeGiro! / 3.3) * deliveries;
+            (valorMensal * 0.33 * 1.20 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Baguete Francesa':
         estoqueMax =
-            (valorMensal * 0.33 * 1.20 / diasDeGiro! / 3.3) * deliveries;
+            (valorMensal * 0.33 * 1.20 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Pão Queijo Tradicional':
-        estoqueMax = (valorMensal * 1.42 / diasDeGiro! / 3.3) * deliveries;
+        estoqueMax = (valorMensal * 1.42 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Pão Queijo Coquetel':
-        estoqueMax = (valorMensal * 1.5 / diasDeGiro! / 3.3) * deliveries;
+        estoqueMax = (valorMensal * 1.5 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Biscoito Queijo':
-        estoqueMax = (valorMensal * 1.42 / diasDeGiro! / 3.3) * deliveries;
+        estoqueMax = (valorMensal * 1.42 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Biscoito Polvilho':
-        estoqueMax = (valorMensal * 2 / diasDeGiro! / 1.35) * deliveries;
+        estoqueMax = (valorMensal * 2 / diasDeGiro! / 1.35) * deliveriesValue;
         break;
       case 'Pão Samaritano':
         estoqueMax =
-            (valorMensal * 0.085 * 1.20 / diasDeGiro! / 3.3) * deliveries;
+            (valorMensal * 0.085 * 1.20 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Pão Pizza':
         estoqueMax =
-            (valorMensal * 0.08 * 1.20 / diasDeGiro! / 3.3) * deliveries;
+            (valorMensal * 0.08 * 1.20 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Pão Tatu':
-        estoqueMax = (valorMensal * 1.40 / diasDeGiro! / 3.3) * deliveries;
+        estoqueMax = (valorMensal * 1.40 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Mini Pão Sonho':
         estoqueMax =
-            (valorMensal * 0.5 * 1.20 / diasDeGiro! / 3.3) * deliveries;
+            (valorMensal * 0.5 * 1.20 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Mini Pão Sonho Chocolate':
         estoqueMax =
-            (valorMensal * 0.5 * 1.20 / diasDeGiro! / 3.3) * deliveries;
+            (valorMensal * 0.5 * 1.20 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Pão Bambino':
         estoqueMax =
-            (valorMensal * 0.6 * 1.20 / diasDeGiro! / 3.3) * deliveries;
+            (valorMensal * 0.6 * 1.20 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Mini Marta Rocha':
         estoqueMax =
-            (valorMensal * 0.5 * 1.20 / diasDeGiro! / 3.3) * deliveries;
+            (valorMensal * 0.5 * 1.20 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Pão Doce Ferradura':
-        estoqueMax = (valorMensal * 1.20 / diasDeGiro! / 3.3) * deliveries;
+        estoqueMax = (valorMensal * 1.20 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Pão Doce Caracol':
-        estoqueMax = (valorMensal * 1.20 / diasDeGiro! / 3.3) * deliveries;
+        estoqueMax = (valorMensal * 1.20 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Rosca Caseira':
-        estoqueMax = (valorMensal * 1.20 / diasDeGiro! / 3.3) * deliveries;
+        estoqueMax = (valorMensal * 1.20 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Rosca Caseira Côco':
-        estoqueMax = (valorMensal * 1.20 / diasDeGiro! / 3.3) * deliveries;
+        estoqueMax = (valorMensal * 1.20 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Rosca Caseira Leite em Pó':
-        estoqueMax = (valorMensal * 1.20 / diasDeGiro! / 3.3) * deliveries;
-        break;
-      case 'Rosca Côco/Queijo':
-        estoqueMax =
-            (valorMensal * 0.33 * 1.20 / diasDeGiro! / 3.3) * deliveries;
-        break;
-      case 'Rabanada Assada':
-        estoqueMax = (valorMensal / 0.8 * 1.20 / diasDeGiro! / 10) * deliveries;
-        break;
-      case 'Pão P/ Rabanada':
-        estoqueMax = (valorMensal * 1.20 / diasDeGiro! / 10) * deliveries;
-        break;
-      case 'Pão Doce Comprido':
-        estoqueMax = (valorMensal * 1.20 / diasDeGiro! / 3.3) * deliveries;
+        estoqueMax = (valorMensal * 1.20 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Pão Milho':
-        estoqueMax = (valorMensal * 1.3 / diasDeGiro! / 3.3) * deliveries;
+        estoqueMax = (valorMensal * 1.3 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Pão de Alho da Casa':
         estoqueMax =
-            (valorMensal * 0.24 * 1.20 / diasDeGiro! / 3.3) * deliveries;
+            (valorMensal * 0.24 * 1.20 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Pão de Alho da Casa Picante':
         estoqueMax =
-            (valorMensal * 0.24 * 1.20 / diasDeGiro! / 3.3) * deliveries;
-        break;
-      case 'Pão de Alho da Casa Refri.':
-        estoqueMax =
-            (valorMensal * 0.24 * 1.20 / diasDeGiro! / 3.3) * deliveries;
+            (valorMensal * 0.24 * 1.20 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Sanduíche Bahamas':
         estoqueMax =
-            (valorMensal * 0.085 * 1.20 / diasDeGiro! / 3.3) * deliveries;
+            (valorMensal * 0.085 * 1.20 / diasDeGiro! / 3.3) * deliveriesValue;
         break;
       case 'Torta Chocomousse':
-        estoqueMax = (valorMensal * 1.20 / diasDeGiro!) * deliveries;
+        estoqueMax = (valorMensal * 1.20 / diasDeGiro!) * deliveriesValue;
         break;
       case 'Torta Chocolate/Coco':
-        estoqueMax = (valorMensal * 1.20 / diasDeGiro!) * deliveries;
+        estoqueMax = (valorMensal * 1.20 / diasDeGiro!) * deliveriesValue;
         break;
       case 'Torta Doce De Leite Amendoim':
-        estoqueMax = (valorMensal * 1.20 / diasDeGiro!) * deliveries;
+        estoqueMax = (valorMensal * 1.20 / diasDeGiro!) * deliveriesValue;
         break;
       case 'Torta Dois Amores':
-        estoqueMax = (valorMensal * 1.20 / diasDeGiro!) * deliveries;
+        estoqueMax = (valorMensal * 1.20 / diasDeGiro!) * deliveriesValue;
         break;
       default:
         estoqueMax = 0.0;
@@ -2167,6 +2237,8 @@ class _ThirdScreenState extends State<ThirdScreen> {
           'vendas': {},
           'estoque': {},
           'diasGiro': null,
+          'deliveriesValue': 7, // Valor padrão 7 (opção 1)
+          'deliveriesOption': 1,
           'lastUpdatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
 
@@ -2179,6 +2251,8 @@ class _ThirdScreenState extends State<ThirdScreen> {
         setState(() {
           diasDeGiro = null;
           giroController.clear();
+          deliveriesValue = 7;
+          selectedOption = 1;
           _dataLoaded = false;
         });
       } catch (e) {
@@ -2253,6 +2327,7 @@ class _ThirdScreenState extends State<ThirdScreen> {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
+              // Card for Dias de Giro
               Card(
                 elevation: 1,
                 margin: const EdgeInsets.all(2),
@@ -2260,74 +2335,122 @@ class _ThirdScreenState extends State<ThirdScreen> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      Text(
+                        "DIAS DE GIRO",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.blueGrey.shade800,
+                        ),
+                      ),
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            "DIAS DE GIRO",
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.blueGrey.shade800,
+                          // Seletor de dias de giro
+                          Container(
+                            width: 70,
+                            child: TextFormField(
+                              controller: giroController,
+                              keyboardType: TextInputType.number,
+                              maxLength: 3,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(3),
+                              ],
+                              style: const TextStyle(fontSize: 14),
+                              textAlign: TextAlign.center,
+                              decoration: InputDecoration(
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 6),
+                                border: const OutlineInputBorder(
+                                  borderRadius:
+                                      BorderRadius.all(Radius.circular(4)),
+                                ),
+                                counterText: "",
+                                suffixIcon: PopupMenuButton<int>(
+                                  icon: const Icon(Icons.arrow_drop_down,
+                                      size: 18),
+                                  onSelected: (val) {
+                                    giroController.text = val.toString();
+                                    _saveDiasDeGiro(val);
+                                    giroController.selection =
+                                        TextSelection.fromPosition(
+                                      TextPosition(
+                                          offset: giroController.text.length),
+                                    );
+                                  },
+                                  itemBuilder: (context) => List.generate(
+                                    31,
+                                    (index) => PopupMenuItem(
+                                      value: index + 1,
+                                      child: Text(
+                                        '${index + 1}',
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              onChanged: (value) {
+                                final val = int.tryParse(value);
+                                if (val != null && val > 0)
+                                  _saveDiasDeGiro(val);
+                              },
                             ),
                           ),
+                          const SizedBox(width: 8),
+                          // Botão atualizar
                           IconButton(
-                            icon: const Icon(Icons.refresh, color: Colors.blue),
+                            icon: const Icon(Icons.refresh,
+                                color: Colors.blue, size: 20),
                             tooltip: "Atualizar todos",
                             onPressed: _refreshTodos,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 2),
-                      TextFormField(
-                        controller: giroController,
-                        keyboardType: TextInputType.number,
-                        maxLength: 3,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                          LengthLimitingTextInputFormatter(3),
-                        ],
-                        style: const TextStyle(fontSize: 16),
-                        decoration: InputDecoration(
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 6),
-                          border: const OutlineInputBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(4)),
-                          ),
-                          counterText: "",
-                          suffixIcon: PopupMenuButton<int>(
-                            icon: const Icon(Icons.arrow_drop_down, size: 18),
-                            onSelected: (val) {
-                              giroController.text = val.toString();
-                              _saveDiasDeGiro(val);
-                              giroController.selection =
-                                  TextSelection.fromPosition(
-                                TextPosition(
-                                    offset: giroController.text.length),
-                              );
-                            },
-                            itemBuilder: (context) => List.generate(
-                              31,
-                              (index) => PopupMenuItem(
-                                value: index + 1,
-                                child: Text(
-                                  '${index + 1}',
-                                  style: const TextStyle(fontSize: 16),
-                                ),
-                              ),
-                            ),
-                          ),
+                    ],
+                  ),
+                ),
+              ),
+              // New Card for Entregas por Semana (Deliveries per week)
+              // New Card for Entregas por Semana (Deliveries per week)
+// New Card for Entregas por Semana (Deliveries per week)
+              Card(
+                elevation: 1,
+                margin: const EdgeInsets.only(top: 8, bottom: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "ENTREGAS P/ SEMANA",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.blueGrey.shade800,
                         ),
-                        onChanged: (value) {
-                          final val = int.tryParse(value);
-                          if (val != null && val > 0) _saveDiasDeGiro(val);
-                        },
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          _buildDeliveryOption(1),
+                          const SizedBox(width: 8),
+                          _buildDeliveryOption(2),
+                          const SizedBox(width: 8),
+                          _buildDeliveryOption(3),
+                        ],
                       ),
                     ],
                   ),
@@ -2437,6 +2560,35 @@ class _ThirdScreenState extends State<ThirdScreen> {
       ),
     );
   }
+
+  Widget _buildDeliveryOption(int option) {
+    final isSelected = selectedOption == option;
+    return GestureDetector(
+      onTap: () => _saveDeliveries(option),
+      child: Container(
+        width: 32, // Largura fixa para consistência
+        height: 32, // Altura fixa para consistência
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue : Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(16), // Botão circular
+          border: Border.all(
+            color: isSelected ? Colors.blue.shade700 : Colors.grey.shade400,
+            width: 1,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            option.toString(),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: isSelected ? Colors.white : Colors.black87,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class MapeamentoEstoqueScreen extends StatefulWidget {
@@ -2515,15 +2667,9 @@ class _MapeamentoEstoqueScreenState extends State<MapeamentoEstoqueScreen> {
             'Pão Baguete Francesa',
             'Pão Baguete Francesa Gergelim'
           ],
-         
           'Massa Mini Baguete 40g': ['Pão Francês com Queijo'],
           'Massa Baguete 330g': ['Baguete Francesa Queijo', 'Baguete Francesa'],
-          'Massa Pão Rabanada 330g': [
-            'Rabanada Assada',
-            'Pão P/ Rabanada',
-            'Rosca Côco/Queijo'
-          ],
-          'Massa Pão Doce Comprido': ['Pão Milho', 'Pão Doce Comprido'],
+          'Massa Pão Doce Comprido': ['Pão Milho'],
           'Massa Rosca 330g': [
             'Rosca Caseira',
             'Rosca Caseira Côco',
@@ -2545,10 +2691,7 @@ class _MapeamentoEstoqueScreenState extends State<MapeamentoEstoqueScreen> {
           'Massa Cervejinha': ['Pão Francês Panhoca'],
         };
 
-        final produtosTetoMinimo2 = [
-          'Massa Pão Rabanada 330g',
-          'Massa Pão Francês'
-        ];
+        final produtosTetoMinimo2 = ['Massa Pão Francês'];
 
         int pacotesPaoFrances = 0;
         int pacotesOutrasMassas = 0;
@@ -2716,7 +2859,6 @@ class _LayoutDistribuicaoScreenState extends State<LayoutDistribuicaoScreen> {
     'Massa Mini Baguete 80g',
     'Massa Pão Francês Fibras',
     'Massa Cervejinha',
-    'Massa Pão Rabanada 330g',
     'Massa Pão Francês',
   ];
 
@@ -3610,14 +3752,12 @@ class _FourthScreenState extends State<FourthScreen> {
     'Massa Pão Francês Fibras': TextEditingController(),
     'Massa Pão Cervejinha': TextEditingController(),
     'Massa Mini Baguete 40g': TextEditingController(),
-    'Massa Mini Pão Francês': TextEditingController(),
     'Massa Mini Baguete 80g': TextEditingController(),
     'Massa Baguete 330g': TextEditingController(),
     'Massa Pão De Queijo Coq': TextEditingController(),
     'Massa Pão Biscoito Queijo': TextEditingController(),
     'Massa Pão De Queijo Trad.': TextEditingController(),
     'Massa Biscoito Polvilho': TextEditingController(),
-    'Massa Pão Para Rabanada': TextEditingController(),
     'Massa Pão Doce Comprido': TextEditingController(),
     'Massa Rosca Doce': TextEditingController(),
     'Massa Pão Doce Caracol': TextEditingController(),
@@ -3637,14 +3777,12 @@ class _FourthScreenState extends State<FourthScreen> {
     'Massa Pão Francês Fibras': TextEditingController(),
     'Massa Pão Cervejinha': TextEditingController(),
     'Massa Mini Baguete 40g': TextEditingController(),
-    'Massa Mini Pão Francês': TextEditingController(),
     'Massa Mini Baguete 80g': TextEditingController(),
     'Massa Baguete 330g': TextEditingController(),
     'Massa Pão De Queijo Coq': TextEditingController(),
     'Massa Pão Biscoito Queijo': TextEditingController(),
     'Massa Pão De Queijo Trad.': TextEditingController(),
     'Massa Biscoito Polvilho': TextEditingController(),
-    'Massa Pão Para Rabanada': TextEditingController(),
     'Massa Pão Doce Comprido': TextEditingController(),
     'Massa Rosca Doce': TextEditingController(),
     'Massa Pão Doce Caracol': TextEditingController(),
@@ -3664,14 +3802,12 @@ class _FourthScreenState extends State<FourthScreen> {
     'Massa Pão Francês Fibras': false,
     'Massa Pão Cervejinha': false,
     'Massa Mini Baguete 40g': false,
-    'Massa Mini Pão Francês': false,
     'Massa Mini Baguete 80g': false,
     'Massa Baguete 330g': false,
     'Massa Pão De Queijo Coq': false,
     'Massa Pão Biscoito Queijo': false,
     'Massa Pão De Queijo Trad.': false,
     'Massa Biscoito Polvilho': false,
-    'Massa Pão Para Rabanada': false,
     'Massa Pão Doce Comprido': false,
     'Massa Rosca Doce': false,
     'Massa Pão Doce Caracol': false,
@@ -3875,14 +4011,12 @@ class _FourthScreenState extends State<FourthScreen> {
     'Massa Pão Francês Fibras',
     'Massa Pão Cervejinha',
     'Massa Mini Baguete 40g',
-    'Massa Mini Pão Francês',
     'Massa Mini Baguete 80g',
     'Massa Baguete 330g',
     'Massa Pão De Queijo Coq',
     'Massa Pão Biscoito Queijo',
     'Massa Pão De Queijo Trad.',
     'Massa Biscoito Polvilho',
-    'Massa Pão Para Rabanada',
     'Massa Pão Fofinho',
     'Massa Pão Doce Comprido',
     'Massa Rosca Doce',
@@ -5119,14 +5253,12 @@ class DetalhesPedidoScreen extends StatelessWidget {
     'Massa Pão Francês Fibras': 6,
     'Massa Pão Cervejinha': 6,
     'Massa Mini Baguete 40g': 6,
-    'Massa Mini Pão Francês': 6,
     'Massa Mini Baguete 80g': 6,
     'Massa Baguete 330g': 6,
     'Massa Pão De Queijo Coq': 6,
     'Massa Pão Biscoito Queijo': 6,
     'Massa Pão De Queijo Trad.': 6,
     'Massa Biscoito Polvilho': 6,
-    'Massa Pão Para Rabanada': 2,
     'Massa Pão Doce Comprido': 6,
     'Massa Rosca Doce': 6,
     'Massa Pão Doce Caracol': 6,
@@ -16676,6 +16808,7 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 }
+
 class Meta extends StatelessWidget {
   final String storeName;
 
@@ -16769,125 +16902,214 @@ class _MetaTabelaScreenState extends State<MetaTabelaScreen> {
   // ================= COMENTÁRIOS =================
   final Map<String, Map<String, String>> comentariosProdutos = {
     'Pão Francês': {
-      'acimaMeta': "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
-      'zero': "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
-      'ate50': "Vamos com calma que nada está perdido. Verifique se não está faltando pão para o cliente em horários de pico. Garanta que a produção esteja alinhada com o fluxo de movimento da loja, há dias em que vende mais pão, fique atento e use como referência o relatório de venda diária, assim se programa pra cada dia da semana. Pra cima que ainda dá tempo!!!",
-      'ate20': "Calma Amigo que nada está perdido. Foque em pão quentinho nos horários de pico, mantendo o fluxo de forneamento de acordo com a venda, nada de assar muito pão de uma vez e deixar o cliente da tarde pegar o pão assado de manhã. E não menos importante: controle as sobras de geladeira pois o aspecto desse produto faz cair muito a venda. Pão feio ninguém merece né. Pra cima que ainda dá tempo!!!",
-      'ate10': "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Foque em pão quentinho nos horários de pico, mantendo o fluxo de forneamento de acordo com a venda, nada de assar muito pão de uma vez e deixar o cliente da tarde pegar o pão assado de manhã. E não menos importante: controle as sobras de geladeira pois o aspecto desse produto faz cair muito a venda. Pão feio ninguém merece né. Pra cima que ainda dá, tempo!!!",
-      'ate1': "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Verifique se não está faltando pão para o cliente em horários de pico. Garanta que a produção esteja alinhada com o fluxo de movimento da loja, há dias em que vende mais pão, fique atento e use como referência o relatório de venda diária, assim se programa pra cada dia da semana. Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Calma Amigo que nada está perdido. Foque em pão quentinho nos horários de pico, mantendo o fluxo de forneamento de acordo com a venda, nada de assar muito pão de uma vez e deixar o cliente da tarde pegar o pão assado de manhã. E não menos importante: controle as sobras de geladeira pois o aspecto desse produto faz cair muito a venda. Pão feio ninguém merece né. Pra cima que ainda dá tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Foque em pão quentinho nos horários de pico, mantendo o fluxo de forneamento de acordo com a venda, nada de assar muito pão de uma vez e deixar o cliente da tarde pegar o pão assado de manhã. E não menos importante: controle as sobras de geladeira pois o aspecto desse produto faz cair muito a venda. Pão feio ninguém merece né. Pra cima que ainda dá, tempo!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
     },
-
     'Pão Francês Fibras': {
-      'acimaMeta': "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
-      'zero': "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
-      'ate50': "Vamos com calma que nada está perdido. Verifique se não está faltando pão para o cliente em horários de pico. Garanta que a produção esteja alinhada com o fluxo de movimento da loja, há dias em que vende mais pão, fique atento e use como referência o relatório de venda diária, assim se programa pra cada dia da semana. Pra cima que ainda dá tempo!!!",
-      'ate20': "Não desanime, foco e paciência é tudo. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, fique atento a venda no período da manhã para engatilhar a produção da tarde. Pra cima que ainda dá, tempo!!!",
-      'ate10': "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência mas você é capaz. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, fique atento a venda no período da manhã para engatilhar a produção da tarde. Pra cima que ainda dá, tempo!!!",
-      'ate1':  "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Verifique se não está faltando pão para o cliente em horários de pico. Garanta que a produção esteja alinhada com o fluxo de movimento da loja, há dias em que vende mais pão, fique atento e use como referência o relatório de venda diária, assim se programa pra cada dia da semana. Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Não desanime, foco e paciência é tudo. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, fique atento a venda no período da manhã para engatilhar a produção da tarde. Pra cima que ainda dá, tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência mas você é capaz. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, fique atento a venda no período da manhã para engatilhar a produção da tarde. Pra cima que ainda dá, tempo!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
     },
     'Pão Francês Panhoca': {
-      'acimaMeta': "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
-      'zero': "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
-      'ate50': "Vamos com calma que nada está perdido. Verifique se não está faltando pão para o cliente em horários de pico. Garanta que a produção esteja alinhada com o fluxo de movimento da loja, há dias em que vende mais pão, fique atento e use como referência o relatório de venda diária, assim se programa pra cada dia da semana. Pra cima que ainda dá tempo!!!",
-      'ate20': "Não desanime, foco e paciência é tudo. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, fique atento a venda no período da manhã para engatilhar a produção da tarde. Pra cima que ainda dá, tempo!!!",
-      'ate10': "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência mas você é capaz. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, fique atento a venda no período da manhã para engatilhar a produção da tarde. Pra cima que ainda dá, tempo!!!",
-      'ate1':  "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Verifique se não está faltando pão para o cliente em horários de pico. Garanta que a produção esteja alinhada com o fluxo de movimento da loja, há dias em que vende mais pão, fique atento e use como referência o relatório de venda diária, assim se programa pra cada dia da semana. Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Não desanime, foco e paciência é tudo. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, fique atento a venda no período da manhã para engatilhar a produção da tarde. Pra cima que ainda dá, tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência mas você é capaz. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, fique atento a venda no período da manhã para engatilhar a produção da tarde. Pra cima que ainda dá, tempo!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
     },
     'Pão Francês com Queijo': {
-      'acimaMeta': "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
-      'zero': "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
-      'ate50': "Vamos com calma que nada está perdido. Mantenha o balcão sempre abastecido, principalmente nos horários de pico. Já possui ponto extra? Se não tiver é hora de montar um, quem sabe próximo a fila dos caixas... Pra cima que ainda dá tempo!!!",
-      'ate20': "Não desanime, foco e paciência é tudo. Garanta que o produto seja assado no tamanho correto, respeitando o espaçamento. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, fique atento a venda no período da manhã para engatilhar a produção da tarde. Já possui ponto extra? Se não tiver é hora de montar um, quem sabe próximo a fila dos caixas... Pra cima que ainda dá, tempo!!!",
-      'ate10': "Sua venda não está ruim amigo, já têm pontos extras? Esse produto embalado têm potencial enorme de venda, quem sabe não é esse o diferencial para alcançar o objetivo. Vamos que vamos!!!",
-      'ate1':  "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Mantenha o balcão sempre abastecido, principalmente nos horários de pico. Já possui ponto extra? Se não tiver é hora de montar um, quem sabe próximo a fila dos caixas... Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Não desanime, foco e paciência é tudo. Garanta que o produto seja assado no tamanho correto, respeitando o espaçamento. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, fique atento a venda no período da manhã para engatilhar a produção da tarde. Já possui ponto extra? Se não tiver é hora de montar um, quem sabe próximo a fila dos caixas... Pra cima que ainda dá, tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, já têm pontos extras? Esse produto embalado têm potencial enorme de venda, quem sabe não é esse o diferencial para alcançar o objetivo. Vamos que vamos!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
     },
     'Baguete Francesa Queijo': {
-      'acimaMeta': "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
-      'zero': "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
-      'ate50': "Vamos com calma que nada está perdido. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, se for o caso aumente a produção no dia anterior. Já possui ponto extra? Se não tiver é hora de montar um, quem sabe próximo a fila dos caixas... Pra cima que ainda dá tempo!!!",
-      'ate20': "Não desanime, foco e paciência é tudo. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, se for o caso aumente a produção no dia anterior. Já possui ponto extra? Se não tiver é hora de montar um, quem sabe próximo a fila dos caixas... Pra cima que ainda dá tempo!!!",
-      'ate10': "Sua venda não está ruim amigo, já têm pontos extras? Tudo é questão de detalhe, quem sabe uma exposição bem trabalhada possa dar mais visibilidade ao produto?. Vamos que vamos!!!",
-      'ate1':  "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, se for o caso aumente a produção no dia anterior. Já possui ponto extra? Se não tiver é hora de montar um, quem sabe próximo a fila dos caixas... Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Não desanime, foco e paciência é tudo. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, se for o caso aumente a produção no dia anterior. Já possui ponto extra? Se não tiver é hora de montar um, quem sabe próximo a fila dos caixas... Pra cima que ainda dá tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, já têm pontos extras? Tudo é questão de detalhe, quem sabe uma exposição bem trabalhada possa dar mais visibilidade ao produto?. Vamos que vamos!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
     },
     'Baguete Francesa': {
-      'acimaMeta': "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
-      'zero': "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
-      'ate50': "Vamos com calma que nada está perdido. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, se for o caso aumente a produção no dia anterior. Já possui ponto extra? Se não tiver é hora de montar um, quem sabe próximo a fila dos caixas... Pra cima que ainda dá tempo!!!",
-      'ate20': "Não desanime, foco e paciência é tudo. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, se for o caso aumente a produção no dia anterior. Já possui ponto extra? Se não tiver é hora de montar um, quem sabe próximo a fila dos caixas... Pra cima que ainda dá tempo!!!",
-      'ate10': "Sua venda não está ruim amigo, já têm pontos extras? Tudo é questão de detalhe, quem sabe uma exposição bem trabalhada possa dar mais visibilidade ao produto?. Vamos que vamos!!!",
-      'ate1':  "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, se for o caso aumente a produção no dia anterior. Já possui ponto extra? Se não tiver é hora de montar um, quem sabe próximo a fila dos caixas... Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Não desanime, foco e paciência é tudo. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, se for o caso aumente a produção no dia anterior. Já possui ponto extra? Se não tiver é hora de montar um, quem sabe próximo a fila dos caixas... Pra cima que ainda dá tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, já têm pontos extras? Tudo é questão de detalhe, quem sabe uma exposição bem trabalhada possa dar mais visibilidade ao produto?. Vamos que vamos!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
     },
     'Pão Queijo Tradicional': {
-      'acimaMeta': "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
-      'zero': "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
-      'ate50': "Vamos com calma que nada está perdido. Verifique se não está faltando pão para o cliente em horários de pico. Na abertura de loja priorize a saída desse produto o mais rápido possível, os clientes não esperam, rs... Pra cima que ainda dá tempo!!!",
-      'ate20': "Calma Amigo que nada está perdido. Foque em pão quentinho nos horários de pico, mantendo o fluxo de forneamento de acordo com a venda, nada de assar muito pão de uma vez e deixar o cliente da tarde pegar o pão assado de manhã. Pra cima que ainda dá tempo!!!",
-      'ate10': "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Na abertura de loja priorize a saída desse produto o mais rápido possível, os clientes não esperam, rs... Foque em pão quentinho nos horários de pico, mantendo o fluxo de forneamento de acordo com a venda, nada de assar muito pão de uma vez e deixar o cliente da tarde pegar o pão assado de manhã. Pra cima que ainda dá, tempo!!!",
-      'ate1': "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Verifique se não está faltando pão para o cliente em horários de pico. Na abertura de loja priorize a saída desse produto o mais rápido possível, os clientes não esperam, rs... Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Calma Amigo que nada está perdido. Foque em pão quentinho nos horários de pico, mantendo o fluxo de forneamento de acordo com a venda, nada de assar muito pão de uma vez e deixar o cliente da tarde pegar o pão assado de manhã. Pra cima que ainda dá tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Na abertura de loja priorize a saída desse produto o mais rápido possível, os clientes não esperam, rs... Foque em pão quentinho nos horários de pico, mantendo o fluxo de forneamento de acordo com a venda, nada de assar muito pão de uma vez e deixar o cliente da tarde pegar o pão assado de manhã. Pra cima que ainda dá, tempo!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
     },
     'Pão Queijo Coquetel': {
-      'acimaMeta': "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
-      'zero': "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
-      'ate50': "Vamos com calma que nada está perdido. Verifique se não está faltando pão para o cliente em horários de pico. Na abertura de loja priorize a saída desse produto o mais rápido possível, assim que esfriar embale, precifique e coloque no PDV. Pra cima que ainda dá tempo!!!",
-      'ate20': "Calma Amigo que nada está perdido. Verifique se não está faltando pão para o cliente em horários de pico, principalmente a tarde. Na abertura de loja priorize a saída desse produto o mais rápido possível, assim que esfriar embale, precifique e coloque no PDV. Mesmo que tenha produto do dia anterior no PDV, não deixe de produzir, os clientes não gostam de levar quando veêm a data do dia anterior. Pra cima que ainda dá tempo!!!",
-      'ate10': "Sua venda não está ruim amigo, já têm pontos extras? Tudo é questão de detalhe, quem sabe uma exposição bem trabalhada possa dar mais visibilidade ao produto? Ponto extra próximo a fila dos caixas é bem promissor... Vamos que vamos!!!",
-      'ate1': "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Verifique se não está faltando pão para o cliente em horários de pico. Na abertura de loja priorize a saída desse produto o mais rápido possível, assim que esfriar embale, precifique e coloque no PDV. Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Calma Amigo que nada está perdido. Verifique se não está faltando pão para o cliente em horários de pico, principalmente a tarde. Na abertura de loja priorize a saída desse produto o mais rápido possível, assim que esfriar embale, precifique e coloque no PDV. Mesmo que tenha produto do dia anterior no PDV, não deixe de produzir, os clientes não gostam de levar quando veêm a data do dia anterior. Pra cima que ainda dá tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, já têm pontos extras? Tudo é questão de detalhe, quem sabe uma exposição bem trabalhada possa dar mais visibilidade ao produto? Ponto extra próximo a fila dos caixas é bem promissor... Vamos que vamos!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
     },
     'Biscoito Queijo': {
-      'acimaMeta': "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
-      'zero': "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
-      'ate50': "Vamos com calma que nada está perdido. Verifique se não está faltando pão para o cliente em horários de pico. Na abertura de loja priorize a saída desse produto o mais rápido possível, os clientes não esperam, rs... Pra cima que ainda dá tempo!!!",
-      'ate20': "Calma Amigo que nada está perdido. Foque em pão quentinho nos horários de pico, mantendo o fluxo de forneamento de acordo com a venda, nada de assar muito pão de uma vez e deixar o cliente da tarde pegar o pão assado de manhã. Pra cima que ainda dá tempo!!!",
-      'ate10': "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Na abertura de loja priorize a saída desse produto o mais rápido possível, os clientes não esperam, rs... Foque em pão quentinho nos horários de pico, mantendo o fluxo de forneamento de acordo com a venda, nada de assar muito pão de uma vez e deixar o cliente da tarde pegar o pão assado de manhã. Pra cima que ainda dá, tempo!!!",
-      'ate1': "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Verifique se não está faltando pão para o cliente em horários de pico. Na abertura de loja priorize a saída desse produto o mais rápido possível, os clientes não esperam, rs... Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Calma Amigo que nada está perdido. Foque em pão quentinho nos horários de pico, mantendo o fluxo de forneamento de acordo com a venda, nada de assar muito pão de uma vez e deixar o cliente da tarde pegar o pão assado de manhã. Pra cima que ainda dá tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Na abertura de loja priorize a saída desse produto o mais rápido possível, os clientes não esperam, rs... Foque em pão quentinho nos horários de pico, mantendo o fluxo de forneamento de acordo com a venda, nada de assar muito pão de uma vez e deixar o cliente da tarde pegar o pão assado de manhã. Pra cima que ainda dá, tempo!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
     },
     'Biscoito Polvilho': {
-      'acimaMeta': "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
-      'zero': "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
-      'ate50': "Vamos com calma que nada está perdido. Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Não deixe de trabalhar com esse produto embalado, além do balcão. Pra cima que ainda dá tempo!!!",
-      'ate20': "Calma Amigo que nada está perdido. Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Não deixe de trabalhar com esse produto embalado, além do balcão. Pra cima que ainda dá tempo!!!",
-      'ate10': "Sua venda não está ruim amigo, já têm pontos extras? Tudo é questão de detalhe, quem sabe uma exposição bem trabalhada possa dar mais visibilidade ao produto? Ponto extra próximo a fila dos caixas é bem promissor... Vamos que vamos!!!",
-      'ate1': "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Não deixe de trabalhar com esse produto embalado, além do balcão. Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Calma Amigo que nada está perdido. Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Não deixe de trabalhar com esse produto embalado, além do balcão. Pra cima que ainda dá tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, já têm pontos extras? Tudo é questão de detalhe, quem sabe uma exposição bem trabalhada possa dar mais visibilidade ao produto? Ponto extra próximo a fila dos caixas é bem promissor... Vamos que vamos!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
     },
     'Pão Tatu': {
-      'acimaMeta': "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
-      'zero': "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
-      'ate50': "Vamos com calma que nada está perdido. Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Como está a qualidade? Pintura e corte devem estar bem atrativos, o cliente come com os olhos... Pra cima que ainda dá tempo!!!",
-      'ate20': "Calma Amigo que nada está perdido. Como está a qualidade? Pintura e corte devem estar bem atrativos, o cliente come com os olhos... O controle de produção deve ser bem equilibrado: não deixe faltar mas também não produza em excesso, pão fresco e macio é o que o cliente procura. Se não tiver em condições em que você compraria, é porque não está bom, né.. Pra cima que ainda dá tempo!!!",
-      'ate10': "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Pintura e corte devem estar bem atrativos, o cliente come com os olhos... O controle de produção deve ser bem equilibrado: não deixe faltar mas também não produza em excesso, pão fresco e macio é o que o cliente procura. E não se esqueça de embalar o produto caso fique no armário para o dia seguinte. Vamos que vamos!!!",
-      'ate1': "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Como está a qualidade? Pintura e corte devem estar bem atrativos, o cliente come com os olhos... Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Calma Amigo que nada está perdido. Como está a qualidade? Pintura e corte devem estar bem atrativos, o cliente come com os olhos... O controle de produção deve ser bem equilibrado: não deixe faltar mas também não produza em excesso, pão fresco e macio é o que o cliente procura. Se não tiver em condições em que você compraria, é porque não está bom, né.. Pra cima que ainda dá tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Pintura e corte devem estar bem atrativos, o cliente come com os olhos... O controle de produção deve ser bem equilibrado: não deixe faltar mas também não produza em excesso, pão fresco e macio é o que o cliente procura. E não se esqueça de embalar o produto caso fique no armário para o dia seguinte. Vamos que vamos!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
     },
     'Mini Pão Sonho': {
-      'acimaMeta': "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
-      'zero': "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
-      'ate50': "Vamos com calma que nada está perdido. Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Como está a qualidade? O cliente come com os olhos... Pra cima que ainda dá tempo!!!",
-      'ate20': "Calma Amigo que nada está perdido.  Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Como está a qualidade? O cliente come com os olhos... Use sempre creme de confeiteiro fresco e opte por uma produção diária. Mesmo que a validade seja 3 dias, em dias quentes o produto pode não aguentar até o último dia de validade. Pra cima que ainda dá tempo!!!",
-      'ate10': "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Como está a qualidade? O cliente come com os olhos... Use sempre creme de confeiteiro fresco e opte por uma produção diária. Mesmo que a validade seja 3 dias, em dias quentes o produto pode não aguentar até o último dia de validade. Já possui ponto extra? Vamos que vamos!!!",
-      'ate1': "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Como está a qualidade? O cliente come com os olhos... Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Calma Amigo que nada está perdido.  Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Como está a qualidade? O cliente come com os olhos... Use sempre creme de confeiteiro fresco e opte por uma produção diária. Mesmo que a validade seja 3 dias, em dias quentes o produto pode não aguentar até o último dia de validade. Pra cima que ainda dá tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Como está a qualidade? O cliente come com os olhos... Use sempre creme de confeiteiro fresco e opte por uma produção diária. Mesmo que a validade seja 3 dias, em dias quentes o produto pode não aguentar até o último dia de validade. Já possui ponto extra? Vamos que vamos!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
     },
     'Pão Doce Ferradura': {
-      'acimaMeta': "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
-      'zero': "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
-      'ate50': "Vamos com calma que nada está perdido. Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Como está a qualidade? Pintura, tamanho e acabamento estão atrativos? O cliente come com os olhos... Pra cima que ainda dá tempo!!!",
-      'ate20': "Calma Amigo que nada está perdido. Como está a qualidade? Pintura e acabamento estão atrativos? O cliente come com os olhos... O controle de produção deve ser bem equilibrado: não deixe faltar mas também não produza em excesso, pão fresco e macio é o que o cliente procura. Se não tiver em condições em que você compraria, é porque não está bom, né.. Pra cima que ainda dá tempo!!!",
-      'ate10': "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Pintura e acabamento estão atrativos? O cliente come com os olhos... O controle de produção deve ser bem equilibrado: não deixe faltar mas também não produza em excesso, pão fresco e macio é o que o cliente procura. E não se esqueça de embalar o produto caso fique no armário para o dia seguinte. Vamos que vamos!!!",
-      'ate1': "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Como está a qualidade? Pintura, tamanho e acabamento estão atrativos? O cliente come com os olhos... Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Calma Amigo que nada está perdido. Como está a qualidade? Pintura e acabamento estão atrativos? O cliente come com os olhos... O controle de produção deve ser bem equilibrado: não deixe faltar mas também não produza em excesso, pão fresco e macio é o que o cliente procura. Se não tiver em condições em que você compraria, é porque não está bom, né.. Pra cima que ainda dá tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Pintura e acabamento estão atrativos? O cliente come com os olhos... O controle de produção deve ser bem equilibrado: não deixe faltar mas também não produza em excesso, pão fresco e macio é o que o cliente procura. E não se esqueça de embalar o produto caso fique no armário para o dia seguinte. Vamos que vamos!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
     },
     'Caseirinho': {
-      'acimaMeta': "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
-      'zero': "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
-      'ate50': "Vamos com calma que nada está perdido. Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Como está a qualidade? Pintura deve estar bem atrativa, o cliente come com os olhos... Procure retirar e assar o produto no mesmo dia, isso garante mais 'força' na estrutura da massa. Pra cima que ainda dá tempo!!!",
-      'ate20': "Calma Amigo que nada está perdido.  Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Como está a qualidade? Pintura deve estar bem atrativa, o cliente come com os olhos... Procure retirar e assar o produto no mesmo dia, isso garante mais 'força' na estrutura da massa. O controle de produção deve ser bem equilibrado: não deixe faltar mas também não produza em excesso, pão fresco e macio é o que o cliente procura. Se não tiver em condições em que você compraria, é porque não está bom, né.. Pra cima que ainda dá tempo!!!",
-      'ate10': "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz.  Pintura deve estar bem atrativa, o cliente come com os olhos... Procure retirar e assar o produto no mesmo dia, isso garante mais 'força' na estrutura da massa. O controle de produção deve ser bem equilibrado: não deixe faltar mas também não produza em excesso, pão fresco e macio é o que o cliente procura. E não se esqueça de embalar o produto caso fique no armário para o dia seguinte. Vamos que vamos!!!",
-      'ate1': "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Como está a qualidade? Pintura deve estar bem atrativa, o cliente come com os olhos... Procure retirar e assar o produto no mesmo dia, isso garante mais 'força' na estrutura da massa. Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Calma Amigo que nada está perdido.  Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Como está a qualidade? Pintura deve estar bem atrativa, o cliente come com os olhos... Procure retirar e assar o produto no mesmo dia, isso garante mais 'força' na estrutura da massa. O controle de produção deve ser bem equilibrado: não deixe faltar mas também não produza em excesso, pão fresco e macio é o que o cliente procura. Se não tiver em condições em que você compraria, é porque não está bom, né.. Pra cima que ainda dá tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz.  Pintura deve estar bem atrativa, o cliente come com os olhos... Procure retirar e assar o produto no mesmo dia, isso garante mais 'força' na estrutura da massa. O controle de produção deve ser bem equilibrado: não deixe faltar mas também não produza em excesso, pão fresco e macio é o que o cliente procura. E não se esqueça de embalar o produto caso fique no armário para o dia seguinte. Vamos que vamos!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
     },
     'Sanduíche Bahamas': {
-      'acimaMeta': "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
-      'zero': "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
-      'ate50': "Vamos com calma que nada está perdido. Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção, o item têm validade de 4 dias no refrigerado. Pra cima que ainda dá tempo!!!",
-      'ate20': "Calma Amigo que nada está perdido.  Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção, o item têm validade de 4 dias no refrigerado. Pra cima que ainda dá tempo!!!",
-      'ate10': "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Como está a qualidade? Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção, o item têm validade de 4 dias no refrigerado. Vamos que vamos!!!",
-      'ate1': "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção, o item têm validade de 4 dias no refrigerado. Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Calma Amigo que nada está perdido.  Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção, o item têm validade de 4 dias no refrigerado. Pra cima que ainda dá tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Como está a qualidade? Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção, o item têm validade de 4 dias no refrigerado. Vamos que vamos!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
     },
   };
 
@@ -16904,8 +17126,7 @@ class _MetaTabelaScreenState extends State<MetaTabelaScreen> {
       return dados['zero'] ?? '';
     }
 
-    double percentualFalta =
-        ((quantidadeMeta - atual) / quantidadeMeta) * 100;
+    double percentualFalta = ((quantidadeMeta - atual) / quantidadeMeta) * 100;
 
     if (percentualFalta <= 0) {
       return dados['acimaMeta'] ?? '';
@@ -16941,7 +17162,7 @@ class _MetaTabelaScreenState extends State<MetaTabelaScreen> {
       qtdReal[p.codigo] = 0;
       mesReal[p.codigo] = 0;
       diaReal[p.codigo] = 0;
-      
+
       // Inicializa todos os comentários como ocultos
       comentarioVisivel[p.codigo] = false;
     }
@@ -16988,8 +17209,7 @@ class _MetaTabelaScreenState extends State<MetaTabelaScreen> {
         } else if (valorFirebase is double) {
           valor = valorFirebase;
         } else if (valorFirebase is String) {
-          valor =
-              double.tryParse(valorFirebase.replaceAll(',', '.')) ?? 0;
+          valor = double.tryParse(valorFirebase.replaceAll(',', '.')) ?? 0;
         }
 
         if (diasGiro > 0) {
@@ -17092,12 +17312,9 @@ class _MetaTabelaScreenState extends State<MetaTabelaScreen> {
   }
 
   Widget buildProduto(Produto p) {
-    double diffQtd =
-        (qtdReal[p.codigo] ?? 0) - (quantidade[p.codigo] ?? 0);
-    double diffMes =
-        (mesReal[p.codigo] ?? 0) - (pacotesMes[p.codigo] ?? 0);
-    double diffDia =
-        (diaReal[p.codigo] ?? 0) - (pacotesDia[p.codigo] ?? 0);
+    double diffQtd = (qtdReal[p.codigo] ?? 0) - (quantidade[p.codigo] ?? 0);
+    double diffMes = (mesReal[p.codigo] ?? 0) - (pacotesMes[p.codigo] ?? 0);
+    double diffDia = (diaReal[p.codigo] ?? 0) - (pacotesDia[p.codigo] ?? 0);
 
     Color cor = diffQtd >= 0 ? Colors.green : Colors.red;
 
@@ -17180,10 +17397,8 @@ class _MetaTabelaScreenState extends State<MetaTabelaScreen> {
             children: [
               buildIndicador(
                   'Quantidade (Kg/Unid)', quantidade[p.codigo] ?? 0, 0),
-              buildIndicador(
-                  'Pacotes/Mês', pacotesMes[p.codigo] ?? 0, 1),
-              buildIndicador(
-                  'Pacotes/Dia', pacotesDia[p.codigo] ?? 0, 1,
+              buildIndicador('Pacotes/Mês', pacotesMes[p.codigo] ?? 0, 1),
+              buildIndicador('Pacotes/Dia', pacotesDia[p.codigo] ?? 0, 1,
                   destaque: true),
             ],
           ),
@@ -17213,12 +17428,13 @@ class _MetaTabelaScreenState extends State<MetaTabelaScreen> {
                 ElevatedButton.icon(
                   onPressed: () {
                     setState(() {
-                      comentarioVisivel[p.codigo] = !comentarioVisivel[p.codigo]!;
+                      comentarioVisivel[p.codigo] =
+                          !comentarioVisivel[p.codigo]!;
                     });
                   },
                   icon: Icon(
-                    comentarioVisivel[p.codigo]! 
-                        ? Icons.visibility_off 
+                    comentarioVisivel[p.codigo]!
+                        ? Icons.visibility_off
                         : Icons.lightbulb_outline,
                     size: 18,
                   ),
@@ -17229,7 +17445,8 @@ class _MetaTabelaScreenState extends State<MetaTabelaScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Color(0xffecc078),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     minimumSize: const Size(80, 36),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
@@ -17248,7 +17465,8 @@ class _MetaTabelaScreenState extends State<MetaTabelaScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.lightbulb, color: Colors.amber.shade700, size: 20),
+                        Icon(Icons.lightbulb,
+                            color: Colors.amber.shade700, size: 20),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
@@ -17304,8 +17522,7 @@ class _MetaTabelaScreenState extends State<MetaTabelaScreen> {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    SecondScreen(storeName: widget.storeName),
+                builder: (context) => SecondScreen(storeName: widget.storeName),
               ),
             );
           },
@@ -17331,13 +17548,11 @@ class _MetaTabelaScreenState extends State<MetaTabelaScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14)),
+                  color: Colors.white, borderRadius: BorderRadius.circular(14)),
               child: TextField(
                 controller: percentualController,
                 keyboardType: TextInputType.number,
-                decoration:
-                    const InputDecoration(labelText: 'Percentual (%)'),
+                decoration: const InputDecoration(labelText: 'Percentual (%)'),
                 onChanged: (_) => calcular(),
               ),
             ),
@@ -17348,6 +17563,81 @@ class _MetaTabelaScreenState extends State<MetaTabelaScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class ManutencaoScreen extends StatelessWidget {
+  const ManutencaoScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFD2691E),
+        centerTitle: true,
+        title: const Text(
+          "METAS",
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFFFE5B4),
+              Color(0xFFD29752),
+            ],
+          ),
+        ),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.construction,
+                  size: 80,
+                  color: Colors.brown.shade700,
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  "Em manutenção",
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF5D4037),
+                    fontFamily: 'Roboto',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  "Estamos trabalhando para melhorar sua experiência.\nVolte em breve!",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Color(0xFF5D4037),
+                    fontFamily: 'Roboto',
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
