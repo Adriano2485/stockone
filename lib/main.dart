@@ -909,17 +909,104 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
   List<String> favoriteStores = [];
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // Mapa para armazenar os nomes de usuário de cada loja
+  Map<String, String> storeUsernames = {};
+
+  // Controle de loading
+  bool isLoadingUsernames = true;
+
   @override
   void initState() {
     super.initState();
     _loadFavorites();
+    _loadStoreUsernamesOptimized();
+  }
+
+  // SOLUÇÃO OTIMIZADA - Uma única requisição ao Firestore
+  Future<void> _loadStoreUsernamesOptimized() async {
+    // Tenta carregar do cache primeiro (mais rápido)
+    final prefs = await SharedPreferences.getInstance();
+    String? cachedData = prefs.getString('storeUsernames_cache');
+    final cacheTimestamp = prefs.getInt('storeUsernames_timestamp');
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    // Cache válido por 5 minutos
+    bool isCacheValid =
+        cacheTimestamp != null && (now - cacheTimestamp) < 300000;
+
+    if (cachedData != null && isCacheValid) {
+      try {
+        final Map<String, String> cachedMap =
+            Map<String, String>.from(jsonDecode(cachedData));
+        if (mounted) {
+          setState(() {
+            storeUsernames = cachedMap;
+            isLoadingUsernames = false;
+          });
+        }
+      } catch (e) {
+        // Erro ao decodificar cache, continua para buscar do Firestore
+      }
+    }
+
+    // Busca dados atualizados do Firestore em background
+    try {
+      // Busca TODOS os documentos de uma só vez
+      QuerySnapshot snapshot = await _firestore.collection('stores').get();
+
+      // Cria mapa eficientemente
+      Map<String, String> tempMap = {};
+
+      // Primeiro, adiciona todas as lojas que existem no Firestore
+      for (var doc in snapshot.docs) {
+        String storeName = doc.id;
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        String userName = data['userName'] ?? 'Sem usuário';
+        tempMap[storeName] = userName;
+      }
+
+      // Depois, preenche as lojas que não existem no Firestore
+      for (String store in stores) {
+        if (!tempMap.containsKey(store)) {
+          tempMap[store] = 'Sem usuário';
+        }
+      }
+
+      // Salva no cache com timestamp
+      await prefs.setString('storeUsernames_cache', jsonEncode(tempMap));
+      await prefs.setInt('storeUsernames_timestamp', now);
+
+      // Atualiza a UI apenas se o widget ainda estiver montado
+      if (mounted) {
+        setState(() {
+          storeUsernames = tempMap;
+          isLoadingUsernames = false;
+        });
+      }
+    } catch (e) {
+      // Em caso de erro, mantém o cache se existir, senão mostra erro
+      if (mounted && storeUsernames.isEmpty) {
+        setState(() {
+          for (String store in stores) {
+            storeUsernames[store] = 'Erro ao carregar';
+          }
+          isLoadingUsernames = false;
+        });
+      } else if (mounted) {
+        setState(() {
+          isLoadingUsernames = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadFavorites() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      favoriteStores = prefs.getStringList('favoriteStores') ?? [];
-    });
+    if (mounted) {
+      setState(() {
+        favoriteStores = prefs.getStringList('favoriteStores') ?? [];
+      });
+    }
   }
 
   Future<void> _toggleFavorite(String storeName) async {
@@ -943,12 +1030,14 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
     if (isDeviceAuthorized) {
       // Dispositivo autorizado - acesso direto
       await prefs.setString('selectedStore', storeName);
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => SecondScreen(storeName: storeName),
-        ),
-      );
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SecondScreen(storeName: storeName),
+          ),
+        );
+      }
     } else {
       // Verificar se já existe caderno para esta loja
       bool hasExistingPassword = await _checkExistingPassword(storeName);
@@ -957,23 +1046,27 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
 
       if (hasExistingPassword) {
         // Loja já tem senha cadastrada - pedir senha
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PasswordScreen(
-              storeName: storeName,
-              isFirstTime: false,
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PasswordScreen(
+                storeName: storeName,
+                isFirstTime: false,
+              ),
             ),
-          ),
-        );
+          );
+        }
       } else {
         // Primeiro cadastro - criar senha
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => FirstTimeScreen(storeName: storeName),
-          ),
-        );
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => FirstTimeScreen(storeName: storeName),
+            ),
+          );
+        }
       }
     }
   }
@@ -991,7 +1084,8 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
 
       if (!doc.exists) return false;
 
-      String? currentPassword = doc.data()?['password'];
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      String? currentPassword = data['password'];
 
       if (currentPassword == null) return false;
 
@@ -1005,7 +1099,10 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
   Future<bool> _checkExistingPassword(String storeName) async {
     try {
       final doc = await _firestore.collection('stores').doc(storeName).get();
-      return doc.exists && doc.data()?['password'] != null;
+      if (!doc.exists) return false;
+
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      return data['password'] != null;
     } catch (e) {
       return false;
     }
@@ -1017,19 +1114,19 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
     final crossAxisCount = (screenWidth / 85).floor().clamp(3, 8);
 
     // Separar lojas favoritas das normais
-    final favoriteList = stores
-        .where((store) => favoriteStores.contains(store))
-        .toList();
-    final normalList = stores
-        .where((store) => !favoriteStores.contains(store))
-        .toList();
+    final favoriteList =
+        stores.where((store) => favoriteStores.contains(store)).toList();
+    final normalList =
+        stores.where((store) => !favoriteStores.contains(store)).toList();
 
     return WillPopScope(
       onWillPop: () async {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => Bahamas()),
-        );
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => Bahamas()),
+          );
+        }
         return false;
       },
       child: Scaffold(
@@ -1040,10 +1137,12 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
           leading: IconButton(
             icon: Icon(Icons.arrow_back, color: Colors.white),
             onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => Bahamas()),
-              );
+              if (mounted) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => Bahamas()),
+                );
+              }
             },
           ),
           title: Row(
@@ -1085,129 +1184,137 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
                 ),
                 const SizedBox(height: 12),
                 Expanded(
-                  child: ListView(
-                    children: [
-                      // Seção de Favoritos
-                      if (favoriteList.isNotEmpty) ...[
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.star,
-                                color: Colors.amber.shade600,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                "FAVORITOS",
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.amber.shade800,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              const Spacer(),
+                  child: isLoadingUsernames && storeUsernames.isEmpty
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.brown),
+                          ),
+                        )
+                      : ListView(
+                          children: [
+                            // Seção de Favoritos
+                            if (favoriteList.isNotEmpty) ...[
                               Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
+                                margin: const EdgeInsets.only(bottom: 8),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.star,
+                                      color: Colors.amber.shade600,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      "FAVORITOS",
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.amber.shade800,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.amber.shade100,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        "${favoriteList.length}",
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.amber.shade800,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                decoration: BoxDecoration(
-                                  color: Colors.amber.shade100,
-                                  borderRadius: BorderRadius.circular(12),
+                              ),
+                              GridView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                gridDelegate:
+                                    SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: crossAxisCount,
+                                  crossAxisSpacing: 8,
+                                  mainAxisSpacing: 8,
+                                  childAspectRatio: 0.8,
                                 ),
-                                child: Text(
-                                  "${favoriteList.length}",
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.amber.shade800,
-                                  ),
+                                itemCount: favoriteList.length,
+                                itemBuilder: (context, index) {
+                                  final store = favoriteList[index];
+                                  return _buildStoreTile(
+                                    store,
+                                    true,
+                                    isFavoriteSection: true,
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              // Divisor
+                              Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Divider(
+                                        color: Colors.grey.shade300,
+                                        thickness: 1,
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8),
+                                      child: Text(
+                                        "TODAS AS LOJAS",
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.grey.shade600,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Divider(
+                                        color: Colors.grey.shade300,
+                                        thickness: 1,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
-                          ),
-                        ),
-                        GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: crossAxisCount,
-                            crossAxisSpacing: 8,
-                            mainAxisSpacing: 8,
-                            childAspectRatio: 0.9,
-                          ),
-                          itemCount: favoriteList.length,
-                          itemBuilder: (context, index) {
-                            final store = favoriteList[index];
-                            return _buildStoreTile(
-                              store,
-                              true,
-                              isFavoriteSection: true,
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        // Divisor
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Divider(
-                                  color: Colors.grey.shade300,
-                                  thickness: 1,
-                                ),
+
+                            // Seção de Todas as Lojas
+                            GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: crossAxisCount,
+                                crossAxisSpacing: 8,
+                                mainAxisSpacing: 8,
+                                childAspectRatio: 0.8,
                               ),
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 8),
-                                child: Text(
-                                  "TODAS AS LOJAS",
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.grey.shade600,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: Divider(
-                                  color: Colors.grey.shade300,
-                                  thickness: 1,
-                                ),
-                              ),
-                            ],
-                          ),
+                              itemCount: normalList.length,
+                              itemBuilder: (context, index) {
+                                final store = normalList[index];
+                                return _buildStoreTile(
+                                  store,
+                                  false,
+                                  isFavoriteSection: false,
+                                );
+                              },
+                            ),
+                          ],
                         ),
-                      ],
-                      
-                      // Seção de Todas as Lojas
-                      GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: crossAxisCount,
-                          crossAxisSpacing: 8,
-                          mainAxisSpacing: 8,
-                          childAspectRatio: 0.9,
-                        ),
-                        itemCount: normalList.length,
-                        itemBuilder: (context, index) {
-                          final store = normalList[index];
-                          return _buildStoreTile(
-                            store,
-                            false,
-                            isFavoriteSection: false,
-                          );
-                        },
-                      ),
-                    ],
-                  ),
                 ),
               ],
             ),
@@ -1222,6 +1329,11 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
     bool isFavorite, {
     required bool isFavoriteSection,
   }) {
+    final username = storeUsernames[store] ?? 'Carregando...';
+
+    // Se ainda está carregando, mostra um efeito sutil
+    final isLoading = storeUsernames[store] == null && isLoadingUsernames;
+
     return Card(
       elevation: isFavoriteSection ? 3 : 1,
       shape: RoundedRectangleBorder(
@@ -1246,46 +1358,89 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
-          onTap: () => _onStoreSelected(context, store),
+          onTap: isLoading ? null : () => _onStoreSelected(context, store),
           child: Stack(
             children: [
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 8,
-                  ),
-                  child: Text(
-                    store,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: isFavoriteSection
-                          ? FontWeight.w700
-                          : FontWeight.w600,
-                      color: isFavoriteSection
-                          ? Colors.brown.shade800
-                          : Colors.brown.shade700,
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 4,
+                  vertical: 12,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Espaço extra para compensar o ícone no topo
+                    const SizedBox(height: 20),
+                    
+                    Text(
+                      store,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isFavoriteSection
+                            ? FontWeight.w700
+                            : FontWeight.w600,
+                        color: isFavoriteSection
+                            ? Colors.brown.shade800
+                            : Colors.brown.shade700,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                    const SizedBox(height: 4),
+                    if (isLoading)
+                      SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.5,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            isFavoriteSection
+                                ? Colors.brown.shade600
+                                : Colors.brown.shade400,
+                          ),
+                        ),
+                      )
+                    else
+                      Text(
+                        username,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w400,
+                          color: isFavoriteSection
+                              ? Colors.brown.shade600
+                              : Colors.brown.shade500,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
                 ),
               ),
               Positioned(
                 top: 4,
-                right: 4,
-                child: IconButton(
-                  icon: Icon(
-                    isFavorite ? Icons.star : Icons.star_border,
-                    color: isFavorite ? Colors.amber.shade600 : Colors.grey.shade400,
-                    size: 18,
-                  ),
-                  onPressed: () => _toggleFavorite(store),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 28,
-                    minHeight: 28,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 8), // Espaço abaixo do ícone
+                    child: IconButton(
+                      icon: Icon(
+                        isFavorite ? Icons.star : Icons.star_border,
+                        color: isFavorite
+                            ? Colors.amber.shade600
+                            : Colors.grey.shade400,
+                        size: 28,
+                      ),
+                      onPressed:
+                          isLoading ? null : () => _toggleFavorite(store),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 28,
+                        minHeight: 28,
+                      ),
+                    ),
                   ),
                 ),
               ),
