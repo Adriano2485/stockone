@@ -30,7 +30,7 @@ defaultConfig {
 applicationId = "com.dusso40.stockone"
 minSdk = 23
 targetSdk = 36
-versionCode = 32 // se quiser, pode usar flutter.versionCode
+versionCode = 33 // se quiser, pode usar flutter.versionCode
 versionName = "2.0.3" // se quiser, pode usar flutter.versionName
 }
 
