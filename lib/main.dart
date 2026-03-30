@@ -586,7 +586,7 @@ class Bahamas extends StatelessWidget {
                 label,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                   fontFamily: 'Roboto',
                   color: Color(0xFF5D4037),
