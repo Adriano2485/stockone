@@ -545,7 +545,7 @@ class Bahamas extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => ManutencaoScreen(),
+                              builder: (_) => TelaMetasLojas(),
                             ),
                           );
                         },
@@ -892,8 +892,6 @@ class PaiseFilhos extends StatelessWidget {
     );
   }
 }
-
-
 
 class StoreSelectionScreen extends StatefulWidget {
   @override
@@ -1371,7 +1369,7 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
                   children: [
                     // Espaço extra para compensar o ícone no topo
                     const SizedBox(height: 20),
-                    
+
                     Text(
                       store,
                       style: TextStyle(
@@ -1424,7 +1422,8 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
                 right: 0,
                 child: Center(
                   child: Container(
-                    margin: const EdgeInsets.only(bottom: 8), // Espaço abaixo do ícone
+                    margin: const EdgeInsets.only(
+                        bottom: 8), // Espaço abaixo do ícone
                     child: IconButton(
                       icon: Icon(
                         isFavorite ? Icons.star : Icons.star_border,
@@ -17947,6 +17946,359 @@ class ManutencaoScreen extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class TelaMetasLojas extends StatelessWidget {
+  const TelaMetasLojas({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Metas por Loja',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        scaffoldBackgroundColor: const Color(0xFFF5F6FA),
+      ),
+      home: const ListaLojasScreen(),
+    );
+  }
+}
+
+class ListaLojasScreen extends StatelessWidget {
+  const ListaLojasScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0x762586e5),
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Bahamas(),
+              ),
+            );
+          },
+        ),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset('assets/images/Logo StockOne.png', height: 32),
+            const SizedBox(width: 8),
+            const Text(
+              "METAS POR LOJA",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Lora',
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('metas').snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Text('Erro: ${snapshot.error}'));
+          }
+
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final lojas = snapshot.data?.docs ?? [];
+
+          if (lojas.isEmpty) {
+            return const Center(child: Text('Nenhuma loja encontrada'));
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: lojas.length,
+            itemBuilder: (context, index) {
+              final lojaDoc = lojas[index];
+              final nomeLoja = lojaDoc.id;
+
+              return Card(
+                elevation: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.store,
+                      color: Colors.blue.shade700,
+                    ),
+                  ),
+                  title: Text(
+                    nomeLoja,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            MetasProdutosScreen(lojaId: nomeLoja),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class MetasProdutosScreen extends StatefulWidget {
+  final String lojaId;
+
+  const MetasProdutosScreen({
+    super.key,
+    required this.lojaId,
+  });
+
+  @override
+  State<MetasProdutosScreen> createState() => _MetasProdutosScreenState();
+}
+
+class _MetasProdutosScreenState extends State<MetasProdutosScreen> {
+  double diasGiro = 0;
+  Map<String, dynamic> vendasData = {};
+
+  @override
+  void initState() {
+    super.initState();
+    carregarVendas();
+  }
+
+  Future<void> carregarVendas() async {
+    final doc = await FirebaseFirestore.instance
+        .collection('stores')
+        .doc(widget.lojaId)
+        .get();
+
+    if (!doc.exists) return;
+
+    final data = doc.data() ?? {};
+
+    final dias = data['diasGiro'];
+
+    if (dias is int) {
+      diasGiro = dias.toDouble();
+    } else if (dias is double) {
+      diasGiro = dias;
+    } else {
+      diasGiro = 0;
+    }
+
+    vendasData = data['vendas'] ?? {};
+
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0x762586e5),
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset('assets/images/Logo StockOne.png', height: 32),
+            const SizedBox(width: 8),
+            Text(
+              "METAS - ${widget.lojaId}",
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Lora',
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+      body: FutureBuilder<DocumentSnapshot>(
+        future: FirebaseFirestore.instance
+            .collection('metas')
+            .doc(widget.lojaId)
+            .get(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Text('Erro: ${snapshot.error}'));
+          }
+
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (!snapshot.hasData || !snapshot.data!.exists) {
+            return const Center(
+                child: Text('Nenhuma meta encontrada para esta loja'));
+          }
+
+          final data = snapshot.data!.data() as Map<String, dynamic>;
+
+          final Map<String, dynamic> produtos =
+              (data['produtos'] as Map<String, dynamic>?) ?? {};
+
+          final listaProdutos = produtos.entries.toList();
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: listaProdutos.length,
+            itemBuilder: (context, index) {
+              final codigo = listaProdutos[index].key;
+              final produtoData =
+                  listaProdutos[index].value as Map<String, dynamic>;
+
+              final nome = produtoData['nome'] ?? codigo;
+              final meta = (produtoData['meta'] ?? 0).toDouble();
+              final preco = (produtoData['preco'] ?? 0).toDouble();
+
+              double vendas = 0;
+
+              var valorFirebase = vendasData[nome];
+
+              if (valorFirebase is int) {
+                vendas = valorFirebase.toDouble();
+              } else if (valorFirebase is double) {
+                vendas = valorFirebase;
+              } else if (valorFirebase is String) {
+                vendas =
+                    double.tryParse(valorFirebase.replaceAll(',', '.')) ?? 0;
+              }
+
+              double projecao = 0;
+
+              if (diasGiro > 0) {
+                projecao = ((vendas / diasGiro) * 30.5) * preco;
+              }
+
+              final bool abaixoMeta = projecao < meta;
+              final cor = abaixoMeta ? Colors.red : Colors.green;
+
+              return Card(
+                elevation: 3,
+                margin: const EdgeInsets.only(bottom: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        nome,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'META',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.blue,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'R\$ ${meta.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: cor.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: cor.withOpacity(0.4)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'PROJEÇÃO',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: cor,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'R\$ ${projecao.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: cor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }
