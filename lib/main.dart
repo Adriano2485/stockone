@@ -5959,7 +5959,6 @@ class _ManutencaoEquipamentosScreenState
 
           gerenteController.text = data['gerente'] ?? '';
 
-          // Inicializa seleção e controllers
           for (var tipo in dadosResumo.keys) {
             var lista = dadosResumo[tipo];
             for (int i = 0; i < lista.length; i++) {
@@ -6009,8 +6008,11 @@ class _ManutencaoEquipamentosScreenState
 
       relatorio.writeln("- ${_tituloEquipamento(tipo, index, equipamento)}");
 
+      // REMOVE URL DA FOTO NO PDF
       equipamento.forEach((campo, valor) {
-        relatorio.writeln("   $campo: $valor");
+        if (campo != 'foto' && campo != 'fotoUrl' && campo != 'urlFoto') {
+          relatorio.writeln("   $campo: $valor");
+        }
       });
 
       relatorio.writeln("   Defeito(s): $defeito");
@@ -6102,8 +6104,6 @@ class _ManutencaoEquipamentosScreenState
                       onChanged: (_) => _salvarGerente(),
                     ),
                     const SizedBox(height: 24),
-
-                    // Lista de checkboxes
                     ...dadosResumo.keys.expand((tipo) {
                       var lista = dadosResumo[tipo];
                       return List.generate(lista.length, (index) {
@@ -6119,7 +6119,12 @@ class _ManutencaoEquipamentosScreenState
                                     fontWeight: FontWeight.bold),
                               ),
                               subtitle: Text(
+                                // REMOVE URL DA FOTO NA TELA
                                 equipamento.entries
+                                    .where((e) =>
+                                        e.key != 'foto' &&
+                                        e.key != 'fotoUrl' &&
+                                        e.key != 'urlFoto')
                                     .map((e) => "${e.key}: ${e.value}")
                                     .join(", "),
                                 style: const TextStyle(fontSize: 14),
@@ -6152,7 +6157,6 @@ class _ManutencaoEquipamentosScreenState
                         );
                       });
                     }),
-
                     const SizedBox(height: 16),
                     TextField(
                       maxLines: null,
@@ -7448,22 +7452,12 @@ class _DocumentosState extends State<Documentos> {
           'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/Validade%20insumos.pdf?alt=media&token=402e7150-c245-4b47-80a1-badd9f60333d'
     },
     {
-      'label': 'Relação Pedido',
-      'url':
-          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/Pedido%20Bahamas.pdf?alt=media&token=e5bfb923-76f1-4ce2-872c-a96913f13e45'
-    },
-    {
-      'label': 'Calendário Pedidos',
-      'url':
-          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/calend%C3%A1rio%20pedido.pdf?alt=media&token=c8243eed-d7ab-43f7-b5e0-0657f3091f64'
-    },
-    {
       'label': 'Catálogo de Códigos CX-OPERADOR',
       'url':
           'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/Cat%C3%A1golo%20c%C3%B3digos%20cx-operador.pdf?alt=media&token=c9988046-404d-478a-933c-838128f920ba'
     },
     {
-      'label': 'Última atualização de baixas Bahamas',
+      'label': 'Última atualização baixas',
       'url':
           'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/baixas%20padaria%2C%20inclus%C3%A3o%20e%20perda%20d%C3%A1gua.pdf?alt=media&token=9f38b83f-decc-4a6e-b749-6c2aacc44e89'
     },
