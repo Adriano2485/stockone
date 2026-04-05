@@ -2966,7 +2966,7 @@ class _MapeamentoEstoqueScreenState extends State<MapeamentoEstoqueScreen> {
           ],
           'Massa Pão Francês': ['Pão Francês', 'Pão Samaritano'],
           'Massa Pão Francês Fibras': ['Pão Francês Fibras'],
-          'Massa Mini Baguete 80g': [
+          'Massa Mini Baguete 90g': [
             'Pão de Alho da Casa',
             'Pão de Alho da Casa Picante',
             'Sanduíche Bahamas',
@@ -3163,7 +3163,7 @@ class _LayoutDistribuicaoScreenState extends State<LayoutDistribuicaoScreen> {
     'Massa Pão Queijo Tradicional',
     'Massa Baguete 330g',
     'Massa Mini Baguete 40g',
-    'Massa Mini Baguete 80g',
+    'Massa Mini Baguete 90g',
     'Massa Pão Francês Fibras',
     'Massa Cervejinha',
     'Massa Pão Francês',
@@ -3435,8 +3435,7 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
     'Massa Pão Francês Fibras': 3.3,
     'Massa Pão Cervejinha': 3.3,
     'Massa Mini Baguete 40g': 3.3,
-    'Massa Mini Pão Francês': 3.3,
-    'Massa Mini Baguete 80g': 3.3,
+    'Massa Mini Baguete 90g': 3.3,
     'Massa Pão De Queijo Coq': 3.3,
     'Massa Pão Biscoito Queijo': 3.3,
     'Massa Pão De Queijo Trad.': 3.3,
@@ -4059,7 +4058,7 @@ class _FourthScreenState extends State<FourthScreen> {
     'Massa Pão Francês Fibras': TextEditingController(),
     'Massa Pão Cervejinha': TextEditingController(),
     'Massa Mini Baguete 40g': TextEditingController(),
-    'Massa Mini Baguete 80g': TextEditingController(),
+    'Massa Mini Baguete 90g': TextEditingController(),
     'Massa Baguete 330g': TextEditingController(),
     'Massa Pão De Queijo Coq': TextEditingController(),
     'Massa Pão Biscoito Queijo': TextEditingController(),
@@ -4084,7 +4083,7 @@ class _FourthScreenState extends State<FourthScreen> {
     'Massa Pão Francês Fibras': TextEditingController(),
     'Massa Pão Cervejinha': TextEditingController(),
     'Massa Mini Baguete 40g': TextEditingController(),
-    'Massa Mini Baguete 80g': TextEditingController(),
+    'Massa Mini Baguete 90g': TextEditingController(),
     'Massa Baguete 330g': TextEditingController(),
     'Massa Pão De Queijo Coq': TextEditingController(),
     'Massa Pão Biscoito Queijo': TextEditingController(),
@@ -4109,7 +4108,7 @@ class _FourthScreenState extends State<FourthScreen> {
     'Massa Pão Francês Fibras': false,
     'Massa Pão Cervejinha': false,
     'Massa Mini Baguete 40g': false,
-    'Massa Mini Baguete 80g': false,
+    'Massa Mini Baguete 90g': false,
     'Massa Baguete 330g': false,
     'Massa Pão De Queijo Coq': false,
     'Massa Pão Biscoito Queijo': false,
@@ -4152,7 +4151,7 @@ class _FourthScreenState extends State<FourthScreen> {
       'editado': false,
       'carregado': false
     },
-    'Massa Mini Baguete 80g': {
+    'Massa Mini Baguete 90g': {
       'valor': 0.0,
       'editado': false,
       'carregado': false
@@ -4318,7 +4317,7 @@ class _FourthScreenState extends State<FourthScreen> {
     'Massa Pão Francês Fibras',
     'Massa Pão Cervejinha',
     'Massa Mini Baguete 40g',
-    'Massa Mini Baguete 80g',
+    'Massa Mini Baguete 90g',
     'Massa Baguete 330g',
     'Massa Pão De Queijo Coq',
     'Massa Pão Biscoito Queijo',
@@ -4773,7 +4772,7 @@ class _FourthScreenState extends State<FourthScreen> {
         _showInsufficientStockAlert(produto);
       else
         estoqueInsuficiente[produto] = false;
-    } else if (produto == 'Massa Mini Baguete 80g') {
+    } else if (produto == 'Massa Mini Baguete 90g') {
       estoqueCalculado = estoqueAtual -
           (intervaloEntrega *
               ((vendaMensalPaodeAlhodaCasa * 0.27) +
@@ -5560,7 +5559,7 @@ class DetalhesPedidoScreen extends StatelessWidget {
     'Massa Pão Francês Fibras': 6,
     'Massa Pão Cervejinha': 6,
     'Massa Mini Baguete 40g': 6,
-    'Massa Mini Baguete 80g': 6,
+    'Massa Mini Baguete 90g': 6,
     'Massa Baguete 330g': 6,
     'Massa Pão De Queijo Coq': 6,
     'Massa Pão Biscoito Queijo': 6,
