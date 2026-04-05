@@ -6008,9 +6008,9 @@ class _ManutencaoEquipamentosScreenState
 
       relatorio.writeln("- ${_tituloEquipamento(tipo, index, equipamento)}");
 
-      // REMOVE URL DA FOTO NO PDF
+      // REMOVE photoUrl do PDF
       equipamento.forEach((campo, valor) {
-        if (campo != 'foto' && campo != 'fotoUrl' && campo != 'urlFoto') {
+        if (campo != 'photoUrl') {
           relatorio.writeln("   $campo: $valor");
         }
       });
@@ -6119,12 +6119,8 @@ class _ManutencaoEquipamentosScreenState
                                     fontWeight: FontWeight.bold),
                               ),
                               subtitle: Text(
-                                // REMOVE URL DA FOTO NA TELA
                                 equipamento.entries
-                                    .where((e) =>
-                                        e.key != 'foto' &&
-                                        e.key != 'fotoUrl' &&
-                                        e.key != 'urlFoto')
+                                    .where((e) => e.key != 'photoUrl')
                                     .map((e) => "${e.key}: ${e.value}")
                                     .join(", "),
                                 style: const TextStyle(fontSize: 14),
