@@ -7282,10 +7282,6 @@ class ReceituarioScreen extends StatelessWidget {
       {'label': "Biscoito Polvilho", 'screen': const BiscoitoPolvilhoScreen()},
       {'label': "Biscoito Queijo ", 'screen': const BiscoitoQueijoScreen()},
       {
-        'label': "Mini Pão Francês C/ Gergelim",
-        'screen': const MiniPaoFrancesCGergelimScreen()
-      },
-      {
         'label': "Mini Pão Marta Rocha",
         'screen': const MiniPaoMartaRochaScreen()
       },
@@ -7322,7 +7318,6 @@ class ReceituarioScreen extends StatelessWidget {
         'screen': const PaoDeQueijoTradicionalScreen()
       },
       {'label': "Pão Doce Caracol", 'screen': const PaoDoceCaracolScreen()},
-      {'label': "Pão Doce Comprido", 'screen': const PaoDoceCompridoScreen()},
       {'label': "Pão Doce Ferradura", 'screen': const PaoDoceFerraduraScreen()},
       {'label': "Pão Fofinho        ", 'screen': const PaoFofinhoScreen()},
       {'label': "Pão Francês        ", 'screen': const PaoFrancesScreen()},
@@ -7337,18 +7332,6 @@ class ReceituarioScreen extends StatelessWidget {
       {'label': "Pão Pizza          ", 'screen': const PaoPizzaScreen()},
       {'label': "Pão Samaritano", 'screen': const PaoSamaritanoScreen()},
       {'label': "Pão Tatu           ", 'screen': const PaoTatuScreen()},
-      {
-        'label': "Profiteroles Brigadeiro",
-        'screen': const ProfiterolesBrigadeiroScreen()
-      },
-      {
-        'label': "Profiteroles Brigadeiro Branco",
-        'screen': const ProfiterolesBrigadeiroBrancoScreen()
-      },
-      {
-        'label': "Profiteroles Doce de Leite",
-        'screen': const ProfiterolesDoceDeLeiteScreen()
-      },
       {'label': "Rabanada Assada", 'screen': const RabanadaAssadaScreen()},
       {'label': "Rosca Caseira", 'screen': const RoscaCaseiraScreen()},
       {'label': "Rosca Caseira Côco", 'screen': const RoscaCaseiraCocoScreen()},
@@ -7368,6 +7351,10 @@ class ReceituarioScreen extends StatelessWidget {
       {'label': "Sanduíche Fofinho", 'screen': const SanduicheFofinhoScreen()},
       {'label': "Torrada Comum", 'screen': const TorradaComumScreen()},
       {'label': "Torrada De Alho", 'screen': const TorradaDeAlhoScreen()},
+      {
+        'label': "Torrada De Alho Picante",
+        'screen': const TorradaDeAlhoPicanteScreen()
+      },
       {'label': "Torrada Fibras", 'screen': const TorradaIntegralScreen()},
       {
         'label': "Torrada Fibras De Alho",
@@ -8857,6 +8844,49 @@ class TorradaDeAlhoScreen extends StatelessWidget {
               maxScale: 5.0,
               child: Image.asset(
                 'assets/images/torradadealho.jpg',
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                width: MediaQuery.of(context).size.width,
+              ),
+            ),
+          ),
+
+          // Botão de voltar sobre a imagem
+          Positioned(
+            top: 40,
+            left: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class TorradaDeAlhoPicanteScreen extends StatelessWidget {
+  const TorradaDeAlhoPicanteScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Conteúdo rolável
+          SingleChildScrollView(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 5.0,
+              child: Image.asset(
+                'assets/images/torradadealhopicante.jpg',
                 fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
