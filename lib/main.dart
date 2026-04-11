@@ -18327,7 +18327,6 @@ class _MetasProdutosScreenState extends State<MetasProdutosScreen> {
   }
 }
 
-
 class Requisicao extends StatefulWidget {
   final String storeName;
 
@@ -18337,7 +18336,8 @@ class Requisicao extends StatefulWidget {
   State<Requisicao> createState() => _RequisicaoState();
 }
 
-class _RequisicaoState extends State<Requisicao> with SingleTickerProviderStateMixin {
+class _RequisicaoState extends State<Requisicao>
+    with SingleTickerProviderStateMixin {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   final Map<String, TextEditingController> controllersProducao = {};
@@ -18689,13 +18689,15 @@ class _RequisicaoState extends State<Requisicao> with SingleTickerProviderStateM
   }
 
   // Função auxiliar para pegar um valor numérico do controller (segura)
-  double _getValorController(Map<String, TextEditingController> controllers, String codigo) {
+  double _getValorController(
+      Map<String, TextEditingController> controllers, String codigo) {
     final text = controllers[codigo]?.text.trim() ?? '';
     if (text.isEmpty) return 0.0;
     return _parseInputValue(text);
   }
 
-  int _getValorControllerInt(Map<String, TextEditingController> controllers, String codigo) {
+  int _getValorControllerInt(
+      Map<String, TextEditingController> controllers, String codigo) {
     final text = controllers[codigo]?.text.trim() ?? '';
     if (text.isEmpty) return 0;
     return _parseInputValue(text).round();
@@ -18706,11 +18708,16 @@ class _RequisicaoState extends State<Requisicao> with SingleTickerProviderStateM
     return {
       'paoFrances': _getValorController(controllersProducao, '33639') * 2.1 +
           _getValorController(controllersProducao, '336392') * 0.66,
-      'paoFrancesFibras': _getValorController(controllersProducao, '164966') * 0.66,
-      'paoQueijoTradicional': _getValorController(controllersProducao, '62948') * 0.99,
-      'paoQueijoCoquetel': _getValorController(controllersProducao, '65139') * 0.99,
-      'biscoitoPolvilho': _getValorController(controllersProducao, '97922') * 0.567,
-      'biscoitoQueijo': _getValorController(controllersProducao, '146428') * 0.99,
+      'paoFrancesFibras':
+          _getValorController(controllersProducao, '164966') * 0.66,
+      'paoQueijoTradicional':
+          _getValorController(controllersProducao, '62948') * 0.99,
+      'paoQueijoCoquetel':
+          _getValorController(controllersProducao, '65139') * 0.99,
+      'biscoitoPolvilho':
+          _getValorController(controllersProducao, '97922') * 0.567,
+      'biscoitoQueijo':
+          _getValorController(controllersProducao, '146428') * 0.99,
       'paoTatu': _getValorController(controllersProducao, '42842') * 0.33,
       'paoFofinho': _getValorController(controllersProducao, '106793') * 0.495,
     };
@@ -18780,13 +18787,104 @@ class _RequisicaoState extends State<Requisicao> with SingleTickerProviderStateM
           1.6,
       'miniMarta': _getValorController(controllersProducao, '112731') / 1.6,
       'paoDoceCaracol': _getValorController(controllersProducao, '81238') / 4.5,
-      'paoDoceFerradura': _getValorController(controllersProducao, '81240') / 3.3,
+      'paoDoceFerradura':
+          _getValorController(controllersProducao, '81240') / 3.3,
     };
+  }
+
+  // Função para limpar todos os dados de uma coleção
+  Future<void> _limparDados(String tipo, String titulo) async {
+    // Mostrar diálogo de confirmação
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Limpar $titulo'),
+          content: Text(
+            'Tem certeza que deseja limpar todos os dados de $titulo?\n\nEsta ação não pode ser desfeita.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Limpar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm != true) return;
+
+    // Mostrar indicador de carregamento
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
+
+    try {
+      // Limpar cada documento da coleção
+      final controllers =
+          tipo == 'producao' ? controllersProducao : controllersPerdas;
+      final produtos = tipo == 'producao' ? produtosProducao : produtosPerdas;
+
+      for (var item in produtos) {
+        final codigo = item['codigo']!;
+
+        // Limpar o TextController
+        controllers[codigo]?.clear();
+
+        // Limpar no Firebase
+        await _firestore
+            .collection('stores')
+            .doc(widget.storeName)
+            .collection(tipo)
+            .doc(codigo)
+            .delete();
+      }
+
+      // Atualizar a planilha
+      _planilhaNotifier.value++;
+
+      // Fechar o diálogo de carregamento
+      if (context.mounted) Navigator.of(context).pop();
+
+      // Mostrar mensagem de sucesso
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$titulo limpo com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      // Fechar o diálogo de carregamento
+      if (context.mounted) Navigator.of(context).pop();
+
+      // Mostrar mensagem de erro
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao limpar $titulo: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _carregarResponsavel() async {
     try {
-      final doc = await _firestore.collection('stores').doc(widget.storeName).get();
+      final doc =
+          await _firestore.collection('stores').doc(widget.storeName).get();
       if (doc.exists) {
         final data = doc.data() ?? {};
         setState(() {
@@ -18801,169 +18899,582 @@ class _RequisicaoState extends State<Requisicao> with SingleTickerProviderStateM
     }
   }
 
-  Future<void> _compartilharPlanilha() async {
+  // Função para compartilhar em PDF
+  Future<void> _compartilharPlanilhaPDF() async {
     final motivo49 = _calcularMotivo49();
     final motivo8 = _calcularMotivo8();
     final motivo23 = _calcularMotivo23();
     final motivo9 = _calcularMotivo9();
 
-    // Função auxiliar para formatar linhas apenas com valores > 0
-    String formatarMotivo(String titulo, Map<String, dynamic> dados, Map<String, String> labels, Map<String, String> unidades) {
-      StringBuffer buffer = StringBuffer();
-      buffer.writeln('\n*$titulo:*');
-      
-      bool temValor = false;
-      for (var entry in dados.entries) {
-        if (entry.value > 0) {
-          temValor = true;
-          String valorFormatado = entry.value is double && entry.value == entry.value.roundToDouble()
-              ? entry.value.round().toString()
-              : entry.value.toStringAsFixed(2);
-          buffer.writeln('• ${labels[entry.key]}: $valorFormatado ${unidades[entry.key]}');
-        }
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(40),
+        build: (context) => [
+          pw.Center(
+            child: pw.Text(
+              'REQUISIÇÃO PADARIA',
+              style: pw.TextStyle(
+                fontSize: 24,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+          ),
+          pw.SizedBox(height: 20),
+          pw.Text(
+            'LOJA: ${widget.storeName.toUpperCase()}',
+            style: pw.TextStyle(fontSize: 14), // Removeu o const
+          ),
+          pw.SizedBox(height: 8),
+          pw.Text(
+            'RESPONSÁVEL: $_responsavel',
+            style: pw.TextStyle(fontSize: 14), // Removeu o const
+          ),
+          pw.SizedBox(height: 8),
+          pw.Text(
+            'DATA: ${DateFormat('dd/MM/yyyy').format(_dataSelecionada)}',
+            style: pw.TextStyle(fontSize: 14), // Removeu o const
+          ),
+          pw.SizedBox(height: 30),
+          _buildMotivoPDF('MOTIVO 49', _getMotivo49Items(motivo49)),
+          pw.SizedBox(height: 20),
+          _buildMotivoPDF('MOTIVO 8', _getMotivo8Items(motivo8)),
+          pw.SizedBox(height: 20),
+          _buildMotivoPDF('MOTIVO 23', _getMotivo23Items(motivo23)),
+          pw.SizedBox(height: 20),
+          _buildMotivoPDF('MOTIVO 9', _getMotivo9Items(motivo9)),
+          pw.SizedBox(height: 40),
+          pw.Text(
+            'ASSINATURA: __________________________________',
+            style: pw.TextStyle(
+                fontSize: 14,
+                fontStyle: pw.FontStyle.italic), // Removeu o const
+          ),
+        ],
+      ),
+    );
+
+    try {
+      final dir = await getTemporaryDirectory();
+      final fileName =
+          'requisicao_padaria_${widget.storeName}_${DateFormat('ddMMyyyy').format(_dataSelecionada)}.pdf';
+      final file = File('${dir.path}/$fileName');
+      await file.writeAsBytes(await pdf.save());
+
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text:
+            'Requisição Padaria - ${widget.storeName} - ${DateFormat('dd/MM/yyyy').format(_dataSelecionada)}',
+      );
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('PDF gerado e compartilhado com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
-      
-      if (!temValor) {
-        buffer.writeln('• Nenhum registro');
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao gerar ou compartilhar PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
-      
-      return buffer.toString();
+    }
+  }
+
+  // Função para construir tabela do motivo no PDF
+
+  pw.Widget _buildMotivoPDF(String titulo, List<Map<String, dynamic>> items) {
+    if (items.isEmpty) {
+      return pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            titulo,
+            style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 8),
+          pw.Text(
+            'Nenhum registro',
+            style: pw.TextStyle(
+                fontSize: 12,
+                fontStyle: pw.FontStyle.italic), // Removeu o const
+          ),
+        ],
+      );
     }
 
-    // Labels e unidades para cada motivo
-    final labels49 = {
-      'paoFrances': 'Massa Pão Francês',
-      'paoFrancesFibras': 'Massa Pão Francês Fibras',
-      'paoQueijoTradicional': 'Massa Pão de Queijo Tradicional',
-      'paoQueijoCoquetel': 'Massa Pão de Queijo Coquetel',
-      'biscoitoPolvilho': 'Massa Biscoito Polvilho',
-      'biscoitoQueijo': 'Massa Biscoito de Queijo',
-      'paoTatu': 'Massa Pão Tatu',
-      'paoFofinho': 'Massa Pão Fofinho',
-    };
-    
-    final unidades49 = {
-      'paoFrances': 'KG',
-      'paoFrancesFibras': 'KG',
-      'paoQueijoTradicional': 'KG',
-      'paoQueijoCoquetel': 'KG',
-      'biscoitoPolvilho': 'KG',
-      'biscoitoQueijo': 'KG',
-      'paoTatu': 'KG',
-      'paoFofinho': 'KG',
-    };
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          titulo,
+          style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+        ),
+        pw.SizedBox(height: 8),
+        pw.Table(
+          border: pw.TableBorder.all(),
+          columnWidths: {
+            0: const pw.FlexColumnWidth(1.5),
+            1: const pw.FlexColumnWidth(3),
+            2: const pw.FlexColumnWidth(1.5),
+          },
+          children: [
+            pw.TableRow(
+              decoration: pw.BoxDecoration(
+                color: PdfColors.grey300,
+              ),
+              children: [
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(8),
+                  child: pw.Text('CÓDIGO',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                ),
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(8),
+                  child: pw.Text('PRODUTO',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                ),
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(8),
+                  child: pw.Text('QUANTIDADE',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                ),
+              ],
+            ),
+            ...items.map((item) => pw.TableRow(
+                  children: [
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text(item['codigo']),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text(item['produto']),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child:
+                          pw.Text('${item['quantidade']} ${item['unidade']}'),
+                    ),
+                  ],
+                )),
+          ],
+        ),
+      ],
+    );
+  }
 
-    final labels8 = {
-      'baguete': 'Massa Baguete',
-      'paoFrances': 'Massa Pão Francês',
-      'miniMarta': 'Massa Mini Marta Rocha',
-      'rabanada': 'Massa Pão P/ Rabanada',
-      'paoFofinho': 'Massa Pão Fofinho',
-    };
-    
-    final unidades8 = {
-      'baguete': 'KG',
-      'paoFrances': 'KG',
-      'miniMarta': 'KG',
-      'rabanada': 'UNID',
-      'paoFofinho': 'KG',
-    };
+  // Funções para extrair itens de cada motivo
+  List<Map<String, dynamic>> _getMotivo49Items(Map<String, dynamic> motivo49) {
+    final items = <Map<String, dynamic>>[];
 
-    final labels23 = {
-      'bagueteFrancesa': 'Massa Baguete Francesa',
-      'bambino': 'Massa Bambino',
-      'biscoitoQueijo': 'Massa Biscoito Queijo',
-      'biscoitoPolvilho': 'Massa Biscoito Polvilho',
-      'miniMarta': 'Massa Mini Marta Rocha',
-      'baguete': 'Massa Baguete',
-      'paoFofinho': 'Massa Pão Fofinho',
-      'paoQueijoCoquetel': 'Massa Pão De Queijo Coquetel',
-      'paoQueijoTradicional': 'Massa Pão de Queijo Tradicional',
-      'paoDoceCaracol': 'Massa Pão Doce Caracol',
-      'paoDoceFerradura': 'Massa Pão Doce Ferradura',
-      'paoTatu': 'Massa Pão Tatu',
-      'paoRabanada': 'Massa Pão P/ Rabanada',
-      'miniBaguetinha': 'Massa Mini Baguetinha',
-      'sanduicheFofinho': 'Sanduíche Fofinho',
-      'paoSamaritano': 'Pão Samaritano',
-      'paoPizza': 'Pão Pizza',
-      'paoAlhoCasa': 'Pão de Alho da Casa',
-      'paoAlhoCasaPicante': 'Pão de Alho da Casa Picante',
-      'roscaFofinha': 'Rosca Fofinha Temperada',
-      'roscaCocoQueijo': 'Rosca Côco e Queijo',
-      'rabanadaAssada': 'Rabanada Assada',
-    };
-    
-    final unidades23 = {
-      'bagueteFrancesa': 'UNID',
-      'bambino': 'KG',
-      'biscoitoQueijo': 'KG',
-      'biscoitoPolvilho': 'KG',
-      'miniMarta': 'KG',
-      'baguete': 'KG',
-      'paoFofinho': 'KG',
-      'paoQueijoCoquetel': 'KG',
-      'paoQueijoTradicional': 'KG',
-      'paoDoceCaracol': 'KG',
-      'paoDoceFerradura': 'KG',
-      'paoTatu': 'KG',
-      'paoRabanada': 'UNID',
-      'miniBaguetinha': 'KG',
-      'sanduicheFofinho': 'UNID',
-      'paoSamaritano': 'UNID',
-      'paoPizza': 'UNID',
-      'paoAlhoCasa': 'UNID',
-      'paoAlhoCasaPicante': 'UNID',
-      'roscaFofinha': 'UNID',
-      'roscaCocoQueijo': 'UNID',
-      'rabanadaAssada': 'KG',
-    };
+    if (motivo49['paoFrances'] > 0) {
+      items.add({
+        'codigo': '33639/336392',
+        'produto': 'Massa Pão Francês',
+        'quantidade': _formatNumber(motivo49['paoFrances']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo49['paoFrancesFibras'] > 0) {
+      items.add({
+        'codigo': '164966',
+        'produto': 'Massa Pão Francês Fibras',
+        'quantidade': _formatNumber(motivo49['paoFrancesFibras']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo49['paoQueijoTradicional'] > 0) {
+      items.add({
+        'codigo': '62948',
+        'produto': 'Massa Pão de Queijo Tradicional',
+        'quantidade': _formatNumber(motivo49['paoQueijoTradicional']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo49['paoQueijoCoquetel'] > 0) {
+      items.add({
+        'codigo': '65139',
+        'produto': 'Massa Pão de Queijo Coquetel',
+        'quantidade': _formatNumber(motivo49['paoQueijoCoquetel']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo49['biscoitoPolvilho'] > 0) {
+      items.add({
+        'codigo': '97922',
+        'produto': 'Massa Biscoito Polvilho',
+        'quantidade': _formatNumber(motivo49['biscoitoPolvilho']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo49['biscoitoQueijo'] > 0) {
+      items.add({
+        'codigo': '146428',
+        'produto': 'Massa Biscoito de Queijo',
+        'quantidade': _formatNumber(motivo49['biscoitoQueijo']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo49['paoTatu'] > 0) {
+      items.add({
+        'codigo': '42842',
+        'produto': 'Massa Pão Tatu',
+        'quantidade': _formatNumber(motivo49['paoTatu']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo49['paoFofinho'] > 0) {
+      items.add({
+        'codigo': '106793',
+        'produto': 'Massa Pão Fofinho',
+        'quantidade': _formatNumber(motivo49['paoFofinho']),
+        'unidade': 'KG',
+      });
+    }
 
-    final labels9 = {
-      'sanduicheFofinho': 'Sanduíche Fofinho',
-      'paoSamaritano': 'Pão Samaritano',
-      'paoPizza': 'Pão Pizza',
-      'paoAlhoCasa': 'Pão de Alho da Casa',
-      'paoAlhoCasaPicante': 'Pão de Alho da Casa Picante',
-      'roscaFofinha': 'Rosca Fofinha Temperada',
-      'roscaCocoQueijo': 'Rosca Côco e Queijo',
-      'rabanadaAssada': 'Rabanada Assada',
-      'bambino': 'Massa Bambino',
-      'miniMarta': 'Massa Mini Marta Rocha',
-      'paoDoceCaracol': 'Massa Pão Doce Caracol',
-      'paoDoceFerradura': 'Massa Pão Doce Ferradura',
-    };
-    
-    final unidades9 = {
-      'sanduicheFofinho': 'UNID',
-      'paoSamaritano': 'UNID',
-      'paoPizza': 'UNID',
-      'paoAlhoCasa': 'UNID',
-      'paoAlhoCasaPicante': 'UNID',
-      'roscaFofinha': 'UNID',
-      'roscaCocoQueijo': 'UNID',
-      'rabanadaAssada': 'KG',
-      'bambino': 'KG',
-      'miniMarta': 'KG',
-      'paoDoceCaracol': 'KG',
-      'paoDoceFerradura': 'KG',
-    };
+    return items;
+  }
 
-    StringBuffer texto = StringBuffer();
-    texto.writeln('📊 *REQUISIÇÃO PADARIA - ${widget.storeName.toUpperCase()}*');
-    texto.writeln('📅 *Data:* ${DateFormat('dd/MM/yyyy').format(_dataSelecionada)}');
-    texto.writeln('👤 *Responsável:* $_responsavel');
-    texto.writeln('━' * 30);
-    
-    texto.write(formatarMotivo('MOTIVO 49', motivo49, labels49, unidades49));
-    texto.write(formatarMotivo('MOTIVO 8', motivo8, labels8, unidades8));
-    texto.write(formatarMotivo('MOTIVO 23', motivo23, labels23, unidades23));
-    texto.write(formatarMotivo('MOTIVO 9', motivo9, labels9, unidades9));
-    
-    texto.writeln('\n━' * 30);
-    texto.writeln('✍️ *Assinatura do Responsável:* ___________________');
+  List<Map<String, dynamic>> _getMotivo8Items(Map<String, dynamic> motivo8) {
+    final items = <Map<String, dynamic>>[];
 
-    await Share.share(texto.toString(), subject: 'Requisição Padaria ${widget.storeName}');
+    if (motivo8['baguete'] > 0) {
+      items.add({
+        'codigo': '81235',
+        'produto': 'Massa Baguete',
+        'quantidade': _formatNumber(motivo8['baguete']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo8['paoFrances'] > 0) {
+      items.add({
+        'codigo': '33639',
+        'produto': 'Massa Pão Francês',
+        'quantidade': _formatNumber(motivo8['paoFrances']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo8['miniMarta'] > 0) {
+      items.add({
+        'codigo': '112731',
+        'produto': 'Massa Mini Marta Rocha',
+        'quantidade': _formatNumber(motivo8['miniMarta']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo8['rabanada'] > 0) {
+      items.add({
+        'codigo': '131281',
+        'produto': 'Massa Pão P/ Rabanada',
+        'quantidade': motivo8['rabanada'].toString(),
+        'unidade': 'UNID',
+      });
+    }
+    if (motivo8['paoFofinho'] > 0) {
+      items.add({
+        'codigo': '106793',
+        'produto': 'Massa Pão Fofinho',
+        'quantidade': _formatNumber(motivo8['paoFofinho']),
+        'unidade': 'KG',
+      });
+    }
+
+    return items;
+  }
+
+  List<Map<String, dynamic>> _getMotivo23Items(Map<String, dynamic> motivo23) {
+    final items = <Map<String, dynamic>>[];
+
+    if (motivo23['bagueteFrancesa'] > 0) {
+      items.add({
+        'codigo': '132471',
+        'produto': 'Massa Baguete Francesa',
+        'quantidade': motivo23['bagueteFrancesa'].toString(),
+        'unidade': 'UNID',
+      });
+    }
+    if (motivo23['bambino'] > 0) {
+      items.add({
+        'codigo': '112727',
+        'produto': 'Massa Bambino',
+        'quantidade': _formatNumber(motivo23['bambino']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo23['biscoitoQueijo'] > 0) {
+      items.add({
+        'codigo': '146428',
+        'produto': 'Massa Biscoito Queijo',
+        'quantidade': _formatNumber(motivo23['biscoitoQueijo']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo23['biscoitoPolvilho'] > 0) {
+      items.add({
+        'codigo': '97922',
+        'produto': 'Massa Biscoito Polvilho',
+        'quantidade': _formatNumber(motivo23['biscoitoPolvilho']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo23['miniMarta'] > 0) {
+      items.add({
+        'codigo': '112731',
+        'produto': 'Massa Mini Marta Rocha',
+        'quantidade': _formatNumber(motivo23['miniMarta']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo23['baguete'] > 0) {
+      items.add({
+        'codigo': '81235',
+        'produto': 'Massa Baguete',
+        'quantidade': _formatNumber(motivo23['baguete']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo23['paoFofinho'] > 0) {
+      items.add({
+        'codigo': '106793',
+        'produto': 'Massa Pão Fofinho',
+        'quantidade': _formatNumber(motivo23['paoFofinho']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo23['paoQueijoCoquetel'] > 0) {
+      items.add({
+        'codigo': '65139',
+        'produto': 'Massa Pão De Queijo Coquetel',
+        'quantidade': _formatNumber(motivo23['paoQueijoCoquetel']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo23['paoQueijoTradicional'] > 0) {
+      items.add({
+        'codigo': '62948',
+        'produto': 'Massa Pão de Queijo Tradicional',
+        'quantidade': _formatNumber(motivo23['paoQueijoTradicional']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo23['paoDoceCaracol'] > 0) {
+      items.add({
+        'codigo': '81238',
+        'produto': 'Massa Pão Doce Caracol',
+        'quantidade': _formatNumber(motivo23['paoDoceCaracol']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo23['paoDoceFerradura'] > 0) {
+      items.add({
+        'codigo': '81240',
+        'produto': 'Massa Pão Doce Ferradura',
+        'quantidade': _formatNumber(motivo23['paoDoceFerradura']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo23['paoTatu'] > 0) {
+      items.add({
+        'codigo': '42842',
+        'produto': 'Massa Pão Tatu',
+        'quantidade': _formatNumber(motivo23['paoTatu']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo23['paoRabanada'] > 0) {
+      items.add({
+        'codigo': '131281',
+        'produto': 'Massa Pão P/ Rabanada',
+        'quantidade': motivo23['paoRabanada'].toString(),
+        'unidade': 'UNID',
+      });
+    }
+    if (motivo23['miniBaguetinha'] > 0) {
+      items.add({
+        'codigo': '68170',
+        'produto': 'Massa Mini Baguetinha',
+        'quantidade': _formatNumber(motivo23['miniBaguetinha']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo23['sanduicheFofinho'] > 0) {
+      items.add({
+        'codigo': '142099',
+        'produto': 'Sanduíche Fofinho',
+        'quantidade': motivo23['sanduicheFofinho'].toString(),
+        'unidade': 'UNID',
+      });
+    }
+    if (motivo23['paoSamaritano'] > 0) {
+      items.add({
+        'codigo': '132318',
+        'produto': 'Pão Samaritano',
+        'quantidade': motivo23['paoSamaritano'].toString(),
+        'unidade': 'UNID',
+      });
+    }
+    if (motivo23['paoPizza'] > 0) {
+      items.add({
+        'codigo': '132319',
+        'produto': 'Pão Pizza',
+        'quantidade': motivo23['paoPizza'].toString(),
+        'unidade': 'UNID',
+      });
+    }
+    if (motivo23['paoAlhoCasa'] > 0) {
+      items.add({
+        'codigo': '132317',
+        'produto': 'Pão de Alho da Casa',
+        'quantidade': motivo23['paoAlhoCasa'].toString(),
+        'unidade': 'UNID',
+      });
+    }
+    if (motivo23['paoAlhoCasaPicante'] > 0) {
+      items.add({
+        'codigo': '132320',
+        'produto': 'Pão de Alho da Casa Picante',
+        'quantidade': motivo23['paoAlhoCasaPicante'].toString(),
+        'unidade': 'UNID',
+      });
+    }
+    if (motivo23['roscaFofinha'] > 0) {
+      items.add({
+        'codigo': '142098',
+        'produto': 'Rosca Fofinha Temperada',
+        'quantidade': motivo23['roscaFofinha'].toString(),
+        'unidade': 'UNID',
+      });
+    }
+    if (motivo23['roscaCocoQueijo'] > 0) {
+      items.add({
+        'codigo': '148231',
+        'produto': 'Rosca Côco e Queijo',
+        'quantidade': motivo23['roscaCocoQueijo'].toString(),
+        'unidade': 'UNID',
+      });
+    }
+    if (motivo23['rabanadaAssada'] > 0) {
+      items.add({
+        'codigo': '62901',
+        'produto': 'Rabanada Assada',
+        'quantidade': _formatNumber(motivo23['rabanadaAssada']),
+        'unidade': 'KG',
+      });
+    }
+
+    return items;
+  }
+
+  List<Map<String, dynamic>> _getMotivo9Items(Map<String, dynamic> motivo9) {
+    final items = <Map<String, dynamic>>[];
+
+    if (motivo9['sanduicheFofinho'] > 0) {
+      items.add({
+        'codigo': '142099',
+        'produto': 'Sanduíche Fofinho',
+        'quantidade': motivo9['sanduicheFofinho'].toString(),
+        'unidade': 'UNID',
+      });
+    }
+    if (motivo9['paoSamaritano'] > 0) {
+      items.add({
+        'codigo': '132318',
+        'produto': 'Pão Samaritano',
+        'quantidade': motivo9['paoSamaritano'].toString(),
+        'unidade': 'UNID',
+      });
+    }
+    if (motivo9['paoPizza'] > 0) {
+      items.add({
+        'codigo': '132319',
+        'produto': 'Pão Pizza',
+        'quantidade': motivo9['paoPizza'].toString(),
+        'unidade': 'UNID',
+      });
+    }
+    if (motivo9['paoAlhoCasa'] > 0) {
+      items.add({
+        'codigo': '132317',
+        'produto': 'Pão de Alho da Casa',
+        'quantidade': motivo9['paoAlhoCasa'].toString(),
+        'unidade': 'UNID',
+      });
+    }
+    if (motivo9['paoAlhoCasaPicante'] > 0) {
+      items.add({
+        'codigo': '132320',
+        'produto': 'Pão de Alho da Casa Picante',
+        'quantidade': motivo9['paoAlhoCasaPicante'].toString(),
+        'unidade': 'UNID',
+      });
+    }
+    if (motivo9['roscaFofinha'] > 0) {
+      items.add({
+        'codigo': '142098',
+        'produto': 'Rosca Fofinha Temperada',
+        'quantidade': motivo9['roscaFofinha'].toString(),
+        'unidade': 'UNID',
+      });
+    }
+    if (motivo9['roscaCocoQueijo'] > 0) {
+      items.add({
+        'codigo': '148231',
+        'produto': 'Rosca Côco e Queijo',
+        'quantidade': motivo9['roscaCocoQueijo'].toString(),
+        'unidade': 'UNID',
+      });
+    }
+    if (motivo9['rabanadaAssada'] > 0) {
+      items.add({
+        'codigo': '62901',
+        'produto': 'Rabanada Assada',
+        'quantidade': _formatNumber(motivo9['rabanadaAssada']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo9['bambino'] > 0) {
+      items.add({
+        'codigo': '112727',
+        'produto': 'Massa Bambino',
+        'quantidade': _formatNumber(motivo9['bambino']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo9['miniMarta'] > 0) {
+      items.add({
+        'codigo': '112731',
+        'produto': 'Massa Mini Marta Rocha',
+        'quantidade': _formatNumber(motivo9['miniMarta']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo9['paoDoceCaracol'] > 0) {
+      items.add({
+        'codigo': '81238',
+        'produto': 'Massa Pão Doce Caracol',
+        'quantidade': _formatNumber(motivo9['paoDoceCaracol']),
+        'unidade': 'KG',
+      });
+    }
+    if (motivo9['paoDoceFerradura'] > 0) {
+      items.add({
+        'codigo': '81240',
+        'produto': 'Massa Pão Doce Ferradura',
+        'quantidade': _formatNumber(motivo9['paoDoceFerradura']),
+        'unidade': 'KG',
+      });
+    }
+
+    return items;
   }
 
   @override
@@ -18994,7 +19505,8 @@ class _RequisicaoState extends State<Requisicao> with SingleTickerProviderStateM
           .get();
 
       if (doc.exists) {
-        controllersProducao[codigo]!.text = doc.data()?['quant']?.toString() ?? '';
+        controllersProducao[codigo]!.text =
+            doc.data()?['quant']?.toString() ?? '';
       }
     }
 
@@ -19008,14 +19520,16 @@ class _RequisicaoState extends State<Requisicao> with SingleTickerProviderStateM
           .get();
 
       if (doc.exists) {
-        controllersPerdas[codigo]!.text = doc.data()?['quant']?.toString() ?? '';
+        controllersPerdas[codigo]!.text =
+            doc.data()?['quant']?.toString() ?? '';
       }
     }
 
     _planilhaNotifier.value++;
   }
 
-  Future<void> _save(String tipo, String codigo, String nome, String valor) async {
+  Future<void> _save(
+      String tipo, String codigo, String nome, String valor) async {
     await _firestore
         .collection('stores')
         .doc(widget.storeName)
@@ -19092,13 +19606,40 @@ class _RequisicaoState extends State<Requisicao> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildLista(List<Map<String, String>> lista,
-      Map<String, TextEditingController> controllers, String tipo) {
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: ListView(
-        children: lista.map((item) => _buildItem(item, controllers, tipo)).toList(),
-      ),
+  Widget _buildLista(
+      List<Map<String, String>> lista,
+      Map<String, TextEditingController> controllers,
+      String tipo,
+      String titulo) {
+    return Column(
+      children: [
+        // Botão de limpar dados
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: ElevatedButton.icon(
+              onPressed: () => _limparDados(tipo, titulo),
+              icon: const Icon(Icons.delete_sweep),
+              label: Text('Limpar $titulo'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: ListView(
+              children: lista
+                  .map((item) => _buildItem(item, controllers, tipo))
+                  .toList(),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -19148,14 +19689,27 @@ class _RequisicaoState extends State<Requisicao> with SingleTickerProviderStateM
                   color: Colors.blue),
             ),
             const Divider(),
-            if (calc['paoFrances'] > 0) _buildLinhaResultado('Massa Pão Francês:', calc['paoFrances']),
-            if (calc['paoFrancesFibras'] > 0) _buildLinhaResultado('Massa Pão Francês Fibras:', calc['paoFrancesFibras']),
-            if (calc['paoQueijoTradicional'] > 0) _buildLinhaResultado('Massa Pão de Queijo Tradicional:', calc['paoQueijoTradicional']),
-            if (calc['paoQueijoCoquetel'] > 0) _buildLinhaResultado('Massa Pão de Queijo Coquetel:', calc['paoQueijoCoquetel']),
-            if (calc['biscoitoPolvilho'] > 0) _buildLinhaResultado('Massa Biscoito Polvilho:', calc['biscoitoPolvilho']),
-            if (calc['biscoitoQueijo'] > 0) _buildLinhaResultado('Massa Biscoito de Queijo:', calc['biscoitoQueijo']),
-            if (calc['paoTatu'] > 0) _buildLinhaResultado('Massa Pão Tatu:', calc['paoTatu']),
-            if (calc['paoFofinho'] > 0) _buildLinhaResultado('Massa Pão Fofinho:', calc['paoFofinho']),
+            if (calc['paoFrances'] > 0)
+              _buildLinhaResultado('Massa Pão Francês:', calc['paoFrances']),
+            if (calc['paoFrancesFibras'] > 0)
+              _buildLinhaResultado(
+                  'Massa Pão Francês Fibras:', calc['paoFrancesFibras']),
+            if (calc['paoQueijoTradicional'] > 0)
+              _buildLinhaResultado('Massa Pão de Queijo Tradicional:',
+                  calc['paoQueijoTradicional']),
+            if (calc['paoQueijoCoquetel'] > 0)
+              _buildLinhaResultado(
+                  'Massa Pão de Queijo Coquetel:', calc['paoQueijoCoquetel']),
+            if (calc['biscoitoPolvilho'] > 0)
+              _buildLinhaResultado(
+                  'Massa Biscoito Polvilho:', calc['biscoitoPolvilho']),
+            if (calc['biscoitoQueijo'] > 0)
+              _buildLinhaResultado(
+                  'Massa Biscoito de Queijo:', calc['biscoitoQueijo']),
+            if (calc['paoTatu'] > 0)
+              _buildLinhaResultado('Massa Pão Tatu:', calc['paoTatu']),
+            if (calc['paoFofinho'] > 0)
+              _buildLinhaResultado('Massa Pão Fofinho:', calc['paoFofinho']),
           ],
         ),
       ),
@@ -19179,11 +19733,18 @@ class _RequisicaoState extends State<Requisicao> with SingleTickerProviderStateM
                   color: Colors.green),
             ),
             const Divider(),
-            if (calc['baguete'] > 0) _buildLinhaResultado('Massa Baguete:', calc['baguete']),
-            if (calc['paoFrances'] > 0) _buildLinhaResultado('Massa Pão Francês:', calc['paoFrances']),
-            if (calc['miniMarta'] > 0) _buildLinhaResultado('Massa Mini Marta Rocha:', calc['miniMarta']),
-            if (calc['rabanada'] > 0) _buildLinhaResultado('Massa Pão P/ Rabanada:', calc['rabanada'], unidade: 'UNID'),
-            if (calc['paoFofinho'] > 0) _buildLinhaResultado('Massa Pão Fofinho:', calc['paoFofinho']),
+            if (calc['baguete'] > 0)
+              _buildLinhaResultado('Massa Baguete:', calc['baguete']),
+            if (calc['paoFrances'] > 0)
+              _buildLinhaResultado('Massa Pão Francês:', calc['paoFrances']),
+            if (calc['miniMarta'] > 0)
+              _buildLinhaResultado(
+                  'Massa Mini Marta Rocha:', calc['miniMarta']),
+            if (calc['rabanada'] > 0)
+              _buildLinhaResultado('Massa Pão P/ Rabanada:', calc['rabanada'],
+                  unidade: 'UNID'),
+            if (calc['paoFofinho'] > 0)
+              _buildLinhaResultado('Massa Pão Fofinho:', calc['paoFofinho']),
           ],
         ),
       ),
@@ -19205,28 +19766,73 @@ class _RequisicaoState extends State<Requisicao> with SingleTickerProviderStateM
                   fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red),
             ),
             const Divider(),
-            if (calc['bagueteFrancesa'] > 0) _buildLinhaResultado('Massa Baguete Francesa:', calc['bagueteFrancesa'], unidade: 'UNID'),
-            if (calc['bambino'] > 0) _buildLinhaResultado('Massa Bambino:', calc['bambino']),
-            if (calc['biscoitoQueijo'] > 0) _buildLinhaResultado('Massa Biscoito Queijo:', calc['biscoitoQueijo']),
-            if (calc['biscoitoPolvilho'] > 0) _buildLinhaResultado('Massa Biscoito Polvilho:', calc['biscoitoPolvilho']),
-            if (calc['miniMarta'] > 0) _buildLinhaResultado('Massa Mini Marta Rocha:', calc['miniMarta']),
-            if (calc['baguete'] > 0) _buildLinhaResultado('Massa Baguete:', calc['baguete']),
-            if (calc['paoFofinho'] > 0) _buildLinhaResultado('Massa Pão Fofinho:', calc['paoFofinho']),
-            if (calc['paoQueijoCoquetel'] > 0) _buildLinhaResultado('Massa Pão De Queijo Coquetel:', calc['paoQueijoCoquetel']),
-            if (calc['paoQueijoTradicional'] > 0) _buildLinhaResultado('Massa Pão de Queijo Tradicional:', calc['paoQueijoTradicional']),
-            if (calc['paoDoceCaracol'] > 0) _buildLinhaResultado('Massa Pão Doce Caracol:', calc['paoDoceCaracol']),
-            if (calc['paoDoceFerradura'] > 0) _buildLinhaResultado('Massa Pão Doce Ferradura:', calc['paoDoceFerradura']),
-            if (calc['paoTatu'] > 0) _buildLinhaResultado('Massa Pão Tatu:', calc['paoTatu']),
-            if (calc['paoRabanada'] > 0) _buildLinhaResultado('Massa Pão P/ Rabanada:', calc['paoRabanada'], unidade: 'UNID'),
-            if (calc['miniBaguetinha'] > 0) _buildLinhaResultado('Massa Mini Baguetinha:', calc['miniBaguetinha']),
-            if (calc['sanduicheFofinho'] > 0) _buildLinhaResultado('Sanduíche Fofinho:', calc['sanduicheFofinho'], unidade: 'UNID'),
-            if (calc['paoSamaritano'] > 0) _buildLinhaResultado('Pão Samaritano:', calc['paoSamaritano'], unidade: 'UNID'),
-            if (calc['paoPizza'] > 0) _buildLinhaResultado('Pão Pizza:', calc['paoPizza'], unidade: 'UNID'),
-            if (calc['paoAlhoCasa'] > 0) _buildLinhaResultado('Pão de Alho da Casa:', calc['paoAlhoCasa'], unidade: 'UNID'),
-            if (calc['paoAlhoCasaPicante'] > 0) _buildLinhaResultado('Pão de Alho da Casa Picante:', calc['paoAlhoCasaPicante'], unidade: 'UNID'),
-            if (calc['roscaFofinha'] > 0) _buildLinhaResultado('Rosca Fofinha Temperada:', calc['roscaFofinha'], unidade: 'UNID'),
-            if (calc['roscaCocoQueijo'] > 0) _buildLinhaResultado('Rosca Côco e Queijo:', calc['roscaCocoQueijo'], unidade: 'UNID'),
-            if (calc['rabanadaAssada'] > 0) _buildLinhaResultado('Rabanada Assada:', calc['rabanadaAssada']),
+            if (calc['bagueteFrancesa'] > 0)
+              _buildLinhaResultado(
+                  'Massa Baguete Francesa:', calc['bagueteFrancesa'],
+                  unidade: 'UNID'),
+            if (calc['bambino'] > 0)
+              _buildLinhaResultado('Massa Bambino:', calc['bambino']),
+            if (calc['biscoitoQueijo'] > 0)
+              _buildLinhaResultado(
+                  'Massa Biscoito Queijo:', calc['biscoitoQueijo']),
+            if (calc['biscoitoPolvilho'] > 0)
+              _buildLinhaResultado(
+                  'Massa Biscoito Polvilho:', calc['biscoitoPolvilho']),
+            if (calc['miniMarta'] > 0)
+              _buildLinhaResultado(
+                  'Massa Mini Marta Rocha:', calc['miniMarta']),
+            if (calc['baguete'] > 0)
+              _buildLinhaResultado('Massa Baguete:', calc['baguete']),
+            if (calc['paoFofinho'] > 0)
+              _buildLinhaResultado('Massa Pão Fofinho:', calc['paoFofinho']),
+            if (calc['paoQueijoCoquetel'] > 0)
+              _buildLinhaResultado(
+                  'Massa Pão De Queijo Coquetel:', calc['paoQueijoCoquetel']),
+            if (calc['paoQueijoTradicional'] > 0)
+              _buildLinhaResultado('Massa Pão de Queijo Tradicional:',
+                  calc['paoQueijoTradicional']),
+            if (calc['paoDoceCaracol'] > 0)
+              _buildLinhaResultado(
+                  'Massa Pão Doce Caracol:', calc['paoDoceCaracol']),
+            if (calc['paoDoceFerradura'] > 0)
+              _buildLinhaResultado(
+                  'Massa Pão Doce Ferradura:', calc['paoDoceFerradura']),
+            if (calc['paoTatu'] > 0)
+              _buildLinhaResultado('Massa Pão Tatu:', calc['paoTatu']),
+            if (calc['paoRabanada'] > 0)
+              _buildLinhaResultado(
+                  'Massa Pão P/ Rabanada:', calc['paoRabanada'],
+                  unidade: 'UNID'),
+            if (calc['miniBaguetinha'] > 0)
+              _buildLinhaResultado(
+                  'Massa Mini Baguetinha:', calc['miniBaguetinha']),
+            if (calc['sanduicheFofinho'] > 0)
+              _buildLinhaResultado(
+                  'Sanduíche Fofinho:', calc['sanduicheFofinho'],
+                  unidade: 'UNID'),
+            if (calc['paoSamaritano'] > 0)
+              _buildLinhaResultado('Pão Samaritano:', calc['paoSamaritano'],
+                  unidade: 'UNID'),
+            if (calc['paoPizza'] > 0)
+              _buildLinhaResultado('Pão Pizza:', calc['paoPizza'],
+                  unidade: 'UNID'),
+            if (calc['paoAlhoCasa'] > 0)
+              _buildLinhaResultado('Pão de Alho da Casa:', calc['paoAlhoCasa'],
+                  unidade: 'UNID'),
+            if (calc['paoAlhoCasaPicante'] > 0)
+              _buildLinhaResultado(
+                  'Pão de Alho da Casa Picante:', calc['paoAlhoCasaPicante'],
+                  unidade: 'UNID'),
+            if (calc['roscaFofinha'] > 0)
+              _buildLinhaResultado(
+                  'Rosca Fofinha Temperada:', calc['roscaFofinha'],
+                  unidade: 'UNID'),
+            if (calc['roscaCocoQueijo'] > 0)
+              _buildLinhaResultado(
+                  'Rosca Côco e Queijo:', calc['roscaCocoQueijo'],
+                  unidade: 'UNID'),
+            if (calc['rabanadaAssada'] > 0)
+              _buildLinhaResultado('Rabanada Assada:', calc['rabanadaAssada']),
           ],
         ),
       ),
@@ -19250,18 +19856,44 @@ class _RequisicaoState extends State<Requisicao> with SingleTickerProviderStateM
                   color: Colors.orange),
             ),
             const Divider(),
-            if (calc['sanduicheFofinho'] > 0) _buildLinhaResultado('Sanduíche Fofinho:', calc['sanduicheFofinho'], unidade: 'UNID'),
-            if (calc['paoSamaritano'] > 0) _buildLinhaResultado('Pão Samaritano:', calc['paoSamaritano'], unidade: 'UNID'),
-            if (calc['paoPizza'] > 0) _buildLinhaResultado('Pão Pizza:', calc['paoPizza'], unidade: 'UNID'),
-            if (calc['paoAlhoCasa'] > 0) _buildLinhaResultado('Pão de Alho da Casa:', calc['paoAlhoCasa'], unidade: 'UNID'),
-            if (calc['paoAlhoCasaPicante'] > 0) _buildLinhaResultado('Pão de Alho da Casa Picante:', calc['paoAlhoCasaPicante'], unidade: 'UNID'),
-            if (calc['roscaFofinha'] > 0) _buildLinhaResultado('Rosca Fofinha Temperada:', calc['roscaFofinha'], unidade: 'UNID'),
-            if (calc['roscaCocoQueijo'] > 0) _buildLinhaResultado('Rosca Côco e Queijo:', calc['roscaCocoQueijo'], unidade: 'UNID'),
-            if (calc['rabanadaAssada'] > 0) _buildLinhaResultado('Rabanada Assada:', calc['rabanadaAssada']),
-            if (calc['bambino'] > 0) _buildLinhaResultado('Massa Bambino:', calc['bambino']),
-            if (calc['miniMarta'] > 0) _buildLinhaResultado('Massa Mini Marta Rocha:', calc['miniMarta']),
-            if (calc['paoDoceCaracol'] > 0) _buildLinhaResultado('Massa Pão Doce Caracol:', calc['paoDoceCaracol']),
-            if (calc['paoDoceFerradura'] > 0) _buildLinhaResultado('Massa Pão Doce Ferradura:', calc['paoDoceFerradura']),
+            if (calc['sanduicheFofinho'] > 0)
+              _buildLinhaResultado(
+                  'Sanduíche Fofinho:', calc['sanduicheFofinho'],
+                  unidade: 'UNID'),
+            if (calc['paoSamaritano'] > 0)
+              _buildLinhaResultado('Pão Samaritano:', calc['paoSamaritano'],
+                  unidade: 'UNID'),
+            if (calc['paoPizza'] > 0)
+              _buildLinhaResultado('Pão Pizza:', calc['paoPizza'],
+                  unidade: 'UNID'),
+            if (calc['paoAlhoCasa'] > 0)
+              _buildLinhaResultado('Pão de Alho da Casa:', calc['paoAlhoCasa'],
+                  unidade: 'UNID'),
+            if (calc['paoAlhoCasaPicante'] > 0)
+              _buildLinhaResultado(
+                  'Pão de Alho da Casa Picante:', calc['paoAlhoCasaPicante'],
+                  unidade: 'UNID'),
+            if (calc['roscaFofinha'] > 0)
+              _buildLinhaResultado(
+                  'Rosca Fofinha Temperada:', calc['roscaFofinha'],
+                  unidade: 'UNID'),
+            if (calc['roscaCocoQueijo'] > 0)
+              _buildLinhaResultado(
+                  'Rosca Côco e Queijo:', calc['roscaCocoQueijo'],
+                  unidade: 'UNID'),
+            if (calc['rabanadaAssada'] > 0)
+              _buildLinhaResultado('Rabanada Assada:', calc['rabanadaAssada']),
+            if (calc['bambino'] > 0)
+              _buildLinhaResultado('Massa Bambino:', calc['bambino']),
+            if (calc['miniMarta'] > 0)
+              _buildLinhaResultado(
+                  'Massa Mini Marta Rocha:', calc['miniMarta']),
+            if (calc['paoDoceCaracol'] > 0)
+              _buildLinhaResultado(
+                  'Massa Pão Doce Caracol:', calc['paoDoceCaracol']),
+            if (calc['paoDoceFerradura'] > 0)
+              _buildLinhaResultado(
+                  'Massa Pão Doce Ferradura:', calc['paoDoceFerradura']),
           ],
         ),
       ),
@@ -19284,14 +19916,16 @@ class _RequisicaoState extends State<Requisicao> with SingleTickerProviderStateM
               InkWell(
                 onTap: _selecionarData,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: Colors.blue,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.calendar_today, color: Colors.white, size: 16),
+                      const Icon(Icons.calendar_today,
+                          color: Colors.white, size: 16),
                       const SizedBox(width: 8),
                       Text(
                         DateFormat('dd/MM/yyyy').format(_dataSelecionada),
@@ -19377,14 +20011,15 @@ class _RequisicaoState extends State<Requisicao> with SingleTickerProviderStateM
         actions: [
           IconButton(
             icon: const Icon(Icons.share, color: Colors.white),
-            onPressed: _compartilharPlanilha,
+            onPressed: _compartilharPlanilhaPDF,
           ),
         ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
-          labelStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          labelStyle:
+              const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           unselectedLabelStyle: const TextStyle(fontSize: 14),
           indicatorColor: Colors.white,
           tabs: const [
@@ -19397,8 +20032,9 @@ class _RequisicaoState extends State<Requisicao> with SingleTickerProviderStateM
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildLista(produtosProducao, controllersProducao, "producao"),
-          _buildLista(produtosPerdas, controllersPerdas, "perdas"),
+          _buildLista(
+              produtosProducao, controllersProducao, "producao", "Produção"),
+          _buildLista(produtosPerdas, controllersPerdas, "perdas", "Perdas"),
           _buildPlanilha(),
         ],
       ),
