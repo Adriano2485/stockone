@@ -18350,7 +18350,7 @@ class _RequisicaoState extends State<Requisicao> with SingleTickerProviderStateM
 
   // Data atual para exibir na planilha
   DateTime _dataSelecionada = DateTime.now();
-  String _responsavel = '';
+  late String _responsavel;
 
   // ------------------ PRODUÇÃO ------------------
   final List<Map<String, String>> produtosProducao = [
@@ -18787,279 +18787,183 @@ class _RequisicaoState extends State<Requisicao> with SingleTickerProviderStateM
   Future<void> _carregarResponsavel() async {
     try {
       final doc = await _firestore.collection('stores').doc(widget.storeName).get();
-      if (doc.exists && doc.data()?['userName'] != null) {
+      if (doc.exists) {
+        final data = doc.data() ?? {};
         setState(() {
-          _responsavel = doc.data()?['userName'];
+          _responsavel = data['userName'] ?? '';
         });
       }
     } catch (e) {
       print('Erro ao carregar responsável: $e');
+      setState(() {
+        _responsavel = '';
+      });
     }
   }
 
-  Future<void> _gerarPDF() async {
-    final pdf = pw.Document();
+  Future<void> _compartilharPlanilha() async {
     final motivo49 = _calcularMotivo49();
     final motivo8 = _calcularMotivo8();
     final motivo23 = _calcularMotivo23();
     final motivo9 = _calcularMotivo9();
 
-    // Filtrar apenas valores diferentes de zero
-    List<Map<String, dynamic>> itensMotivo49 = [];
-    if (motivo49['paoFrances'] > 0) itensMotivo49.add({'nome': 'Massa Pão Francês', 'valor': motivo49['paoFrances'], 'unidade': 'KG'});
-    if (motivo49['paoFrancesFibras'] > 0) itensMotivo49.add({'nome': 'Massa Pão Francês Fibras', 'valor': motivo49['paoFrancesFibras'], 'unidade': 'KG'});
-    if (motivo49['paoQueijoTradicional'] > 0) itensMotivo49.add({'nome': 'Massa Pão de Queijo Tradicional', 'valor': motivo49['paoQueijoTradicional'], 'unidade': 'KG'});
-    if (motivo49['paoQueijoCoquetel'] > 0) itensMotivo49.add({'nome': 'Massa Pão de Queijo Coquetel', 'valor': motivo49['paoQueijoCoquetel'], 'unidade': 'KG'});
-    if (motivo49['biscoitoPolvilho'] > 0) itensMotivo49.add({'nome': 'Massa Biscoito Polvilho', 'valor': motivo49['biscoitoPolvilho'], 'unidade': 'KG'});
-    if (motivo49['biscoitoQueijo'] > 0) itensMotivo49.add({'nome': 'Massa Biscoito de Queijo', 'valor': motivo49['biscoitoQueijo'], 'unidade': 'KG'});
-    if (motivo49['paoTatu'] > 0) itensMotivo49.add({'nome': 'Massa Pão Tatu', 'valor': motivo49['paoTatu'], 'unidade': 'KG'});
-    if (motivo49['paoFofinho'] > 0) itensMotivo49.add({'nome': 'Massa Pão Fofinho', 'valor': motivo49['paoFofinho'], 'unidade': 'KG'});
+    // Função auxiliar para formatar linhas apenas com valores > 0
+    String formatarMotivo(String titulo, Map<String, dynamic> dados, Map<String, String> labels, Map<String, String> unidades) {
+      StringBuffer buffer = StringBuffer();
+      buffer.writeln('\n*$titulo:*');
+      
+      bool temValor = false;
+      for (var entry in dados.entries) {
+        if (entry.value > 0) {
+          temValor = true;
+          String valorFormatado = entry.value is double && entry.value == entry.value.roundToDouble()
+              ? entry.value.round().toString()
+              : entry.value.toStringAsFixed(2);
+          buffer.writeln('• ${labels[entry.key]}: $valorFormatado ${unidades[entry.key]}');
+        }
+      }
+      
+      if (!temValor) {
+        buffer.writeln('• Nenhum registro');
+      }
+      
+      return buffer.toString();
+    }
 
-    List<Map<String, dynamic>> itensMotivo8 = [];
-    if (motivo8['baguete'] > 0) itensMotivo8.add({'nome': 'Massa Baguete', 'valor': motivo8['baguete'], 'unidade': 'KG'});
-    if (motivo8['paoFrances'] > 0) itensMotivo8.add({'nome': 'Massa Pão Francês', 'valor': motivo8['paoFrances'], 'unidade': 'KG'});
-    if (motivo8['miniMarta'] > 0) itensMotivo8.add({'nome': 'Massa Mini Marta Rocha', 'valor': motivo8['miniMarta'], 'unidade': 'KG'});
-    if (motivo8['rabanada'] > 0) itensMotivo8.add({'nome': 'Massa Pão P/ Rabanada', 'valor': motivo8['rabanada'], 'unidade': 'UNID'});
-    if (motivo8['paoFofinho'] > 0) itensMotivo8.add({'nome': 'Massa Pão Fofinho', 'valor': motivo8['paoFofinho'], 'unidade': 'KG'});
+    // Labels e unidades para cada motivo
+    final labels49 = {
+      'paoFrances': 'Massa Pão Francês',
+      'paoFrancesFibras': 'Massa Pão Francês Fibras',
+      'paoQueijoTradicional': 'Massa Pão de Queijo Tradicional',
+      'paoQueijoCoquetel': 'Massa Pão de Queijo Coquetel',
+      'biscoitoPolvilho': 'Massa Biscoito Polvilho',
+      'biscoitoQueijo': 'Massa Biscoito de Queijo',
+      'paoTatu': 'Massa Pão Tatu',
+      'paoFofinho': 'Massa Pão Fofinho',
+    };
+    
+    final unidades49 = {
+      'paoFrances': 'KG',
+      'paoFrancesFibras': 'KG',
+      'paoQueijoTradicional': 'KG',
+      'paoQueijoCoquetel': 'KG',
+      'biscoitoPolvilho': 'KG',
+      'biscoitoQueijo': 'KG',
+      'paoTatu': 'KG',
+      'paoFofinho': 'KG',
+    };
 
-    List<Map<String, dynamic>> itensMotivo23 = [];
-    if (motivo23['bagueteFrancesa'] > 0) itensMotivo23.add({'nome': 'Massa Baguete Francesa', 'valor': motivo23['bagueteFrancesa'], 'unidade': 'UNID'});
-    if (motivo23['bambino'] > 0) itensMotivo23.add({'nome': 'Massa Bambino', 'valor': motivo23['bambino'], 'unidade': 'KG'});
-    if (motivo23['biscoitoQueijo'] > 0) itensMotivo23.add({'nome': 'Massa Biscoito Queijo', 'valor': motivo23['biscoitoQueijo'], 'unidade': 'KG'});
-    if (motivo23['biscoitoPolvilho'] > 0) itensMotivo23.add({'nome': 'Massa Biscoito Polvilho', 'valor': motivo23['biscoitoPolvilho'], 'unidade': 'KG'});
-    if (motivo23['miniMarta'] > 0) itensMotivo23.add({'nome': 'Massa Mini Marta Rocha', 'valor': motivo23['miniMarta'], 'unidade': 'KG'});
-    if (motivo23['baguete'] > 0) itensMotivo23.add({'nome': 'Massa Baguete', 'valor': motivo23['baguete'], 'unidade': 'KG'});
-    if (motivo23['paoFofinho'] > 0) itensMotivo23.add({'nome': 'Massa Pão Fofinho', 'valor': motivo23['paoFofinho'], 'unidade': 'KG'});
-    if (motivo23['paoQueijoCoquetel'] > 0) itensMotivo23.add({'nome': 'Massa Pão De Queijo Coquetel', 'valor': motivo23['paoQueijoCoquetel'], 'unidade': 'KG'});
-    if (motivo23['paoQueijoTradicional'] > 0) itensMotivo23.add({'nome': 'Massa Pão de Queijo Tradicional', 'valor': motivo23['paoQueijoTradicional'], 'unidade': 'KG'});
-    if (motivo23['paoDoceCaracol'] > 0) itensMotivo23.add({'nome': 'Massa Pão Doce Caracol', 'valor': motivo23['paoDoceCaracol'], 'unidade': 'KG'});
-    if (motivo23['paoDoceFerradura'] > 0) itensMotivo23.add({'nome': 'Massa Pão Doce Ferradura', 'valor': motivo23['paoDoceFerradura'], 'unidade': 'KG'});
-    if (motivo23['paoTatu'] > 0) itensMotivo23.add({'nome': 'Massa Pão Tatu', 'valor': motivo23['paoTatu'], 'unidade': 'KG'});
-    if (motivo23['paoRabanada'] > 0) itensMotivo23.add({'nome': 'Massa Pão P/ Rabanada', 'valor': motivo23['paoRabanada'], 'unidade': 'UNID'});
-    if (motivo23['miniBaguetinha'] > 0) itensMotivo23.add({'nome': 'Massa Mini Baguetinha', 'valor': motivo23['miniBaguetinha'], 'unidade': 'KG'});
-    if (motivo23['sanduicheFofinho'] > 0) itensMotivo23.add({'nome': 'Sanduíche Fofinho', 'valor': motivo23['sanduicheFofinho'], 'unidade': 'UNID'});
-    if (motivo23['paoSamaritano'] > 0) itensMotivo23.add({'nome': 'Pão Samaritano', 'valor': motivo23['paoSamaritano'], 'unidade': 'UNID'});
-    if (motivo23['paoPizza'] > 0) itensMotivo23.add({'nome': 'Pão Pizza', 'valor': motivo23['paoPizza'], 'unidade': 'UNID'});
-    if (motivo23['paoAlhoCasa'] > 0) itensMotivo23.add({'nome': 'Pão de Alho da Casa', 'valor': motivo23['paoAlhoCasa'], 'unidade': 'UNID'});
-    if (motivo23['paoAlhoCasaPicante'] > 0) itensMotivo23.add({'nome': 'Pão de Alho da Casa Picante', 'valor': motivo23['paoAlhoCasaPicante'], 'unidade': 'UNID'});
-    if (motivo23['roscaFofinha'] > 0) itensMotivo23.add({'nome': 'Rosca Fofinha Temperada', 'valor': motivo23['roscaFofinha'], 'unidade': 'UNID'});
-    if (motivo23['roscaCocoQueijo'] > 0) itensMotivo23.add({'nome': 'Rosca Côco e Queijo', 'valor': motivo23['roscaCocoQueijo'], 'unidade': 'UNID'});
-    if (motivo23['rabanadaAssada'] > 0) itensMotivo23.add({'nome': 'Rabanada Assada', 'valor': motivo23['rabanadaAssada'], 'unidade': 'KG'});
+    final labels8 = {
+      'baguete': 'Massa Baguete',
+      'paoFrances': 'Massa Pão Francês',
+      'miniMarta': 'Massa Mini Marta Rocha',
+      'rabanada': 'Massa Pão P/ Rabanada',
+      'paoFofinho': 'Massa Pão Fofinho',
+    };
+    
+    final unidades8 = {
+      'baguete': 'KG',
+      'paoFrances': 'KG',
+      'miniMarta': 'KG',
+      'rabanada': 'UNID',
+      'paoFofinho': 'KG',
+    };
 
-    List<Map<String, dynamic>> itensMotivo9 = [];
-    if (motivo9['sanduicheFofinho'] > 0) itensMotivo9.add({'nome': 'Sanduíche Fofinho', 'valor': motivo9['sanduicheFofinho'], 'unidade': 'UNID'});
-    if (motivo9['paoSamaritano'] > 0) itensMotivo9.add({'nome': 'Pão Samaritano', 'valor': motivo9['paoSamaritano'], 'unidade': 'UNID'});
-    if (motivo9['paoPizza'] > 0) itensMotivo9.add({'nome': 'Pão Pizza', 'valor': motivo9['paoPizza'], 'unidade': 'UNID'});
-    if (motivo9['paoAlhoCasa'] > 0) itensMotivo9.add({'nome': 'Pão de Alho da Casa', 'valor': motivo9['paoAlhoCasa'], 'unidade': 'UNID'});
-    if (motivo9['paoAlhoCasaPicante'] > 0) itensMotivo9.add({'nome': 'Pão de Alho da Casa Picante', 'valor': motivo9['paoAlhoCasaPicante'], 'unidade': 'UNID'});
-    if (motivo9['roscaFofinha'] > 0) itensMotivo9.add({'nome': 'Rosca Fofinha Temperada', 'valor': motivo9['roscaFofinha'], 'unidade': 'UNID'});
-    if (motivo9['roscaCocoQueijo'] > 0) itensMotivo9.add({'nome': 'Rosca Côco e Queijo', 'valor': motivo9['roscaCocoQueijo'], 'unidade': 'UNID'});
-    if (motivo9['rabanadaAssada'] > 0) itensMotivo9.add({'nome': 'Rabanada Assada', 'valor': motivo9['rabanadaAssada'], 'unidade': 'KG'});
-    if (motivo9['bambino'] > 0) itensMotivo9.add({'nome': 'Massa Bambino', 'valor': motivo9['bambino'], 'unidade': 'KG'});
-    if (motivo9['miniMarta'] > 0) itensMotivo9.add({'nome': 'Massa Mini Marta Rocha', 'valor': motivo9['miniMarta'], 'unidade': 'KG'});
-    if (motivo9['paoDoceCaracol'] > 0) itensMotivo9.add({'nome': 'Massa Pão Doce Caracol', 'valor': motivo9['paoDoceCaracol'], 'unidade': 'KG'});
-    if (motivo9['paoDoceFerradura'] > 0) itensMotivo9.add({'nome': 'Massa Pão Doce Ferradura', 'valor': motivo9['paoDoceFerradura'], 'unidade': 'KG'});
+    final labels23 = {
+      'bagueteFrancesa': 'Massa Baguete Francesa',
+      'bambino': 'Massa Bambino',
+      'biscoitoQueijo': 'Massa Biscoito Queijo',
+      'biscoitoPolvilho': 'Massa Biscoito Polvilho',
+      'miniMarta': 'Massa Mini Marta Rocha',
+      'baguete': 'Massa Baguete',
+      'paoFofinho': 'Massa Pão Fofinho',
+      'paoQueijoCoquetel': 'Massa Pão De Queijo Coquetel',
+      'paoQueijoTradicional': 'Massa Pão de Queijo Tradicional',
+      'paoDoceCaracol': 'Massa Pão Doce Caracol',
+      'paoDoceFerradura': 'Massa Pão Doce Ferradura',
+      'paoTatu': 'Massa Pão Tatu',
+      'paoRabanada': 'Massa Pão P/ Rabanada',
+      'miniBaguetinha': 'Massa Mini Baguetinha',
+      'sanduicheFofinho': 'Sanduíche Fofinho',
+      'paoSamaritano': 'Pão Samaritano',
+      'paoPizza': 'Pão Pizza',
+      'paoAlhoCasa': 'Pão de Alho da Casa',
+      'paoAlhoCasaPicante': 'Pão de Alho da Casa Picante',
+      'roscaFofinha': 'Rosca Fofinha Temperada',
+      'roscaCocoQueijo': 'Rosca Côco e Queijo',
+      'rabanadaAssada': 'Rabanada Assada',
+    };
+    
+    final unidades23 = {
+      'bagueteFrancesa': 'UNID',
+      'bambino': 'KG',
+      'biscoitoQueijo': 'KG',
+      'biscoitoPolvilho': 'KG',
+      'miniMarta': 'KG',
+      'baguete': 'KG',
+      'paoFofinho': 'KG',
+      'paoQueijoCoquetel': 'KG',
+      'paoQueijoTradicional': 'KG',
+      'paoDoceCaracol': 'KG',
+      'paoDoceFerradura': 'KG',
+      'paoTatu': 'KG',
+      'paoRabanada': 'UNID',
+      'miniBaguetinha': 'KG',
+      'sanduicheFofinho': 'UNID',
+      'paoSamaritano': 'UNID',
+      'paoPizza': 'UNID',
+      'paoAlhoCasa': 'UNID',
+      'paoAlhoCasaPicante': 'UNID',
+      'roscaFofinha': 'UNID',
+      'roscaCocoQueijo': 'UNID',
+      'rabanadaAssada': 'KG',
+    };
 
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
-        build: (context) => [
-          // Título Centralizado
-          pw.Center(
-            child: pw.Column(
-              children: [
-                pw.Text(
-                  'REQUISIÇÃO PADARIA ${widget.storeName.toUpperCase()}',
-                  style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
-                ),
-                pw.SizedBox(height: 20),
-                pw.Text(
-                  'DATA: ${DateFormat('dd/MM/yyyy').format(_dataSelecionada)}',
-                  style: pw.TextStyle(fontSize: 14),
-                ),
-                pw.SizedBox(height: 8),
-                pw.Text(
-                  'RESPONSÁVEL: $_responsavel',
-                  style: pw.TextStyle(fontSize: 14),
-                ),
-                pw.SizedBox(height: 30),
-              ],
-            ),
-          ),
-          
-          // Motivo 49
-          if (itensMotivo49.isNotEmpty) ...[
-            pw.Text(
-              'MOTIVO 49',
-              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.blue),
-            ),
-            pw.SizedBox(height: 10),
-            pw.Table(
-              border: pw.TableBorder.all(),
-              children: [
-                pw.TableRow(
-                  decoration: pw.BoxDecoration(color: PdfColors.grey300),
-                  children: [
-                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Código', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Nome do Produto', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Quantidade', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Unidade', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                  ],
-                ),
-                ...itensMotivo49.asMap().entries.map((entry) {
-                  int index = entry.key;
-                  var item = entry.value;
-                  return pw.TableRow(
-                    children: [
-                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('${index + 1}')),
-                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(item['nome'])),
-                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(_formatNumber(item['valor']))),
-                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(item['unidade'])),
-                    ],
-                  );
-                }),
-              ],
-            ),
-            pw.SizedBox(height: 20),
-          ],
-          
-          // Motivo 8
-          if (itensMotivo8.isNotEmpty) ...[
-            pw.Text(
-              'MOTIVO 8',
-              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.green),
-            ),
-            pw.SizedBox(height: 10),
-            pw.Table(
-              border: pw.TableBorder.all(),
-              children: [
-                pw.TableRow(
-                  decoration: pw.BoxDecoration(color: PdfColors.grey300),
-                  children: [
-                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Código', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Nome do Produto', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Quantidade', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Unidade', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                  ],
-                ),
-                ...itensMotivo8.asMap().entries.map((entry) {
-                  int index = entry.key;
-                  var item = entry.value;
-                  return pw.TableRow(
-                    children: [
-                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('${index + 1}')),
-                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(item['nome'])),
-                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(_formatNumber(item['valor']))),
-                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(item['unidade'])),
-                    ],
-                  );
-                }),
-              ],
-            ),
-            pw.SizedBox(height: 20),
-          ],
-          
-          // Motivo 23
-          if (itensMotivo23.isNotEmpty) ...[
-            pw.Text(
-              'MOTIVO 23',
-              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.red),
-            ),
-            pw.SizedBox(height: 10),
-            pw.Table(
-              border: pw.TableBorder.all(),
-              children: [
-                pw.TableRow(
-                  decoration: pw.BoxDecoration(color: PdfColors.grey300),
-                  children: [
-                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Código', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Nome do Produto', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Quantidade', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Unidade', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                  ],
-                ),
-                ...itensMotivo23.asMap().entries.map((entry) {
-                  int index = entry.key;
-                  var item = entry.value;
-                  return pw.TableRow(
-                    children: [
-                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('${index + 1}')),
-                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(item['nome'])),
-                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(_formatNumber(item['valor']))),
-                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(item['unidade'])),
-                    ],
-                  );
-                }),
-              ],
-            ),
-            pw.SizedBox(height: 20),
-          ],
-          
-          // Motivo 9
-          if (itensMotivo9.isNotEmpty) ...[
-            pw.Text(
-              'MOTIVO 9',
-              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.orange),
-            ),
-            pw.SizedBox(height: 10),
-            pw.Table(
-              border: pw.TableBorder.all(),
-              children: [
-                pw.TableRow(
-                  decoration: pw.BoxDecoration(color: PdfColors.grey300),
-                  children: [
-                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Código', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Nome do Produto', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Quantidade', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Unidade', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                  ],
-                ),
-                ...itensMotivo9.asMap().entries.map((entry) {
-                  int index = entry.key;
-                  var item = entry.value;
-                  return pw.TableRow(
-                    children: [
-                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('${index + 1}')),
-                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(item['nome'])),
-                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(_formatNumber(item['valor']))),
-                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(item['unidade'])),
-                    ],
-                  );
-                }),
-              ],
-            ),
-            pw.SizedBox(height: 40),
-          ],
-          
-          // Campo de assinatura
-          pw.Container(
-            margin: const pw.EdgeInsets.only(top: 40),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Container(
-                  width: 300,
-                  height: 1,
-                  color: PdfColors.black,
-                ),
-                pw.SizedBox(height: 8),
-                pw.Text(
-                  'Assinatura do Responsável',
-                  style: pw.TextStyle(fontSize: 12, fontStyle: pw.FontStyle.italic),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+    final labels9 = {
+      'sanduicheFofinho': 'Sanduíche Fofinho',
+      'paoSamaritano': 'Pão Samaritano',
+      'paoPizza': 'Pão Pizza',
+      'paoAlhoCasa': 'Pão de Alho da Casa',
+      'paoAlhoCasaPicante': 'Pão de Alho da Casa Picante',
+      'roscaFofinha': 'Rosca Fofinha Temperada',
+      'roscaCocoQueijo': 'Rosca Côco e Queijo',
+      'rabanadaAssada': 'Rabanada Assada',
+      'bambino': 'Massa Bambino',
+      'miniMarta': 'Massa Mini Marta Rocha',
+      'paoDoceCaracol': 'Massa Pão Doce Caracol',
+      'paoDoceFerradura': 'Massa Pão Doce Ferradura',
+    };
+    
+    final unidades9 = {
+      'sanduicheFofinho': 'UNID',
+      'paoSamaritano': 'UNID',
+      'paoPizza': 'UNID',
+      'paoAlhoCasa': 'UNID',
+      'paoAlhoCasaPicante': 'UNID',
+      'roscaFofinha': 'UNID',
+      'roscaCocoQueijo': 'UNID',
+      'rabanadaAssada': 'KG',
+      'bambino': 'KG',
+      'miniMarta': 'KG',
+      'paoDoceCaracol': 'KG',
+      'paoDoceFerradura': 'KG',
+    };
 
-    // Salvar e compartilhar PDF
-    final output = await getTemporaryDirectory();
-    final file = File('${output.path}/requisicao_${widget.storeName}_${DateFormat('yyyyMMdd').format(_dataSelecionada)}.pdf');
-    await file.writeAsBytes(await pdf.save());
-    await Printing.sharePdf(bytes: await pdf.save(), filename: file.path.split('/').last);
+    StringBuffer texto = StringBuffer();
+    texto.writeln('📊 *REQUISIÇÃO PADARIA - ${widget.storeName.toUpperCase()}*');
+    texto.writeln('📅 *Data:* ${DateFormat('dd/MM/yyyy').format(_dataSelecionada)}');
+    texto.writeln('👤 *Responsável:* $_responsavel');
+    texto.writeln('━' * 30);
+    
+    texto.write(formatarMotivo('MOTIVO 49', motivo49, labels49, unidades49));
+    texto.write(formatarMotivo('MOTIVO 8', motivo8, labels8, unidades8));
+    texto.write(formatarMotivo('MOTIVO 23', motivo23, labels23, unidades23));
+    texto.write(formatarMotivo('MOTIVO 9', motivo9, labels9, unidades9));
+    
+    texto.writeln('\n━' * 30);
+    texto.writeln('✍️ *Assinatura do Responsável:* ___________________');
+
+    await Share.share(texto.toString(), subject: 'Requisição Padaria ${widget.storeName}');
   }
 
   @override
@@ -19473,7 +19377,7 @@ class _RequisicaoState extends State<Requisicao> with SingleTickerProviderStateM
         actions: [
           IconButton(
             icon: const Icon(Icons.share, color: Colors.white),
-            onPressed: _gerarPDF,
+            onPressed: _compartilharPlanilha,
           ),
         ],
         bottom: TabBar(
