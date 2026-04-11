@@ -1959,14 +1959,13 @@ class _SecondScreenState extends State<SecondScreen> {
                           ),
                         );
                       }),
-                      _padariaCard(
-                          Icons.track_changes, "Metas", Colors.teal.shade300,
-                          () {
+                      _padariaCard(Icons.track_changes, "Requisição",
+                          Colors.teal.shade300, () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) =>
-                                Meta(storeName: widget.storeName),
+                                Requisicao(storeName: widget.storeName),
                           ),
                         );
                       }),
@@ -18323,6 +18322,1181 @@ class _MetasProdutosScreenState extends State<MetasProdutosScreen> {
             },
           );
         },
+      ),
+    );
+  }
+}
+
+
+class Requisicao extends StatefulWidget {
+  final String storeName;
+
+  const Requisicao({super.key, required this.storeName});
+
+  @override
+  State<Requisicao> createState() => _RequisicaoState();
+}
+
+class _RequisicaoState extends State<Requisicao> with SingleTickerProviderStateMixin {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  final Map<String, TextEditingController> controllersProducao = {};
+  final Map<String, TextEditingController> controllersPerdas = {};
+
+  late TabController _tabController;
+
+  // Estado para forçar rebuild da aba Planilha quando os dados mudarem
+  final ValueNotifier<int> _planilhaNotifier = ValueNotifier<int>(0);
+
+  // Data atual para exibir na planilha
+  DateTime _dataSelecionada = DateTime.now();
+  String _responsavel = '';
+
+  // ------------------ PRODUÇÃO ------------------
+  final List<Map<String, String>> produtosProducao = [
+    {
+      "codigo": "132318",
+      "nome": "PÃO SAMARITANO",
+      "hint": "Preencher em unidades a produção",
+      "unidade": "UNID"
+    },
+    {
+      "codigo": "132319",
+      "nome": "PÃO PIZZA",
+      "hint": "Preencher em unidades a produção",
+      "unidade": "UNID"
+    },
+    {
+      "codigo": "132317",
+      "nome": "PÃO DE ALHO DA CASA",
+      "hint": "Preencher a quantidade de bandejas produzidas",
+      "unidade": "BANDEJA"
+    },
+    {
+      "codigo": "132320",
+      "nome": "PÃO DE ALHO DA CASA PICANTE",
+      "hint": "Preencher a quantidade de bandejas produzidas",
+      "unidade": "BANDEJA"
+    },
+    {
+      "codigo": "62901",
+      "nome": "RABANADA ASSADA",
+      "hint": "Pesar a quantidade produzida",
+      "unidade": "KG"
+    },
+    {
+      "codigo": "148231",
+      "nome": "ROSCA DOCE CÔCO E QUEIJO",
+      "hint": "Preencher em unidades a produção",
+      "unidade": "UNID"
+    },
+    {
+      "codigo": "142099",
+      "nome": "SANDUÍCHE FOFINHO",
+      "hint": "Preencher em unidades a produção",
+      "unidade": "UNID"
+    },
+    {
+      "codigo": "142098",
+      "nome": "ROSCA FOFINHA TEMPERADA",
+      "hint": "Preencher em unidades a produção",
+      "unidade": "UNID"
+    },
+    {
+      "codigo": "33639",
+      "nome": "PÃO FRANCÊS",
+      "hint": "Preencher a quantidade de pacotes abertos",
+      "unidade": "PACOTE"
+    },
+    {
+      "codigo": "336392",
+      "nome": "PÃO CERVEJINHA",
+      "hint": "Preencher a quantidade de pacotes abertos",
+      "unidade": "PACOTE"
+    },
+    {
+      "codigo": "164966",
+      "nome": "PÃO FRANCÊS FIBRAS",
+      "hint": "Preencher a quantidade de pacotes abertos",
+      "unidade": "PACOTE"
+    },
+    {
+      "codigo": "81235",
+      "nome": "PÃO BAGUETE FRANCESA",
+      "hint": "Preencher a quantidade de pacotes abertos",
+      "unidade": "PACOTE"
+    },
+    {
+      "codigo": "62948",
+      "nome": "PÃO DE QUEIJO TRADICIONAL",
+      "hint": "Preencher a quantidade de pacotes abertos",
+      "unidade": "PACOTE"
+    },
+    {
+      "codigo": "65139",
+      "nome": "PÃO DE QUEIJO COQUETEL",
+      "hint": "Preencher a quantidade de pacotes abertos",
+      "unidade": "PACOTE"
+    },
+    {
+      "codigo": "97922",
+      "nome": "BISCOITO POLVILHO",
+      "hint": "Preencher a quantidade de mangas usadas",
+      "unidade": "MANGA"
+    },
+    {
+      "codigo": "146428",
+      "nome": "BISCOITO DE QUEIJO",
+      "hint": "Preencher a quantidade de pacotes abertos",
+      "unidade": "PACOTE"
+    },
+    {
+      "codigo": "42842",
+      "nome": "PÃO TATU",
+      "hint": "Preencher a quantidade de pacotes abertos",
+      "unidade": "PACOTE"
+    },
+    {
+      "codigo": "106793",
+      "nome": "PÃO FOFINHO",
+      "hint": "Preencher a quantidade de pacotes abertos",
+      "unidade": "PACOTE"
+    },
+    {
+      "codigo": "112727",
+      "nome": "MINI PÃO SONHO",
+      "hint": "Pesar a quantidade produzida",
+      "unidade": "KG"
+    },
+    {
+      "codigo": "1127272",
+      "nome": "MINI PÃO SONHO CHOCOLATE",
+      "hint": "Pesar a quantidade produzida",
+      "unidade": "KG"
+    },
+    {
+      "codigo": "1127273",
+      "nome": "BAMBINO",
+      "hint": "Pesar a quantidade produzida",
+      "unidade": "KG"
+    },
+    {
+      "codigo": "112731",
+      "nome": "MINI MARTA ROCHA",
+      "hint": "Pesar a quantidade produzida",
+      "unidade": "KG"
+    },
+    {
+      "codigo": "81238",
+      "nome": "PÃO DOCE CARACOL",
+      "hint": "Pesar a quantidade produzida",
+      "unidade": "KG"
+    },
+    {
+      "codigo": "81240",
+      "nome": "PÃO DOCE FERRADURA",
+      "hint": "Pesar a quantidade produzida",
+      "unidade": "KG"
+    },
+  ];
+
+  // ------------------ PERDAS ------------------
+  final List<Map<String, String>> produtosPerdas = [
+    {
+      "codigo": "132318",
+      "nome": "PÃO SAMARITANO",
+      "hint": "Preencher em unidades a perda",
+      "unidade": "UNID"
+    },
+    {
+      "codigo": "132319",
+      "nome": "PÃO PIZZA",
+      "hint": "Preencher em unidades a perda",
+      "unidade": "UNID"
+    },
+    {
+      "codigo": "132317",
+      "nome": "PÃO DE ALHO DA CASA",
+      "hint": "Preencher a quantidade de bandejas perdidas",
+      "unidade": "BANDEJA"
+    },
+    {
+      "codigo": "132320",
+      "nome": "PÃO DE ALHO DA CASA PICANTE",
+      "hint": "Preencher a quantidade de bandejas perdidas",
+      "unidade": "BANDEJA"
+    },
+    {
+      "codigo": "148231",
+      "nome": "ROSCA CÔCO E QUEIJO",
+      "hint": "Preencher em unidades a perda",
+      "unidade": "UNID"
+    },
+    {
+      "codigo": "142099",
+      "nome": "SANDUÍCHE FOFINHO",
+      "hint": "Preencher em unidades a perda",
+      "unidade": "UNID"
+    },
+    {
+      "codigo": "142098",
+      "nome": "ROSCA FOFINHA TEMPERADA",
+      "hint": "Preencher em unidades a perda",
+      "unidade": "UNID"
+    },
+    {
+      "codigo": "132471",
+      "nome": "BAGUETE FRANCESA",
+      "hint": "Preencher em unidades a perda",
+      "unidade": "UNID"
+    },
+    {
+      "codigo": "1324712",
+      "nome": "BAGUETE FRANCESA C/ QUEIJO",
+      "hint": "Preencher em unidades a perda",
+      "unidade": "UNID"
+    },
+    {
+      "codigo": "62948",
+      "nome": "PÃO DE QUEIJO TRADICIONAL",
+      "hint": "Pesar a quantidade perdida",
+      "unidade": "KG"
+    },
+    {
+      "codigo": "65139",
+      "nome": "PÃO DE QUEIJO COQUETEL",
+      "hint": "Pesar a quantidade perdida",
+      "unidade": "KG"
+    },
+    {
+      "codigo": "97922",
+      "nome": "BISCOITO POLVILHO",
+      "hint": "Pesar a quantidade perdida",
+      "unidade": "KG"
+    },
+    {
+      "codigo": "146428",
+      "nome": "BISCOITO DE QUEIJO",
+      "hint": "Pesar a quantidade perdida",
+      "unidade": "KG"
+    },
+    {
+      "codigo": "42842",
+      "nome": "PÃO TATU",
+      "hint": "Pesar a quantidade perdida",
+      "unidade": "KG"
+    },
+    {
+      "codigo": "106793",
+      "nome": "PÃO FOFINHO",
+      "hint": "Pesar a quantidade perdida",
+      "unidade": "KG"
+    },
+    {
+      "codigo": "112727",
+      "nome": "MINI PÃO SONHO",
+      "hint": "Pesar a quantidade perdida",
+      "unidade": "KG"
+    },
+    {
+      "codigo": "1127272",
+      "nome": "MINI PÃO SONHO CHOCOLATE",
+      "hint": "Pesar a quantidade perdida",
+      "unidade": "KG"
+    },
+    {
+      "codigo": "1127273",
+      "nome": "BAMBINO",
+      "hint": "Pesar a quantidade perdida",
+      "unidade": "KG"
+    },
+    {
+      "codigo": "112731",
+      "nome": "MINI MARTA ROCHA",
+      "hint": "Pesar a quantidade perdida",
+      "unidade": "KG"
+    },
+    {
+      "codigo": "1067932",
+      "nome": "PÃO CASEIRINHO",
+      "hint": "Pesar a quantidade perdida",
+      "unidade": "KG"
+    },
+    {
+      "codigo": "81238",
+      "nome": "PÃO DOCE CARACOL",
+      "hint": "Pesar a quantidade perdida",
+      "unidade": "KG"
+    },
+    {
+      "codigo": "81240",
+      "nome": "PÃO DOCE FERRADURA",
+      "hint": "Pesar a quantidade perdida",
+      "unidade": "KG"
+    },
+    {
+      "codigo": "81235",
+      "nome": "PÃO BAGUETE FRANCESA C/ QUEIJO",
+      "hint": "Pesar a quantidade perdida",
+      "unidade": "KG"
+    },
+    {
+      "codigo": "812352",
+      "nome": "PÃO BAGUETE FRANCESA C/ GERGELIM",
+      "hint": "Pesar a quantidade perdida",
+      "unidade": "KG"
+    },
+    {
+      "codigo": "68170",
+      "nome": "PÂO FRANCÊS C/ QUEIJO",
+      "hint": "Pesar a quantidade perdida",
+      "unidade": "KG"
+    },
+    {
+      "codigo": "62901",
+      "nome": "RABANADA ASSADA",
+      "hint": "Pesar a quantidade perdida",
+      "unidade": "KG"
+    },
+    {
+      "codigo": "131281",
+      "nome": "PÃO PARA RABANADA",
+      "hint": "Pesar a quantidade perdida",
+      "unidade": "KG"
+    },
+  ];
+
+  // Função para formatar o número (sem decimais se for inteiro)
+  String _formatNumber(dynamic valor) {
+    if (valor is double) {
+      if (valor == valor.roundToDouble()) {
+        return valor.round().toString();
+      } else {
+        return valor.toStringAsFixed(2);
+      }
+    } else if (valor is int) {
+      return valor.toString();
+    } else {
+      return '0';
+    }
+  }
+
+  // Função para converter string com vírgula ou ponto para double
+  double _parseInputValue(String value) {
+    if (value.isEmpty) return 0.0;
+    String normalizedValue = value.replaceAll(',', '.');
+    return double.tryParse(normalizedValue) ?? 0.0;
+  }
+
+  // Função auxiliar para pegar um valor numérico do controller (segura)
+  double _getValorController(Map<String, TextEditingController> controllers, String codigo) {
+    final text = controllers[codigo]?.text.trim() ?? '';
+    if (text.isEmpty) return 0.0;
+    return _parseInputValue(text);
+  }
+
+  int _getValorControllerInt(Map<String, TextEditingController> controllers, String codigo) {
+    final text = controllers[codigo]?.text.trim() ?? '';
+    if (text.isEmpty) return 0;
+    return _parseInputValue(text).round();
+  }
+
+  // --- Cálculos para o Motivo 49 ---
+  Map<String, dynamic> _calcularMotivo49() {
+    return {
+      'paoFrances': _getValorController(controllersProducao, '33639') * 2.1 +
+          _getValorController(controllersProducao, '336392') * 0.66,
+      'paoFrancesFibras': _getValorController(controllersProducao, '164966') * 0.66,
+      'paoQueijoTradicional': _getValorController(controllersProducao, '62948') * 0.99,
+      'paoQueijoCoquetel': _getValorController(controllersProducao, '65139') * 0.99,
+      'biscoitoPolvilho': _getValorController(controllersProducao, '97922') * 0.567,
+      'biscoitoQueijo': _getValorController(controllersProducao, '146428') * 0.99,
+      'paoTatu': _getValorController(controllersProducao, '42842') * 0.33,
+      'paoFofinho': _getValorController(controllersProducao, '106793') * 0.495,
+    };
+  }
+
+  // --- Cálculos para o Motivo 8 ---
+  Map<String, dynamic> _calcularMotivo8() {
+    return {
+      'baguete': (_getValorController(controllersProducao, '132317') +
+              _getValorController(controllersProducao, '132320')) *
+          0.27,
+      'paoFrances': _getValorController(controllersProducao, '132318') * 0.09,
+      'miniMarta': _getValorController(controllersProducao, '132319') * 0.06,
+      'rabanada': _getValorControllerInt(controllersProducao, '148231') +
+          (_getValorController(controllersProducao, '62901') / 0.8).round(),
+      'paoFofinho': _getValorController(controllersProducao, '142099') * 0.06,
+    };
+  }
+
+  // --- Cálculos para o Motivo 23 (Perdas) ---
+  Map<String, dynamic> _calcularMotivo23() {
+    return {
+      'bagueteFrancesa': _getValorController(controllersPerdas, '132471') +
+          _getValorController(controllersPerdas, '1324712'),
+      'bambino': _getValorController(controllersPerdas, '112727') +
+          _getValorController(controllersPerdas, '1127272') +
+          _getValorController(controllersPerdas, '1127273'),
+      'biscoitoQueijo': _getValorController(controllersPerdas, '146428'),
+      'biscoitoPolvilho': _getValorController(controllersPerdas, '97922'),
+      'miniMarta': _getValorController(controllersPerdas, '112731'),
+      'baguete': _getValorController(controllersPerdas, '81235') +
+          _getValorController(controllersPerdas, '812352'),
+      'paoFofinho': _getValorController(controllersPerdas, '106793') +
+          _getValorController(controllersPerdas, '1067932'),
+      'paoQueijoCoquetel': _getValorController(controllersPerdas, '65139'),
+      'paoQueijoTradicional': _getValorController(controllersPerdas, '62948'),
+      'paoDoceCaracol': _getValorController(controllersPerdas, '81238'),
+      'paoDoceFerradura': _getValorController(controllersPerdas, '81240'),
+      'paoTatu': _getValorController(controllersPerdas, '42842'),
+      'paoRabanada': _getValorController(controllersPerdas, '131281'),
+      'miniBaguetinha': _getValorController(controllersPerdas, '68170'),
+      'sanduicheFofinho': _getValorController(controllersPerdas, '142099'),
+      'paoSamaritano': _getValorController(controllersPerdas, '132318'),
+      'paoPizza': _getValorController(controllersPerdas, '132319'),
+      'paoAlhoCasa': _getValorController(controllersPerdas, '132317'),
+      'paoAlhoCasaPicante': _getValorController(controllersPerdas, '132320'),
+      'roscaFofinha': _getValorController(controllersPerdas, '142098'),
+      'roscaCocoQueijo': _getValorController(controllersPerdas, '148231'),
+      'rabanadaAssada': _getValorController(controllersPerdas, '62901'),
+    };
+  }
+
+  // --- Cálculos para o Motivo 9 ---
+  Map<String, dynamic> _calcularMotivo9() {
+    return {
+      'sanduicheFofinho': _getValorController(controllersProducao, '142099'),
+      'paoSamaritano': _getValorController(controllersProducao, '132318'),
+      'paoPizza': _getValorController(controllersProducao, '132319'),
+      'paoAlhoCasa': _getValorController(controllersProducao, '132317'),
+      'paoAlhoCasaPicante': _getValorController(controllersProducao, '132320'),
+      'roscaFofinha': _getValorController(controllersProducao, '142098'),
+      'roscaCocoQueijo': _getValorController(controllersProducao, '148231'),
+      'rabanadaAssada': _getValorController(controllersProducao, '62901'),
+      'bambino': (_getValorController(controllersProducao, '112727') +
+              _getValorController(controllersProducao, '1127272') +
+              _getValorController(controllersProducao, '1127273')) /
+          1.6,
+      'miniMarta': _getValorController(controllersProducao, '112731') / 1.6,
+      'paoDoceCaracol': _getValorController(controllersProducao, '81238') / 4.5,
+      'paoDoceFerradura': _getValorController(controllersProducao, '81240') / 3.3,
+    };
+  }
+
+  Future<void> _carregarResponsavel() async {
+    try {
+      final doc = await _firestore.collection('stores').doc(widget.storeName).get();
+      if (doc.exists && doc.data()?['userName'] != null) {
+        setState(() {
+          _responsavel = doc.data()?['userName'];
+        });
+      }
+    } catch (e) {
+      print('Erro ao carregar responsável: $e');
+    }
+  }
+
+  Future<void> _gerarPDF() async {
+    final pdf = pw.Document();
+    final motivo49 = _calcularMotivo49();
+    final motivo8 = _calcularMotivo8();
+    final motivo23 = _calcularMotivo23();
+    final motivo9 = _calcularMotivo9();
+
+    // Filtrar apenas valores diferentes de zero
+    List<Map<String, dynamic>> itensMotivo49 = [];
+    if (motivo49['paoFrances'] > 0) itensMotivo49.add({'nome': 'Massa Pão Francês', 'valor': motivo49['paoFrances'], 'unidade': 'KG'});
+    if (motivo49['paoFrancesFibras'] > 0) itensMotivo49.add({'nome': 'Massa Pão Francês Fibras', 'valor': motivo49['paoFrancesFibras'], 'unidade': 'KG'});
+    if (motivo49['paoQueijoTradicional'] > 0) itensMotivo49.add({'nome': 'Massa Pão de Queijo Tradicional', 'valor': motivo49['paoQueijoTradicional'], 'unidade': 'KG'});
+    if (motivo49['paoQueijoCoquetel'] > 0) itensMotivo49.add({'nome': 'Massa Pão de Queijo Coquetel', 'valor': motivo49['paoQueijoCoquetel'], 'unidade': 'KG'});
+    if (motivo49['biscoitoPolvilho'] > 0) itensMotivo49.add({'nome': 'Massa Biscoito Polvilho', 'valor': motivo49['biscoitoPolvilho'], 'unidade': 'KG'});
+    if (motivo49['biscoitoQueijo'] > 0) itensMotivo49.add({'nome': 'Massa Biscoito de Queijo', 'valor': motivo49['biscoitoQueijo'], 'unidade': 'KG'});
+    if (motivo49['paoTatu'] > 0) itensMotivo49.add({'nome': 'Massa Pão Tatu', 'valor': motivo49['paoTatu'], 'unidade': 'KG'});
+    if (motivo49['paoFofinho'] > 0) itensMotivo49.add({'nome': 'Massa Pão Fofinho', 'valor': motivo49['paoFofinho'], 'unidade': 'KG'});
+
+    List<Map<String, dynamic>> itensMotivo8 = [];
+    if (motivo8['baguete'] > 0) itensMotivo8.add({'nome': 'Massa Baguete', 'valor': motivo8['baguete'], 'unidade': 'KG'});
+    if (motivo8['paoFrances'] > 0) itensMotivo8.add({'nome': 'Massa Pão Francês', 'valor': motivo8['paoFrances'], 'unidade': 'KG'});
+    if (motivo8['miniMarta'] > 0) itensMotivo8.add({'nome': 'Massa Mini Marta Rocha', 'valor': motivo8['miniMarta'], 'unidade': 'KG'});
+    if (motivo8['rabanada'] > 0) itensMotivo8.add({'nome': 'Massa Pão P/ Rabanada', 'valor': motivo8['rabanada'], 'unidade': 'UNID'});
+    if (motivo8['paoFofinho'] > 0) itensMotivo8.add({'nome': 'Massa Pão Fofinho', 'valor': motivo8['paoFofinho'], 'unidade': 'KG'});
+
+    List<Map<String, dynamic>> itensMotivo23 = [];
+    if (motivo23['bagueteFrancesa'] > 0) itensMotivo23.add({'nome': 'Massa Baguete Francesa', 'valor': motivo23['bagueteFrancesa'], 'unidade': 'UNID'});
+    if (motivo23['bambino'] > 0) itensMotivo23.add({'nome': 'Massa Bambino', 'valor': motivo23['bambino'], 'unidade': 'KG'});
+    if (motivo23['biscoitoQueijo'] > 0) itensMotivo23.add({'nome': 'Massa Biscoito Queijo', 'valor': motivo23['biscoitoQueijo'], 'unidade': 'KG'});
+    if (motivo23['biscoitoPolvilho'] > 0) itensMotivo23.add({'nome': 'Massa Biscoito Polvilho', 'valor': motivo23['biscoitoPolvilho'], 'unidade': 'KG'});
+    if (motivo23['miniMarta'] > 0) itensMotivo23.add({'nome': 'Massa Mini Marta Rocha', 'valor': motivo23['miniMarta'], 'unidade': 'KG'});
+    if (motivo23['baguete'] > 0) itensMotivo23.add({'nome': 'Massa Baguete', 'valor': motivo23['baguete'], 'unidade': 'KG'});
+    if (motivo23['paoFofinho'] > 0) itensMotivo23.add({'nome': 'Massa Pão Fofinho', 'valor': motivo23['paoFofinho'], 'unidade': 'KG'});
+    if (motivo23['paoQueijoCoquetel'] > 0) itensMotivo23.add({'nome': 'Massa Pão De Queijo Coquetel', 'valor': motivo23['paoQueijoCoquetel'], 'unidade': 'KG'});
+    if (motivo23['paoQueijoTradicional'] > 0) itensMotivo23.add({'nome': 'Massa Pão de Queijo Tradicional', 'valor': motivo23['paoQueijoTradicional'], 'unidade': 'KG'});
+    if (motivo23['paoDoceCaracol'] > 0) itensMotivo23.add({'nome': 'Massa Pão Doce Caracol', 'valor': motivo23['paoDoceCaracol'], 'unidade': 'KG'});
+    if (motivo23['paoDoceFerradura'] > 0) itensMotivo23.add({'nome': 'Massa Pão Doce Ferradura', 'valor': motivo23['paoDoceFerradura'], 'unidade': 'KG'});
+    if (motivo23['paoTatu'] > 0) itensMotivo23.add({'nome': 'Massa Pão Tatu', 'valor': motivo23['paoTatu'], 'unidade': 'KG'});
+    if (motivo23['paoRabanada'] > 0) itensMotivo23.add({'nome': 'Massa Pão P/ Rabanada', 'valor': motivo23['paoRabanada'], 'unidade': 'UNID'});
+    if (motivo23['miniBaguetinha'] > 0) itensMotivo23.add({'nome': 'Massa Mini Baguetinha', 'valor': motivo23['miniBaguetinha'], 'unidade': 'KG'});
+    if (motivo23['sanduicheFofinho'] > 0) itensMotivo23.add({'nome': 'Sanduíche Fofinho', 'valor': motivo23['sanduicheFofinho'], 'unidade': 'UNID'});
+    if (motivo23['paoSamaritano'] > 0) itensMotivo23.add({'nome': 'Pão Samaritano', 'valor': motivo23['paoSamaritano'], 'unidade': 'UNID'});
+    if (motivo23['paoPizza'] > 0) itensMotivo23.add({'nome': 'Pão Pizza', 'valor': motivo23['paoPizza'], 'unidade': 'UNID'});
+    if (motivo23['paoAlhoCasa'] > 0) itensMotivo23.add({'nome': 'Pão de Alho da Casa', 'valor': motivo23['paoAlhoCasa'], 'unidade': 'UNID'});
+    if (motivo23['paoAlhoCasaPicante'] > 0) itensMotivo23.add({'nome': 'Pão de Alho da Casa Picante', 'valor': motivo23['paoAlhoCasaPicante'], 'unidade': 'UNID'});
+    if (motivo23['roscaFofinha'] > 0) itensMotivo23.add({'nome': 'Rosca Fofinha Temperada', 'valor': motivo23['roscaFofinha'], 'unidade': 'UNID'});
+    if (motivo23['roscaCocoQueijo'] > 0) itensMotivo23.add({'nome': 'Rosca Côco e Queijo', 'valor': motivo23['roscaCocoQueijo'], 'unidade': 'UNID'});
+    if (motivo23['rabanadaAssada'] > 0) itensMotivo23.add({'nome': 'Rabanada Assada', 'valor': motivo23['rabanadaAssada'], 'unidade': 'KG'});
+
+    List<Map<String, dynamic>> itensMotivo9 = [];
+    if (motivo9['sanduicheFofinho'] > 0) itensMotivo9.add({'nome': 'Sanduíche Fofinho', 'valor': motivo9['sanduicheFofinho'], 'unidade': 'UNID'});
+    if (motivo9['paoSamaritano'] > 0) itensMotivo9.add({'nome': 'Pão Samaritano', 'valor': motivo9['paoSamaritano'], 'unidade': 'UNID'});
+    if (motivo9['paoPizza'] > 0) itensMotivo9.add({'nome': 'Pão Pizza', 'valor': motivo9['paoPizza'], 'unidade': 'UNID'});
+    if (motivo9['paoAlhoCasa'] > 0) itensMotivo9.add({'nome': 'Pão de Alho da Casa', 'valor': motivo9['paoAlhoCasa'], 'unidade': 'UNID'});
+    if (motivo9['paoAlhoCasaPicante'] > 0) itensMotivo9.add({'nome': 'Pão de Alho da Casa Picante', 'valor': motivo9['paoAlhoCasaPicante'], 'unidade': 'UNID'});
+    if (motivo9['roscaFofinha'] > 0) itensMotivo9.add({'nome': 'Rosca Fofinha Temperada', 'valor': motivo9['roscaFofinha'], 'unidade': 'UNID'});
+    if (motivo9['roscaCocoQueijo'] > 0) itensMotivo9.add({'nome': 'Rosca Côco e Queijo', 'valor': motivo9['roscaCocoQueijo'], 'unidade': 'UNID'});
+    if (motivo9['rabanadaAssada'] > 0) itensMotivo9.add({'nome': 'Rabanada Assada', 'valor': motivo9['rabanadaAssada'], 'unidade': 'KG'});
+    if (motivo9['bambino'] > 0) itensMotivo9.add({'nome': 'Massa Bambino', 'valor': motivo9['bambino'], 'unidade': 'KG'});
+    if (motivo9['miniMarta'] > 0) itensMotivo9.add({'nome': 'Massa Mini Marta Rocha', 'valor': motivo9['miniMarta'], 'unidade': 'KG'});
+    if (motivo9['paoDoceCaracol'] > 0) itensMotivo9.add({'nome': 'Massa Pão Doce Caracol', 'valor': motivo9['paoDoceCaracol'], 'unidade': 'KG'});
+    if (motivo9['paoDoceFerradura'] > 0) itensMotivo9.add({'nome': 'Massa Pão Doce Ferradura', 'valor': motivo9['paoDoceFerradura'], 'unidade': 'KG'});
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (context) => [
+          // Título Centralizado
+          pw.Center(
+            child: pw.Column(
+              children: [
+                pw.Text(
+                  'REQUISIÇÃO PADARIA ${widget.storeName.toUpperCase()}',
+                  style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+                ),
+                pw.SizedBox(height: 20),
+                pw.Text(
+                  'DATA: ${DateFormat('dd/MM/yyyy').format(_dataSelecionada)}',
+                  style: pw.TextStyle(fontSize: 14),
+                ),
+                pw.SizedBox(height: 8),
+                pw.Text(
+                  'RESPONSÁVEL: $_responsavel',
+                  style: pw.TextStyle(fontSize: 14),
+                ),
+                pw.SizedBox(height: 30),
+              ],
+            ),
+          ),
+          
+          // Motivo 49
+          if (itensMotivo49.isNotEmpty) ...[
+            pw.Text(
+              'MOTIVO 49',
+              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.blue),
+            ),
+            pw.SizedBox(height: 10),
+            pw.Table(
+              border: pw.TableBorder.all(),
+              children: [
+                pw.TableRow(
+                  decoration: pw.BoxDecoration(color: PdfColors.grey300),
+                  children: [
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Código', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Nome do Produto', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Quantidade', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Unidade', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                  ],
+                ),
+                ...itensMotivo49.asMap().entries.map((entry) {
+                  int index = entry.key;
+                  var item = entry.value;
+                  return pw.TableRow(
+                    children: [
+                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('${index + 1}')),
+                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(item['nome'])),
+                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(_formatNumber(item['valor']))),
+                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(item['unidade'])),
+                    ],
+                  );
+                }),
+              ],
+            ),
+            pw.SizedBox(height: 20),
+          ],
+          
+          // Motivo 8
+          if (itensMotivo8.isNotEmpty) ...[
+            pw.Text(
+              'MOTIVO 8',
+              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.green),
+            ),
+            pw.SizedBox(height: 10),
+            pw.Table(
+              border: pw.TableBorder.all(),
+              children: [
+                pw.TableRow(
+                  decoration: pw.BoxDecoration(color: PdfColors.grey300),
+                  children: [
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Código', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Nome do Produto', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Quantidade', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Unidade', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                  ],
+                ),
+                ...itensMotivo8.asMap().entries.map((entry) {
+                  int index = entry.key;
+                  var item = entry.value;
+                  return pw.TableRow(
+                    children: [
+                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('${index + 1}')),
+                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(item['nome'])),
+                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(_formatNumber(item['valor']))),
+                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(item['unidade'])),
+                    ],
+                  );
+                }),
+              ],
+            ),
+            pw.SizedBox(height: 20),
+          ],
+          
+          // Motivo 23
+          if (itensMotivo23.isNotEmpty) ...[
+            pw.Text(
+              'MOTIVO 23',
+              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.red),
+            ),
+            pw.SizedBox(height: 10),
+            pw.Table(
+              border: pw.TableBorder.all(),
+              children: [
+                pw.TableRow(
+                  decoration: pw.BoxDecoration(color: PdfColors.grey300),
+                  children: [
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Código', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Nome do Produto', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Quantidade', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Unidade', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                  ],
+                ),
+                ...itensMotivo23.asMap().entries.map((entry) {
+                  int index = entry.key;
+                  var item = entry.value;
+                  return pw.TableRow(
+                    children: [
+                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('${index + 1}')),
+                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(item['nome'])),
+                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(_formatNumber(item['valor']))),
+                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(item['unidade'])),
+                    ],
+                  );
+                }),
+              ],
+            ),
+            pw.SizedBox(height: 20),
+          ],
+          
+          // Motivo 9
+          if (itensMotivo9.isNotEmpty) ...[
+            pw.Text(
+              'MOTIVO 9',
+              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.orange),
+            ),
+            pw.SizedBox(height: 10),
+            pw.Table(
+              border: pw.TableBorder.all(),
+              children: [
+                pw.TableRow(
+                  decoration: pw.BoxDecoration(color: PdfColors.grey300),
+                  children: [
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Código', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Nome do Produto', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Quantidade', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Unidade', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                  ],
+                ),
+                ...itensMotivo9.asMap().entries.map((entry) {
+                  int index = entry.key;
+                  var item = entry.value;
+                  return pw.TableRow(
+                    children: [
+                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('${index + 1}')),
+                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(item['nome'])),
+                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(_formatNumber(item['valor']))),
+                      pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(item['unidade'])),
+                    ],
+                  );
+                }),
+              ],
+            ),
+            pw.SizedBox(height: 40),
+          ],
+          
+          // Campo de assinatura
+          pw.Container(
+            margin: const pw.EdgeInsets.only(top: 40),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Container(
+                  width: 300,
+                  height: 1,
+                  color: PdfColors.black,
+                ),
+                pw.SizedBox(height: 8),
+                pw.Text(
+                  'Assinatura do Responsável',
+                  style: pw.TextStyle(fontSize: 12, fontStyle: pw.FontStyle.italic),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    // Salvar e compartilhar PDF
+    final output = await getTemporaryDirectory();
+    final file = File('${output.path}/requisicao_${widget.storeName}_${DateFormat('yyyyMMdd').format(_dataSelecionada)}.pdf');
+    await file.writeAsBytes(await pdf.save());
+    await Printing.sharePdf(bytes: await pdf.save(), filename: file.path.split('/').last);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _carregarResponsavel();
+
+    for (var item in produtosProducao) {
+      controllersProducao[item['codigo']!] = TextEditingController();
+    }
+
+    for (var item in produtosPerdas) {
+      controllersPerdas[item['codigo']!] = TextEditingController();
+    }
+
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    for (var item in produtosProducao) {
+      final codigo = item['codigo']!;
+      final doc = await _firestore
+          .collection('stores')
+          .doc(widget.storeName)
+          .collection('producao')
+          .doc(codigo)
+          .get();
+
+      if (doc.exists) {
+        controllersProducao[codigo]!.text = doc.data()?['quant']?.toString() ?? '';
+      }
+    }
+
+    for (var item in produtosPerdas) {
+      final codigo = item['codigo']!;
+      final doc = await _firestore
+          .collection('stores')
+          .doc(widget.storeName)
+          .collection('perdas')
+          .doc(codigo)
+          .get();
+
+      if (doc.exists) {
+        controllersPerdas[codigo]!.text = doc.data()?['quant']?.toString() ?? '';
+      }
+    }
+
+    _planilhaNotifier.value++;
+  }
+
+  Future<void> _save(String tipo, String codigo, String nome, String valor) async {
+    await _firestore
+        .collection('stores')
+        .doc(widget.storeName)
+        .collection(tipo)
+        .doc(codigo)
+        .set({
+      "codigo": codigo,
+      "nome": nome,
+      "quant": valor,
+      "loja": widget.storeName,
+      "tipo": tipo,
+      "timestamp": FieldValue.serverTimestamp()
+    });
+
+    _planilhaNotifier.value++;
+  }
+
+  Future<void> _selecionarData() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _dataSelecionada,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null && picked != _dataSelecionada) {
+      setState(() {
+        _dataSelecionada = picked;
+      });
+      _planilhaNotifier.value++;
+    }
+  }
+
+  Widget _buildItem(Map<String, String> item,
+      Map<String, TextEditingController> controllers, String tipo) {
+    final codigo = item['codigo']!;
+    final nome = item['nome']!;
+    final hint = item['hint']!;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              nome,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              hint,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: controllers[codigo],
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: "Quantidade",
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (v) => _save(tipo, codigo, nome, v),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLista(List<Map<String, String>> lista,
+      Map<String, TextEditingController> controllers, String tipo) {
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: ListView(
+        children: lista.map((item) => _buildItem(item, controllers, tipo)).toList(),
+      ),
+    );
+  }
+
+  // ---------- ABA PLANILHA ----------
+  Widget _buildLinhaResultado(String label, dynamic valor,
+      {String unidade = 'KG'}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              '${_formatNumber(valor)} $unidade',
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMotivo49() {
+    final calc = _calcularMotivo49();
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'MOTIVO 49',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue),
+            ),
+            const Divider(),
+            if (calc['paoFrances'] > 0) _buildLinhaResultado('Massa Pão Francês:', calc['paoFrances']),
+            if (calc['paoFrancesFibras'] > 0) _buildLinhaResultado('Massa Pão Francês Fibras:', calc['paoFrancesFibras']),
+            if (calc['paoQueijoTradicional'] > 0) _buildLinhaResultado('Massa Pão de Queijo Tradicional:', calc['paoQueijoTradicional']),
+            if (calc['paoQueijoCoquetel'] > 0) _buildLinhaResultado('Massa Pão de Queijo Coquetel:', calc['paoQueijoCoquetel']),
+            if (calc['biscoitoPolvilho'] > 0) _buildLinhaResultado('Massa Biscoito Polvilho:', calc['biscoitoPolvilho']),
+            if (calc['biscoitoQueijo'] > 0) _buildLinhaResultado('Massa Biscoito de Queijo:', calc['biscoitoQueijo']),
+            if (calc['paoTatu'] > 0) _buildLinhaResultado('Massa Pão Tatu:', calc['paoTatu']),
+            if (calc['paoFofinho'] > 0) _buildLinhaResultado('Massa Pão Fofinho:', calc['paoFofinho']),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMotivo8() {
+    final calc = _calcularMotivo8();
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'MOTIVO 8',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green),
+            ),
+            const Divider(),
+            if (calc['baguete'] > 0) _buildLinhaResultado('Massa Baguete:', calc['baguete']),
+            if (calc['paoFrances'] > 0) _buildLinhaResultado('Massa Pão Francês:', calc['paoFrances']),
+            if (calc['miniMarta'] > 0) _buildLinhaResultado('Massa Mini Marta Rocha:', calc['miniMarta']),
+            if (calc['rabanada'] > 0) _buildLinhaResultado('Massa Pão P/ Rabanada:', calc['rabanada'], unidade: 'UNID'),
+            if (calc['paoFofinho'] > 0) _buildLinhaResultado('Massa Pão Fofinho:', calc['paoFofinho']),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMotivo23() {
+    final calc = _calcularMotivo23();
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'MOTIVO 23',
+              style: TextStyle(
+                  fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red),
+            ),
+            const Divider(),
+            if (calc['bagueteFrancesa'] > 0) _buildLinhaResultado('Massa Baguete Francesa:', calc['bagueteFrancesa'], unidade: 'UNID'),
+            if (calc['bambino'] > 0) _buildLinhaResultado('Massa Bambino:', calc['bambino']),
+            if (calc['biscoitoQueijo'] > 0) _buildLinhaResultado('Massa Biscoito Queijo:', calc['biscoitoQueijo']),
+            if (calc['biscoitoPolvilho'] > 0) _buildLinhaResultado('Massa Biscoito Polvilho:', calc['biscoitoPolvilho']),
+            if (calc['miniMarta'] > 0) _buildLinhaResultado('Massa Mini Marta Rocha:', calc['miniMarta']),
+            if (calc['baguete'] > 0) _buildLinhaResultado('Massa Baguete:', calc['baguete']),
+            if (calc['paoFofinho'] > 0) _buildLinhaResultado('Massa Pão Fofinho:', calc['paoFofinho']),
+            if (calc['paoQueijoCoquetel'] > 0) _buildLinhaResultado('Massa Pão De Queijo Coquetel:', calc['paoQueijoCoquetel']),
+            if (calc['paoQueijoTradicional'] > 0) _buildLinhaResultado('Massa Pão de Queijo Tradicional:', calc['paoQueijoTradicional']),
+            if (calc['paoDoceCaracol'] > 0) _buildLinhaResultado('Massa Pão Doce Caracol:', calc['paoDoceCaracol']),
+            if (calc['paoDoceFerradura'] > 0) _buildLinhaResultado('Massa Pão Doce Ferradura:', calc['paoDoceFerradura']),
+            if (calc['paoTatu'] > 0) _buildLinhaResultado('Massa Pão Tatu:', calc['paoTatu']),
+            if (calc['paoRabanada'] > 0) _buildLinhaResultado('Massa Pão P/ Rabanada:', calc['paoRabanada'], unidade: 'UNID'),
+            if (calc['miniBaguetinha'] > 0) _buildLinhaResultado('Massa Mini Baguetinha:', calc['miniBaguetinha']),
+            if (calc['sanduicheFofinho'] > 0) _buildLinhaResultado('Sanduíche Fofinho:', calc['sanduicheFofinho'], unidade: 'UNID'),
+            if (calc['paoSamaritano'] > 0) _buildLinhaResultado('Pão Samaritano:', calc['paoSamaritano'], unidade: 'UNID'),
+            if (calc['paoPizza'] > 0) _buildLinhaResultado('Pão Pizza:', calc['paoPizza'], unidade: 'UNID'),
+            if (calc['paoAlhoCasa'] > 0) _buildLinhaResultado('Pão de Alho da Casa:', calc['paoAlhoCasa'], unidade: 'UNID'),
+            if (calc['paoAlhoCasaPicante'] > 0) _buildLinhaResultado('Pão de Alho da Casa Picante:', calc['paoAlhoCasaPicante'], unidade: 'UNID'),
+            if (calc['roscaFofinha'] > 0) _buildLinhaResultado('Rosca Fofinha Temperada:', calc['roscaFofinha'], unidade: 'UNID'),
+            if (calc['roscaCocoQueijo'] > 0) _buildLinhaResultado('Rosca Côco e Queijo:', calc['roscaCocoQueijo'], unidade: 'UNID'),
+            if (calc['rabanadaAssada'] > 0) _buildLinhaResultado('Rabanada Assada:', calc['rabanadaAssada']),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMotivo9() {
+    final calc = _calcularMotivo9();
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'MOTIVO 9',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange),
+            ),
+            const Divider(),
+            if (calc['sanduicheFofinho'] > 0) _buildLinhaResultado('Sanduíche Fofinho:', calc['sanduicheFofinho'], unidade: 'UNID'),
+            if (calc['paoSamaritano'] > 0) _buildLinhaResultado('Pão Samaritano:', calc['paoSamaritano'], unidade: 'UNID'),
+            if (calc['paoPizza'] > 0) _buildLinhaResultado('Pão Pizza:', calc['paoPizza'], unidade: 'UNID'),
+            if (calc['paoAlhoCasa'] > 0) _buildLinhaResultado('Pão de Alho da Casa:', calc['paoAlhoCasa'], unidade: 'UNID'),
+            if (calc['paoAlhoCasaPicante'] > 0) _buildLinhaResultado('Pão de Alho da Casa Picante:', calc['paoAlhoCasaPicante'], unidade: 'UNID'),
+            if (calc['roscaFofinha'] > 0) _buildLinhaResultado('Rosca Fofinha Temperada:', calc['roscaFofinha'], unidade: 'UNID'),
+            if (calc['roscaCocoQueijo'] > 0) _buildLinhaResultado('Rosca Côco e Queijo:', calc['roscaCocoQueijo'], unidade: 'UNID'),
+            if (calc['rabanadaAssada'] > 0) _buildLinhaResultado('Rabanada Assada:', calc['rabanadaAssada']),
+            if (calc['bambino'] > 0) _buildLinhaResultado('Massa Bambino:', calc['bambino']),
+            if (calc['miniMarta'] > 0) _buildLinhaResultado('Massa Mini Marta Rocha:', calc['miniMarta']),
+            if (calc['paoDoceCaracol'] > 0) _buildLinhaResultado('Massa Pão Doce Caracol:', calc['paoDoceCaracol']),
+            if (calc['paoDoceFerradura'] > 0) _buildLinhaResultado('Massa Pão Doce Ferradura:', calc['paoDoceFerradura']),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlanilha() {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          color: Colors.grey[100],
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'PLANILHA PADARIA',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              InkWell(
+                onTap: _selecionarData,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.blue,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_today, color: Colors.white, size: 16),
+                      const SizedBox(width: 8),
+                      Text(
+                        DateFormat('dd/MM/yyyy').format(_dataSelecionada),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ValueListenableBuilder<int>(
+            valueListenable: _planilhaNotifier,
+            builder: (context, _, __) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    _buildMotivo49(),
+                    _buildMotivo8(),
+                    _buildMotivo23(),
+                    _buildMotivo9(),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _planilhaNotifier.dispose();
+
+    for (var c in controllersProducao.values) {
+      c.dispose();
+    }
+    for (var c in controllersPerdas.values) {
+      c.dispose();
+    }
+
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0x762586e5),
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => SecondScreen(storeName: widget.storeName),
+              ),
+            );
+          },
+        ),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset('assets/images/Logo StockOne.png', height: 32),
+            const SizedBox(width: 8),
+            const Text("REQUISIÇÃO",
+                style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Lora',
+                    color: Colors.white)),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share, color: Colors.white),
+            onPressed: _gerarPDF,
+          ),
+        ],
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          labelStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          unselectedLabelStyle: const TextStyle(fontSize: 14),
+          indicatorColor: Colors.white,
+          tabs: const [
+            Tab(text: "Produção"),
+            Tab(text: "Perdas"),
+            Tab(text: "Planilha"),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildLista(produtosProducao, controllersProducao, "producao"),
+          _buildLista(produtosPerdas, controllersPerdas, "perdas"),
+          _buildPlanilha(),
+        ],
       ),
     );
   }
