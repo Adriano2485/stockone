@@ -18355,54 +18355,6 @@ class _RequisicaoState extends State<Requisicao>
   // ------------------ PRODUÇÃO ------------------
   final List<Map<String, String>> produtosProducao = [
     {
-      "codigo": "132318",
-      "nome": "PÃO SAMARITANO",
-      "hint": "Preencher em unidades a produção",
-      "unidade": "UNID"
-    },
-    {
-      "codigo": "132319",
-      "nome": "PÃO PIZZA",
-      "hint": "Preencher em unidades a produção",
-      "unidade": "UNID"
-    },
-    {
-      "codigo": "132317",
-      "nome": "PÃO DE ALHO DA CASA",
-      "hint": "Preencher a quantidade de bandejas produzidas",
-      "unidade": "BANDEJA"
-    },
-    {
-      "codigo": "132320",
-      "nome": "PÃO DE ALHO DA CASA PICANTE",
-      "hint": "Preencher a quantidade de bandejas produzidas",
-      "unidade": "BANDEJA"
-    },
-    {
-      "codigo": "62901",
-      "nome": "RABANADA ASSADA",
-      "hint": "Pesar a quantidade produzida",
-      "unidade": "KG"
-    },
-    {
-      "codigo": "148231",
-      "nome": "ROSCA DOCE CÔCO E QUEIJO",
-      "hint": "Preencher em unidades a produção",
-      "unidade": "UNID"
-    },
-    {
-      "codigo": "142099",
-      "nome": "SANDUÍCHE FOFINHO",
-      "hint": "Preencher em unidades a produção",
-      "unidade": "UNID"
-    },
-    {
-      "codigo": "142098",
-      "nome": "ROSCA FOFINHA TEMPERADA",
-      "hint": "Preencher em unidades a produção",
-      "unidade": "UNID"
-    },
-    {
       "codigo": "33639",
       "nome": "PÃO FRANCÊS",
       "hint": "Preencher a quantidade de pacotes abertos",
@@ -18461,6 +18413,54 @@ class _RequisicaoState extends State<Requisicao>
       "nome": "PÃO FOFINHO",
       "hint": "Preencher a quantidade de pacotes abertos",
       "unidade": "PACOTE"
+    },
+    {
+      "codigo": "132318",
+      "nome": "PÃO SAMARITANO",
+      "hint": "Preencher em unidades a produção",
+      "unidade": "UNID"
+    },
+    {
+      "codigo": "132319",
+      "nome": "PÃO PIZZA",
+      "hint": "Preencher em unidades a produção",
+      "unidade": "UNID"
+    },
+    {
+      "codigo": "132317",
+      "nome": "PÃO DE ALHO DA CASA",
+      "hint": "Preencher a quantidade de bandejas produzidas",
+      "unidade": "BANDEJA"
+    },
+    {
+      "codigo": "132320",
+      "nome": "PÃO DE ALHO DA CASA PICANTE",
+      "hint": "Preencher a quantidade de bandejas produzidas",
+      "unidade": "BANDEJA"
+    },
+    {
+      "codigo": "62901",
+      "nome": "RABANADA ASSADA",
+      "hint": "Pesar a quantidade produzida",
+      "unidade": "KG"
+    },
+    {
+      "codigo": "148231",
+      "nome": "ROSCA DOCE CÔCO E QUEIJO",
+      "hint": "Preencher em unidades a produção",
+      "unidade": "UNID"
+    },
+    {
+      "codigo": "142099",
+      "nome": "SANDUÍCHE FOFINHO",
+      "hint": "Preencher em unidades a produção",
+      "unidade": "UNID"
+    },
+    {
+      "codigo": "142098",
+      "nome": "ROSCA FOFINHA TEMPERADA",
+      "hint": "Preencher em unidades a produção",
+      "unidade": "UNID"
     },
     {
       "codigo": "112727",
@@ -18710,6 +18710,7 @@ class _RequisicaoState extends State<Requisicao>
           _getValorController(controllersProducao, '336392') * 0.66,
       'paoFrancesFibras':
           _getValorController(controllersProducao, '164966') * 0.66,
+      'massaBaguete': _getValorController(controllersProducao, '81235') * 0.66,
       'paoQueijoTradicional':
           _getValorController(controllersProducao, '62948') * 0.99,
       'paoQueijoCoquetel':
@@ -18900,6 +18901,7 @@ class _RequisicaoState extends State<Requisicao>
   }
 
   // Função para compartilhar em PDF
+  // Função para compartilhar em PDF
   Future<void> _compartilharPlanilhaPDF() async {
     final motivo49 = _calcularMotivo49();
     final motivo8 = _calcularMotivo8();
@@ -18924,18 +18926,18 @@ class _RequisicaoState extends State<Requisicao>
           ),
           pw.SizedBox(height: 20),
           pw.Text(
-            'LOJA: ${widget.storeName.toUpperCase()}',
-            style: pw.TextStyle(fontSize: 14), // Removeu o const
+            '${widget.storeName.toUpperCase()}',
+            style: pw.TextStyle(fontSize: 14),
           ),
           pw.SizedBox(height: 8),
           pw.Text(
-            'RESPONSÁVEL: $_responsavel',
-            style: pw.TextStyle(fontSize: 14), // Removeu o const
+            'Responsável: $_responsavel',
+            style: pw.TextStyle(fontSize: 14),
           ),
           pw.SizedBox(height: 8),
           pw.Text(
-            'DATA: ${DateFormat('dd/MM/yyyy').format(_dataSelecionada)}',
-            style: pw.TextStyle(fontSize: 14), // Removeu o const
+            'Data: ${DateFormat('dd/MM/yyyy').format(_dataSelecionada)}',
+            style: pw.TextStyle(fontSize: 14),
           ),
           pw.SizedBox(height: 30),
           _buildMotivoPDF('MOTIVO 49', _getMotivo49Items(motivo49)),
@@ -18948,9 +18950,7 @@ class _RequisicaoState extends State<Requisicao>
           pw.SizedBox(height: 40),
           pw.Text(
             'ASSINATURA: __________________________________',
-            style: pw.TextStyle(
-                fontSize: 14,
-                fontStyle: pw.FontStyle.italic), // Removeu o const
+            style: pw.TextStyle(fontSize: 14, fontStyle: pw.FontStyle.italic),
           ),
         ],
       ),
@@ -18989,8 +18989,7 @@ class _RequisicaoState extends State<Requisicao>
     }
   }
 
-  // Função para construir tabela do motivo no PDF
-
+// Função para construir tabela do motivo no PDF
   pw.Widget _buildMotivoPDF(String titulo, List<Map<String, dynamic>> items) {
     if (items.isEmpty) {
       return pw.Column(
@@ -19003,9 +19002,7 @@ class _RequisicaoState extends State<Requisicao>
           pw.SizedBox(height: 8),
           pw.Text(
             'Nenhum registro',
-            style: pw.TextStyle(
-                fontSize: 12,
-                fontStyle: pw.FontStyle.italic), // Removeu o const
+            style: pw.TextStyle(fontSize: 12, fontStyle: pw.FontStyle.italic),
           ),
         ],
       );
@@ -19072,13 +19069,13 @@ class _RequisicaoState extends State<Requisicao>
     );
   }
 
-  // Funções para extrair itens de cada motivo
+// Funções para extrair itens de cada motivo (TODAS usando _formatNumber)
   List<Map<String, dynamic>> _getMotivo49Items(Map<String, dynamic> motivo49) {
     final items = <Map<String, dynamic>>[];
 
     if (motivo49['paoFrances'] > 0) {
       items.add({
-        'codigo': '33639/336392',
+        'codigo': '33639',
         'produto': 'Massa Pão Francês',
         'quantidade': _formatNumber(motivo49['paoFrances']),
         'unidade': 'KG',
@@ -19140,6 +19137,14 @@ class _RequisicaoState extends State<Requisicao>
         'unidade': 'KG',
       });
     }
+    if (motivo49['massaBaguete'] > 0) {
+      items.add({
+        'codigo': '81235',
+        'produto': 'Massa Baguete',
+        'quantidade': _formatNumber(motivo49['massaBaguete']),
+        'unidade': 'KG',
+      });
+    }
 
     return items;
   }
@@ -19175,7 +19180,7 @@ class _RequisicaoState extends State<Requisicao>
       items.add({
         'codigo': '131281',
         'produto': 'Massa Pão P/ Rabanada',
-        'quantidade': motivo8['rabanada'].toString(),
+        'quantidade': _formatNumber(motivo8['rabanada']),
         'unidade': 'UNID',
       });
     }
@@ -19198,7 +19203,7 @@ class _RequisicaoState extends State<Requisicao>
       items.add({
         'codigo': '132471',
         'produto': 'Massa Baguete Francesa',
-        'quantidade': motivo23['bagueteFrancesa'].toString(),
+        'quantidade': _formatNumber(motivo23['bagueteFrancesa']),
         'unidade': 'UNID',
       });
     }
@@ -19294,7 +19299,7 @@ class _RequisicaoState extends State<Requisicao>
       items.add({
         'codigo': '131281',
         'produto': 'Massa Pão P/ Rabanada',
-        'quantidade': motivo23['paoRabanada'].toString(),
+        'quantidade': _formatNumber(motivo23['paoRabanada']),
         'unidade': 'UNID',
       });
     }
@@ -19310,7 +19315,7 @@ class _RequisicaoState extends State<Requisicao>
       items.add({
         'codigo': '142099',
         'produto': 'Sanduíche Fofinho',
-        'quantidade': motivo23['sanduicheFofinho'].toString(),
+        'quantidade': _formatNumber(motivo23['sanduicheFofinho']),
         'unidade': 'UNID',
       });
     }
@@ -19318,7 +19323,7 @@ class _RequisicaoState extends State<Requisicao>
       items.add({
         'codigo': '132318',
         'produto': 'Pão Samaritano',
-        'quantidade': motivo23['paoSamaritano'].toString(),
+        'quantidade': _formatNumber(motivo23['paoSamaritano']),
         'unidade': 'UNID',
       });
     }
@@ -19326,7 +19331,7 @@ class _RequisicaoState extends State<Requisicao>
       items.add({
         'codigo': '132319',
         'produto': 'Pão Pizza',
-        'quantidade': motivo23['paoPizza'].toString(),
+        'quantidade': _formatNumber(motivo23['paoPizza']),
         'unidade': 'UNID',
       });
     }
@@ -19334,7 +19339,7 @@ class _RequisicaoState extends State<Requisicao>
       items.add({
         'codigo': '132317',
         'produto': 'Pão de Alho da Casa',
-        'quantidade': motivo23['paoAlhoCasa'].toString(),
+        'quantidade': _formatNumber(motivo23['paoAlhoCasa']),
         'unidade': 'UNID',
       });
     }
@@ -19342,7 +19347,7 @@ class _RequisicaoState extends State<Requisicao>
       items.add({
         'codigo': '132320',
         'produto': 'Pão de Alho da Casa Picante',
-        'quantidade': motivo23['paoAlhoCasaPicante'].toString(),
+        'quantidade': _formatNumber(motivo23['paoAlhoCasaPicante']),
         'unidade': 'UNID',
       });
     }
@@ -19350,7 +19355,7 @@ class _RequisicaoState extends State<Requisicao>
       items.add({
         'codigo': '142098',
         'produto': 'Rosca Fofinha Temperada',
-        'quantidade': motivo23['roscaFofinha'].toString(),
+        'quantidade': _formatNumber(motivo23['roscaFofinha']),
         'unidade': 'UNID',
       });
     }
@@ -19358,7 +19363,7 @@ class _RequisicaoState extends State<Requisicao>
       items.add({
         'codigo': '148231',
         'produto': 'Rosca Côco e Queijo',
-        'quantidade': motivo23['roscaCocoQueijo'].toString(),
+        'quantidade': _formatNumber(motivo23['roscaCocoQueijo']),
         'unidade': 'UNID',
       });
     }
@@ -19381,7 +19386,7 @@ class _RequisicaoState extends State<Requisicao>
       items.add({
         'codigo': '142099',
         'produto': 'Sanduíche Fofinho',
-        'quantidade': motivo9['sanduicheFofinho'].toString(),
+        'quantidade': _formatNumber(motivo9['sanduicheFofinho']),
         'unidade': 'UNID',
       });
     }
@@ -19389,7 +19394,7 @@ class _RequisicaoState extends State<Requisicao>
       items.add({
         'codigo': '132318',
         'produto': 'Pão Samaritano',
-        'quantidade': motivo9['paoSamaritano'].toString(),
+        'quantidade': _formatNumber(motivo9['paoSamaritano']),
         'unidade': 'UNID',
       });
     }
@@ -19397,7 +19402,7 @@ class _RequisicaoState extends State<Requisicao>
       items.add({
         'codigo': '132319',
         'produto': 'Pão Pizza',
-        'quantidade': motivo9['paoPizza'].toString(),
+        'quantidade': _formatNumber(motivo9['paoPizza']),
         'unidade': 'UNID',
       });
     }
@@ -19405,7 +19410,7 @@ class _RequisicaoState extends State<Requisicao>
       items.add({
         'codigo': '132317',
         'produto': 'Pão de Alho da Casa',
-        'quantidade': motivo9['paoAlhoCasa'].toString(),
+        'quantidade': _formatNumber(motivo9['paoAlhoCasa']),
         'unidade': 'UNID',
       });
     }
@@ -19413,7 +19418,7 @@ class _RequisicaoState extends State<Requisicao>
       items.add({
         'codigo': '132320',
         'produto': 'Pão de Alho da Casa Picante',
-        'quantidade': motivo9['paoAlhoCasaPicante'].toString(),
+        'quantidade': _formatNumber(motivo9['paoAlhoCasaPicante']),
         'unidade': 'UNID',
       });
     }
@@ -19421,7 +19426,7 @@ class _RequisicaoState extends State<Requisicao>
       items.add({
         'codigo': '142098',
         'produto': 'Rosca Fofinha Temperada',
-        'quantidade': motivo9['roscaFofinha'].toString(),
+        'quantidade': _formatNumber(motivo9['roscaFofinha']),
         'unidade': 'UNID',
       });
     }
@@ -19429,7 +19434,7 @@ class _RequisicaoState extends State<Requisicao>
       items.add({
         'codigo': '148231',
         'produto': 'Rosca Côco e Queijo',
-        'quantidade': motivo9['roscaCocoQueijo'].toString(),
+        'quantidade': _formatNumber(motivo9['roscaCocoQueijo']),
         'unidade': 'UNID',
       });
     }
@@ -19623,8 +19628,11 @@ class _RequisicaoState extends State<Requisicao>
               icon: const Icon(Icons.delete_sweep),
               label: Text('Limpar $titulo'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
+                backgroundColor: Color(0xff2174ad),
                 foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                textStyle: const TextStyle(fontSize: 14), // Tamanho do texto
               ),
             ),
           ),
@@ -19691,6 +19699,8 @@ class _RequisicaoState extends State<Requisicao>
             const Divider(),
             if (calc['paoFrances'] > 0)
               _buildLinhaResultado('Massa Pão Francês:', calc['paoFrances']),
+            if (calc['massaBaguete'] > 0)
+              _buildLinhaResultado('Massa Baguete:', calc['massaBaguete']),
             if (calc['paoFrancesFibras'] > 0)
               _buildLinhaResultado(
                   'Massa Pão Francês Fibras:', calc['paoFrancesFibras']),
@@ -19910,7 +19920,7 @@ class _RequisicaoState extends State<Requisicao>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'PLANILHA PADARIA',
+                '',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               InkWell(
