@@ -1961,7 +1961,7 @@ class _SecondScreenState extends State<SecondScreen> {
                           ),
                         );
                       }),
-                      _padariaCard(Icons.track_changes, "Requisição",
+                      _padariaCard(Icons.note_add, "Requisição",
                           Colors.teal.shade300, () {
                         Navigator.push(
                           context,
@@ -5689,94 +5689,96 @@ class DetalhesPedidoScreen extends StatelessWidget {
   }
 
   Future<void> _sharePedidoPdf(BuildContext context) async {
-  final pdf = pw.Document();
-  final produtos = Map<String, dynamic>.from(pedido['produtos']);
+    final pdf = pw.Document();
+    final produtos = Map<String, dynamic>.from(pedido['produtos']);
 
-  pdf.addPage(
-    pw.MultiPage(
-      build: (context) => [
-        pw.Header(level: 0, child: pw.Text('Resumo do Pedido')),
-        pw.Paragraph(text: '${pedido['loja']}'),
-        pw.Paragraph(text: 'Responsável: ${pedido['usuario']}'),
-        pw.Paragraph(text: 'Data: ${pedido['data']}'),
-        pw.SizedBox(height: 20),
-        pw.Table.fromTextArray(
-          headers: ['Produto', 'Caixas'],
-          data: multiplicadores.keys.map((produto) {
-            final caixas = produtos[produto] ?? 0;
-            return [produto, (caixas as num).toInt()];
-          }).toList(),
-        ),
-      ],
-    ),
-  );
+    pdf.addPage(
+      pw.MultiPage(
+        build: (context) => [
+          pw.Header(level: 0, child: pw.Text('Resumo do Pedido')),
+          pw.Paragraph(text: '${pedido['loja']}'),
+          pw.Paragraph(text: 'Responsável: ${pedido['usuario']}'),
+          pw.Paragraph(text: 'Data: ${pedido['data']}'),
+          pw.SizedBox(height: 20),
+          pw.Table.fromTextArray(
+            headers: ['Produto', 'Caixas'],
+            data: multiplicadores.keys.map((produto) {
+              final caixas = produtos[produto] ?? 0;
+              return [produto, (caixas as num).toInt()];
+            }).toList(),
+          ),
+        ],
+      ),
+    );
 
-  // Mostrar loading
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (BuildContext context) {
-      return const Center(child: CircularProgressIndicator());
-    },
-  );
+    // Mostrar loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
 
-  try {
-    final bytes = await pdf.save();
-    
-    // Verifica se é Web
-    if (kIsWeb) {
-      // WEB: Faz download
-      final base64 = base64Encode(bytes);
-      final anchor = html.AnchorElement(
-        href: 'data:application/octet-stream;charset=utf-16le;base64,$base64'
-      )
-        ..setAttribute('download', 'pedido_${pedido['loja']}_${pedido['data']?.replaceAll('/', '') ?? DateTime.now().toString()}.pdf')
-        ..click();
-      
+    try {
+      final bytes = await pdf.save();
+
+      // Verifica se é Web
+      if (kIsWeb) {
+        // WEB: Faz download
+        final base64 = base64Encode(bytes);
+        final anchor = html.AnchorElement(
+            href:
+                'data:application/octet-stream;charset=utf-16le;base64,$base64')
+          ..setAttribute('download',
+              'pedido_${pedido['loja']}_${pedido['data']?.replaceAll('/', '') ?? DateTime.now().toString()}.pdf')
+          ..click();
+
+        if (context.mounted) Navigator.of(context).pop();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF baixado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        // MOBILE: Compartilha
+        final dir = await getTemporaryDirectory();
+        final file = File(
+            '${dir.path}/pedido_${pedido['loja']}_${DateTime.now().millisecondsSinceEpoch}.pdf');
+        await file.writeAsBytes(bytes);
+
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text: 'Pedido - ${pedido['loja']} - ${pedido['data']}',
+        );
+
+        if (context.mounted) Navigator.of(context).pop();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF gerado e compartilhado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
       if (context.mounted) Navigator.of(context).pop();
-      
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('PDF baixado com sucesso!'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: Text('Erro ao gerar PDF: $e'),
+            backgroundColor: Colors.red,
           ),
         );
       }
-    } else {
-      // MOBILE: Compartilha
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/pedido_${pedido['loja']}_${DateTime.now().millisecondsSinceEpoch}.pdf');
-      await file.writeAsBytes(bytes);
-
-      await Share.shareXFiles(
-        [XFile(file.path)], 
-        text: 'Pedido - ${pedido['loja']} - ${pedido['data']}',
-      );
-      
-      if (context.mounted) Navigator.of(context).pop();
-      
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('PDF gerado e compartilhado com sucesso!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    }
-  } catch (e) {
-    if (context.mounted) Navigator.of(context).pop();
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao gerar PDF: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
