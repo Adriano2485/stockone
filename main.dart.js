@@ -113346,7 +113346,7 @@ case 5:return A.o(null,r)
 case 1:return A.n(p.at(-1),r)}})
 return A.p($async$yH,r)},
 E(a){var s=this,r=null,q=t.p,p=A.aQ(A.b([A.b8("assets/images/StockOnesf.png",r,50,r),B.i6],q),B.I,B.bl,B.G,0,r),o=A.aw(r,r,r,B.ds,r,r,new A.aXl(a),r,r,r,r)
-return new A.kn(A.aR(A.cp(A.b([A.aw(r,r,r,B.Yt,r,r,new A.aXm(s,a),r,r,r,r)],q),!0,B.cu,r,!0,4,r,o,p),B.kU,A.by(r,new A.ak(B.ae,A.av(A.b([A.a0(s.a.c,r,r,r,r,B.OA,B.bm,r,r),B.NQ,A.a0("Bem-vindo, "+s.d+"!",r,r,r,r,A.ci(r,r,B.bX,r,r,r,r,r,"Roboto",r,r,18,r,r,r,r,r,!0,r,r,r,r,r,r,r,r),B.bm,r,r),B.i7,A.cd(A.uH(1.2,A.b([s.pl(B.XU,"Venda Produtos",B.pe,new A.aXn(s,a)),s.pl(B.Y0,"Acerto Estoque",B.kO,new A.aXo(s,a)),s.pl(B.Y4,"Pedido",B.pA,new A.aXp(s,a)),s.pl(B.Y3,"Relat\xf3rios",B.kz,new A.aXq(s,a)),s.pl(B.qH,"Equipamento",B.eN,new A.aXr(s,a)),s.pl(B.Y9,"Requisi\xe7\xe3o",B.kz,new A.aXs(s,a))],q),2,16,16),1)],q),B.I,B.D,B.G,0,B.N),r),B.T,r,r,B.cE,r,r,r,r,r,r,r,r)),new A.aXt(a),r)},
+return new A.kn(A.aR(A.cp(A.b([A.aw(r,r,r,B.Yt,r,r,new A.aXm(s,a),r,r,r,r)],q),!0,B.cu,r,!0,4,r,o,p),B.kU,A.by(r,new A.ak(B.ae,A.av(A.b([A.a0(s.a.c,r,r,r,r,B.OA,B.bm,r,r),B.NQ,A.a0("Bem-vindo, "+s.d+"!",r,r,r,r,A.ci(r,r,B.bX,r,r,r,r,r,"Roboto",r,r,18,r,r,r,r,r,!0,r,r,r,r,r,r,r,r),B.bm,r,r),B.i7,A.cd(A.uH(1.2,A.b([s.pl(B.XU,"Venda Produtos",B.pe,new A.aXn(s,a)),s.pl(B.Y0,"Acerto Estoque",B.kO,new A.aXo(s,a)),s.pl(B.Y5,"Pedido",B.pA,new A.aXp(s,a)),s.pl(B.Y3,"Relat\xf3rios",B.kz,new A.aXq(s,a)),s.pl(B.qH,"Equipamento",B.eN,new A.aXr(s,a)),s.pl(B.Y4,"Requisi\xe7\xe3o",B.kz,new A.aXs(s,a))],q),2,16,16),1)],q),B.I,B.D,B.G,0,B.N),r),B.T,r,r,B.cE,r,r,r,r,r,r,r,r)),new A.aXt(a),r)},
 pl(a,b,c,d){var s=null,r=A.bL(16),q=A.bL(16),p=A.aI(B.n.ap(76.5),c.B()>>>16&255,c.B()>>>8&255,c.B()&255)
 return A.fM(!1,B.aq,!0,r,A.fB(!1,q,!0,A.by(s,A.av(A.b([A.dX(a,c,s,36),B.b2,A.a0(b,s,s,s,s,B.Oy,B.bm,s,s)],t.p),B.I,B.bl,B.G,0,B.N),B.T,s,s,s,s,s,s,s,B.bs,s,s,s),s,!0,s,s,s,s,s,s,s,s,s,s,d,s,s,p,s,s),B.T,B.H,4,s,s,s,s,s,B.cw)}}
 A.aX4.prototype={
@@ -115505,7 +115505,7 @@ A.zG.prototype={
 hR(a,b,c,d,e){var s=null,r=A.bL(16),q=A.bL(16),p=A.aI(B.n.ap(76.5),B.bJ.B()>>>16&255,B.bJ.B()>>>8&255,B.bJ.B()&255)
 return A.dm(A.fB(!1,q,!0,A.by(B.az,A.aQ(A.b([A.dX(b,B.bX,s,28),B.aR,A.a0(c,s,s,s,s,B.o2,B.bm,s,s)],t.p),B.I,B.D,B.am,0,s),B.T,s,s,s,s,s,s,s,B.ae,s,s,s),s,!0,s,s,s,s,s,s,s,s,s,s,new A.arZ(a,d),s,s,p,s,s),e,4,s,new A.c0(r,B.P))},
 E(a){var s=this,r=null,q=t.p,p=s.c
-return A.aR(A.cp(r,!0,B.cu,r,!0,r,r,r,A.aQ(A.b([A.b8("assets/images/Logo StockOne.png",r,32,r),B.aR,B.aX0],q),B.I,B.D,B.am,0,r)),r,A.by(r,new A.ak(B.ae,A.uH(3,A.b([s.hR(a,B.Y6,"POSICIONAMENTO",new A.Ja(p,r),B.H),s.hR(a,B.xi,"FECHAMENTO",new A.Jb(p,r),B.H),s.hR(a,B.XW,"MANUTEN\xc7\xc3O",new A.Hf(p,r),B.H)],q),1,16,16),r),B.T,r,r,B.cE,r,r,r,r,r,r,r,r))}}
+return A.aR(A.cp(r,!0,B.cu,r,!0,r,r,r,A.aQ(A.b([A.b8("assets/images/Logo StockOne.png",r,32,r),B.aR,B.aX0],q),B.I,B.D,B.am,0,r)),r,A.by(r,new A.ak(B.ae,A.uH(3,A.b([s.hR(a,B.Y7,"POSICIONAMENTO",new A.Ja(p,r),B.H),s.hR(a,B.xi,"FECHAMENTO",new A.Jb(p,r),B.H),s.hR(a,B.XW,"MANUTEN\xc7\xc3O",new A.Hf(p,r),B.H)],q),1,16,16),r),B.T,r,r,B.cE,r,r,r,r,r,r,r,r))}}
 A.arZ.prototype={
 $0(){var s=A.bl(new A.arY(this.b),null,t.z)
 A.a2(this.a,!1).bj(s)},
@@ -127004,14 +127004,14 @@ B.xm=new A.cs(58332,"MaterialIcons",!1)
 B.j_=new A.cs(58333,"MaterialIcons",!1)
 B.Y2=new A.cs(58372,"MaterialIcons",!1)
 B.Y3=new A.cs(58441,"MaterialIcons",!0)
-B.Y4=new A.cs(58443,"MaterialIcons",!0)
+B.Y4=new A.cs(58442,"MaterialIcons",!1)
+B.Y5=new A.cs(58443,"MaterialIcons",!0)
 B.dQ=new A.cs(58548,"MaterialIcons",!1)
-B.Y6=new A.cs(58569,"MaterialIcons",!1)
+B.Y7=new A.cs(58569,"MaterialIcons",!1)
 B.lw=new A.cs(58771,"MaterialIcons",!1)
 B.qK=new A.cs(58873,"MaterialIcons",!1)
 B.xn=new A.cs(58874,"MaterialIcons",!1)
 B.j0=new A.cs(58890,"MaterialIcons",!1)
-B.Y9=new A.cs(58995,"MaterialIcons",!1)
 B.Yb=new A.cs(61453,"MaterialIcons",!1)
 B.xo=new A.eu(24,0,400,0,48,B.W,1,null,!1)
 B.Yd=new A.eu(null,null,null,null,null,B.H,null,null,null)
@@ -127077,17 +127077,17 @@ B.XY=new A.cs(57703,"MaterialIcons",!1)
 B.xr=new A.cZ(B.XY,26,B.H,null,null)
 B.Yq=new A.cZ(B.qF,null,null,null,null)
 B.Yr=new A.cZ(B.qJ,null,B.cu,null,null)
-B.Y8=new A.cs(58917,"MaterialIcons",!1)
-B.dS=new A.cZ(B.Y8,null,null,null,null)
+B.Y9=new A.cs(58917,"MaterialIcons",!1)
+B.dS=new A.cZ(B.Y9,null,null,null,null)
 B.Ys=new A.cZ(B.xi,22,B.cu,null,null)
-B.Y7=new A.cs(58751,"MaterialIcons",!1)
-B.Yt=new A.cZ(B.Y7,null,B.H,null,null)
+B.Y8=new A.cs(58751,"MaterialIcons",!1)
+B.Yt=new A.cZ(B.Y8,null,B.H,null,null)
 B.Yu=new A.cZ(B.xj,null,null,null,null)
 B.qL=new A.cZ(B.xk,null,null,null,null)
 B.XZ=new A.cs(57788,"MaterialIcons",!1)
 B.Yv=new A.cZ(B.XZ,null,null,null,null)
-B.Y5=new A.cs(58514,"MaterialIcons",!1)
-B.xs=new A.cZ(B.Y5,26,B.H,null,null)
+B.Y6=new A.cs(58514,"MaterialIcons",!1)
+B.xs=new A.cZ(B.Y6,26,B.H,null,null)
 B.b1k=new A.VD(B.vw,null,null,null,!0)
 B.YG=new A.anj(0,"HtmlImage")
 B.YH=new A.zd(0,"repeat")
