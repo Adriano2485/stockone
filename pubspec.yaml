@@ -16,7 +16,7 @@ dependencies:
   firebase_storage: ^12.4.10
   firebase_analytics: ^11.4.0
   shared_preferences: ^2.5.3
-  share_plus: ^10.1.4  # ou superior 
+  share_plus: ^7.0.2 
   dio: ^5.0.0
   printing: ^5.14.2
   pdf: ^3.11.3
@@ -114,6 +114,38 @@ flutter:
     - assets/images/folhapedido.png
     - assets/images/Mart-Minas.jpg
     - assets/images/martminas2.jpg
+    - assets/images/paofrancesx.png
+    - assets/images/biscoitodequeijox.png
+    - assets/images/biscoitopolvilhox.png
+    - assets/images/minipaosonhox.png
+    - assets/images/minipaosonhochocolatex.png
+    - assets/images/minipaomartarochax.png
+    - assets/images/paobambinox.png
+    - assets/images/paobagutefrancesax.png
+    - assets/images/paocaseirinhox.png
+    - assets/images/paofofinhox.png
+    - assets/images/paodocecaracolx.png
+    - assets/images/paodoceferradurax.png
+    - assets/images/paodealhodacasax.png
+    - assets/images/paodealhodacasapicantex.png
+    - assets/images/rabanadaassadax.png
+    - assets/images/sanduichefofinho.png
+    - assets/images/paofrancespanhocax.png
+    - assets/images/paofrancesfibrasx.png
+    - assets/images/paopizzax.png
+    - assets/images/paosamaritanox.png
+    - assets/images/paodequeijocoquetelx.png
+    - assets/images/paodequeijotradicionalx.png
+    - assets/images/paotatux.png
+    - assets/images/roscafofinhatemperadax.png
+    - assets/images/roscacocoequeijox.png
+    - assets/images/paobaguetefrancesacomqueijox.png
+    - assets/images/paobaguetefrancesacomgergelimx.png
+    - assets/images/baguetefrancesax.png
+    - assets/images/baguetefrancesacomqueijox.png
+    - assets/images/paofrancescomqueijox.png
+    - assets/images/paopararabanadax.png
+
 
 
 
