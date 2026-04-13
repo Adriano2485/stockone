@@ -99,7 +99,7 @@ const RESOURCES = {"assets/assets/images/paodequeijocoquetel.jpg": "cb98c2363fb3
 "canvaskit/skwasm_heavy.wasm": "b0be7910760d205ea4e011458df6ee01",
 "canvaskit/skwasm.js": "8060d46e9a4901ca9991edd3a26be4f0",
 "flutter.js": "24bc71911b75b5f8135c949e27a2984e",
-"flutter_bootstrap.js": "c4cebc3d55b8acbf422a431de93d85df",
+"flutter_bootstrap.js": "050aeedc0b96cd54c21556fe98375e80",
 "main.dart.js": "4bc5245e3d18bf204552a9cdd2130bdf",
 "version.json": "612e4e55171a338fd7e6799af11cbbf3",
 "icons/Icon-maskable-512.png": "301a7604d45b3e739efc881eb04896ea",
