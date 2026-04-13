@@ -1,7 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-
+import 'dart:convert';
+import 'dart:html' as html;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:convert';
 import 'dart:io';
 
@@ -1959,8 +1961,9 @@ class _SecondScreenState extends State<SecondScreen> {
                           ),
                         );
                       }),
-                      _padariaCard(Icons.note_add, "Requisição",
-                          Colors.teal.shade300, () {
+                      _padariaCard(
+                          Icons.note_add, "Requisição", Colors.teal.shade300,
+                          () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -3654,16 +3657,73 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
       ),
     );
 
-    try {
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/acerto_estoque.pdf');
-      await file.writeAsBytes(await pdf.save());
+    // Mostrar loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
 
-      await Share.shareXFiles([XFile(file.path)], text: 'Acerto Estoque PDF');
+    try {
+      final bytes = await pdf.save();
+
+      // Verifica se é Web
+      if (kIsWeb) {
+        // WEB: Faz download
+        final base64 = base64Encode(bytes);
+        final anchor = html.AnchorElement(
+            href:
+                'data:application/octet-stream;charset=utf-16le;base64,$base64')
+          ..setAttribute('download',
+              'acerto_estoque_${widget.storeName}_${DateFormat('ddMMyyyy').format(selectedDate)}.pdf')
+          ..click();
+
+        if (context.mounted) Navigator.of(context).pop();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF baixado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        // MOBILE: Compartilha
+        final dir = await getTemporaryDirectory();
+        final file = File(
+            '${dir.path}/acerto_estoque_${widget.storeName}_${DateFormat('ddMMyyyy').format(selectedDate)}.pdf');
+        await file.writeAsBytes(bytes);
+
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text:
+              'Acerto Estoque - ${widget.storeName} - ${DateFormat('dd/MM/yyyy').format(selectedDate)}',
+        );
+
+        if (context.mounted) Navigator.of(context).pop();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF gerado e compartilhado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao gerar ou compartilhar PDF: $e')),
-      );
+      if (context.mounted) Navigator.of(context).pop();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao gerar PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -5652,16 +5712,72 @@ class DetalhesPedidoScreen extends StatelessWidget {
       ),
     );
 
-    try {
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/pedido.pdf');
-      await file.writeAsBytes(await pdf.save());
+    // Mostrar loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
 
-      await Share.shareXFiles([XFile(file.path)], text: 'Pedido em PDF');
+    try {
+      final bytes = await pdf.save();
+
+      // Verifica se é Web
+      if (kIsWeb) {
+        // WEB: Faz download
+        final base64 = base64Encode(bytes);
+        final anchor = html.AnchorElement(
+            href:
+                'data:application/octet-stream;charset=utf-16le;base64,$base64')
+          ..setAttribute('download',
+              'pedido_${pedido['loja']}_${pedido['data']?.replaceAll('/', '') ?? DateTime.now().toString()}.pdf')
+          ..click();
+
+        if (context.mounted) Navigator.of(context).pop();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF baixado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        // MOBILE: Compartilha
+        final dir = await getTemporaryDirectory();
+        final file = File(
+            '${dir.path}/pedido_${pedido['loja']}_${DateTime.now().millisecondsSinceEpoch}.pdf');
+        await file.writeAsBytes(bytes);
+
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text: 'Pedido - ${pedido['loja']} - ${pedido['data']}',
+        );
+
+        if (context.mounted) Navigator.of(context).pop();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF gerado e compartilhado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao gerar ou compartilhar PDF: $e')),
-      );
+      if (context.mounted) Navigator.of(context).pop();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao gerar PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -18358,145 +18474,169 @@ class _RequisicaoState extends State<Requisicao>
       "codigo": "33639",
       "nome": "PÃO FRANCÊS",
       "hint": "Preencher a quantidade de pacotes abertos",
-      "unidade": "PACOTE"
+      "unidade": "PACOTE",
+      "imagem": "assets/images/paofrancesx.png",
     },
     {
       "codigo": "336392",
       "nome": "PÃO CERVEJINHA",
       "hint": "Preencher a quantidade de pacotes abertos",
-      "unidade": "PACOTE"
+      "unidade": "PACOTE",
+      "imagem": "assets/images/paofrancespanhocax.png",
     },
     {
       "codigo": "164966",
       "nome": "PÃO FRANCÊS FIBRAS",
       "hint": "Preencher a quantidade de pacotes abertos",
-      "unidade": "PACOTE"
+      "unidade": "PACOTE",
+      "imagem": "assets/images/paofrancesfibrasx.png",
     },
     {
       "codigo": "81235",
       "nome": "PÃO BAGUETE FRANCESA",
       "hint": "Preencher a quantidade de pacotes abertos",
-      "unidade": "PACOTE"
+      "unidade": "PACOTE",
+      "imagem": "assets/images/paobagutefrancesax.png",
     },
     {
       "codigo": "62948",
       "nome": "PÃO DE QUEIJO TRADICIONAL",
       "hint": "Preencher a quantidade de pacotes abertos",
-      "unidade": "PACOTE"
+      "unidade": "PACOTE",
+      "imagem": "assets/images/paodequeijotradicionalx.png",
     },
     {
       "codigo": "65139",
       "nome": "PÃO DE QUEIJO COQUETEL",
       "hint": "Preencher a quantidade de pacotes abertos",
-      "unidade": "PACOTE"
+      "unidade": "PACOTE",
+      "imagem": "assets/images/paodequeijocoquetelx.png",
     },
     {
       "codigo": "97922",
       "nome": "BISCOITO POLVILHO",
       "hint": "Preencher a quantidade de mangas usadas",
-      "unidade": "MANGA"
+      "unidade": "MANGA",
+      "imagem": "assets/images/biscoitopolvilhox.png",
     },
     {
       "codigo": "146428",
       "nome": "BISCOITO DE QUEIJO",
       "hint": "Preencher a quantidade de pacotes abertos",
-      "unidade": "PACOTE"
+      "unidade": "PACOTE",
+      "imagem": "assets/images/biscoitodequeijox.png",
     },
     {
       "codigo": "42842",
       "nome": "PÃO TATU",
       "hint": "Preencher a quantidade de pacotes abertos",
-      "unidade": "PACOTE"
+      "unidade": "PACOTE",
+      "imagem": "assets/images/paotatux.png",
     },
     {
       "codigo": "106793",
       "nome": "PÃO FOFINHO",
       "hint": "Preencher a quantidade de pacotes abertos",
-      "unidade": "PACOTE"
+      "unidade": "PACOTE",
+      "imagem": "assets/images/paofofinhox.png",
     },
     {
       "codigo": "132318",
       "nome": "PÃO SAMARITANO",
       "hint": "Preencher em unidades a produção",
-      "unidade": "UNID"
+      "unidade": "UNID",
+      "imagem": "assets/images/paosamaritanox.png",
     },
     {
       "codigo": "132319",
       "nome": "PÃO PIZZA",
       "hint": "Preencher em unidades a produção",
-      "unidade": "UNID"
+      "unidade": "UNID",
+      "imagem": "assets/images/paopizzax.png",
     },
     {
       "codigo": "132317",
       "nome": "PÃO DE ALHO DA CASA",
       "hint": "Preencher a quantidade de bandejas produzidas",
-      "unidade": "BANDEJA"
+      "unidade": "BANDEJA",
+      "imagem": "assets/images/paodealhodacasax.png",
     },
     {
       "codigo": "132320",
       "nome": "PÃO DE ALHO DA CASA PICANTE",
       "hint": "Preencher a quantidade de bandejas produzidas",
-      "unidade": "BANDEJA"
+      "unidade": "BANDEJA",
+      "imagem": "assets/images/paodealhodacasax.png",
     },
     {
       "codigo": "62901",
       "nome": "RABANADA ASSADA",
       "hint": "Pesar a quantidade produzida",
-      "unidade": "KG"
+      "unidade": "KG",
+      "imagem": "assets/images/rabanadaassadax.png",
     },
     {
       "codigo": "148231",
       "nome": "ROSCA DOCE CÔCO E QUEIJO",
       "hint": "Preencher em unidades a produção",
-      "unidade": "UNID"
+      "unidade": "UNID",
+      "imagem": "assets/images/roscacocoequeijox.png",
     },
     {
       "codigo": "142099",
       "nome": "SANDUÍCHE FOFINHO",
       "hint": "Preencher em unidades a produção",
-      "unidade": "UNID"
+      "unidade": "UNID",
+      "imagem": "assets/images/sanduichefofinho.png",
     },
     {
       "codigo": "142098",
       "nome": "ROSCA FOFINHA TEMPERADA",
       "hint": "Preencher em unidades a produção",
-      "unidade": "UNID"
+      "unidade": "UNID",
+      "imagem": "assets/images/roscafofinhatemperadax.png",
     },
     {
       "codigo": "112727",
       "nome": "MINI PÃO SONHO",
       "hint": "Pesar a quantidade produzida",
-      "unidade": "KG"
+      "unidade": "KG",
+      "imagem": "assets/images/minipaosonhox.png",
     },
     {
       "codigo": "1127272",
       "nome": "MINI PÃO SONHO CHOCOLATE",
       "hint": "Pesar a quantidade produzida",
-      "unidade": "KG"
+      "unidade": "KG",
+      "imagem": "assets/images/minipaosonhochocolatex.png",
     },
     {
       "codigo": "1127273",
       "nome": "BAMBINO",
       "hint": "Pesar a quantidade produzida",
-      "unidade": "KG"
+      "unidade": "KG",
+      "imagem": "assets/images/paobambinox.png",
     },
     {
       "codigo": "112731",
       "nome": "MINI MARTA ROCHA",
       "hint": "Pesar a quantidade produzida",
-      "unidade": "KG"
+      "unidade": "KG",
+      "imagem": "assets/images/minipaomartarochax.png",
     },
     {
       "codigo": "81238",
       "nome": "PÃO DOCE CARACOL",
       "hint": "Pesar a quantidade produzida",
-      "unidade": "KG"
+      "unidade": "KG",
+      "imagem": "assets/images/paodocecaracolx.png",
     },
     {
       "codigo": "81240",
       "nome": "PÃO DOCE FERRADURA",
       "hint": "Pesar a quantidade produzida",
-      "unidade": "KG"
+      "unidade": "KG",
+      "imagem": "assets/images/paodoceferradurax.png",
     },
   ];
 
@@ -18506,163 +18646,190 @@ class _RequisicaoState extends State<Requisicao>
       "codigo": "132318",
       "nome": "PÃO SAMARITANO",
       "hint": "Preencher em unidades a perda",
-      "unidade": "UNID"
+      "unidade": "UNID",
+      "imagem": "assets/images/paosamaritanox.png",
     },
     {
       "codigo": "132319",
       "nome": "PÃO PIZZA",
       "hint": "Preencher em unidades a perda",
-      "unidade": "UNID"
+      "unidade": "UNID",
+      "imagem": "assets/images/paopizzax.png",
     },
     {
       "codigo": "132317",
       "nome": "PÃO DE ALHO DA CASA",
       "hint": "Preencher a quantidade de bandejas perdidas",
-      "unidade": "BANDEJA"
+      "unidade": "BANDEJA",
+      "imagem": "assets/images/paodealhodacasax.png",
     },
     {
       "codigo": "132320",
       "nome": "PÃO DE ALHO DA CASA PICANTE",
       "hint": "Preencher a quantidade de bandejas perdidas",
-      "unidade": "BANDEJA"
+      "unidade": "BANDEJA",
+      "imagem": "assets/images/paodealhodacasapicantex.png",
     },
     {
       "codigo": "148231",
       "nome": "ROSCA CÔCO E QUEIJO",
       "hint": "Preencher em unidades a perda",
-      "unidade": "UNID"
+      "unidade": "UNID",
+      "imagem": "assets/images/roscacocoequeijox.png",
     },
     {
       "codigo": "142099",
       "nome": "SANDUÍCHE FOFINHO",
       "hint": "Preencher em unidades a perda",
-      "unidade": "UNID"
+      "unidade": "UNID",
+      "imagem": "assets/images/sanduichefofinho.png",
     },
     {
       "codigo": "142098",
       "nome": "ROSCA FOFINHA TEMPERADA",
       "hint": "Preencher em unidades a perda",
-      "unidade": "UNID"
+      "unidade": "UNID",
+      "imagem": "assets/images/roscafofinhatemperadax.png",
     },
     {
       "codigo": "132471",
       "nome": "BAGUETE FRANCESA",
       "hint": "Preencher em unidades a perda",
-      "unidade": "UNID"
+      "unidade": "UNID",
+      "imagem": "assets/images/baguetefrancesax.png",
     },
     {
       "codigo": "1324712",
       "nome": "BAGUETE FRANCESA C/ QUEIJO",
       "hint": "Preencher em unidades a perda",
-      "unidade": "UNID"
+      "unidade": "UNID",
+      "imagem": "assets/images/baguetefrancesacomqueijox.png",
     },
     {
       "codigo": "62948",
       "nome": "PÃO DE QUEIJO TRADICIONAL",
       "hint": "Pesar a quantidade perdida",
-      "unidade": "KG"
+      "unidade": "KG",
+      "imagem": "assets/images/paodequeijotradicionalx.png",
     },
     {
       "codigo": "65139",
       "nome": "PÃO DE QUEIJO COQUETEL",
       "hint": "Pesar a quantidade perdida",
-      "unidade": "KG"
+      "unidade": "KG",
+      "imagem": "assets/images/paodequeijocoquetelx.png",
     },
     {
       "codigo": "97922",
       "nome": "BISCOITO POLVILHO",
       "hint": "Pesar a quantidade perdida",
-      "unidade": "KG"
+      "unidade": "KG",
+      "imagem": "assets/images/biscoitopolvilhox.png",
     },
     {
       "codigo": "146428",
       "nome": "BISCOITO DE QUEIJO",
       "hint": "Pesar a quantidade perdida",
-      "unidade": "KG"
+      "unidade": "KG",
+      "imagem": "assets/images/biscoitodequeijox.png",
     },
     {
       "codigo": "42842",
       "nome": "PÃO TATU",
       "hint": "Pesar a quantidade perdida",
-      "unidade": "KG"
+      "unidade": "KG",
+      "imagem": "assets/images/paotatux.png",
     },
     {
       "codigo": "106793",
       "nome": "PÃO FOFINHO",
       "hint": "Pesar a quantidade perdida",
-      "unidade": "KG"
+      "unidade": "KG",
+      "imagem": "assets/images/paofofinhox.png",
     },
     {
       "codigo": "112727",
       "nome": "MINI PÃO SONHO",
       "hint": "Pesar a quantidade perdida",
-      "unidade": "KG"
+      "unidade": "KG",
+      "imagem": "assets/images/minipaosonhox.png",
     },
     {
       "codigo": "1127272",
       "nome": "MINI PÃO SONHO CHOCOLATE",
       "hint": "Pesar a quantidade perdida",
-      "unidade": "KG"
+      "unidade": "KG",
+      "imagem": "assets/images/minipaosonhochocolatex.png",
     },
     {
       "codigo": "1127273",
       "nome": "BAMBINO",
       "hint": "Pesar a quantidade perdida",
-      "unidade": "KG"
+      "unidade": "KG",
+      "imagem": "assets/images/paobambinox.png",
     },
     {
       "codigo": "112731",
       "nome": "MINI MARTA ROCHA",
       "hint": "Pesar a quantidade perdida",
-      "unidade": "KG"
+      "unidade": "KG",
+      "imagem": "assets/images/minipaomartarochax.png",
     },
     {
       "codigo": "1067932",
       "nome": "PÃO CASEIRINHO",
       "hint": "Pesar a quantidade perdida",
-      "unidade": "KG"
+      "unidade": "KG",
+      "imagem": "assets/images/paocaseirinhox.png",
     },
     {
       "codigo": "81238",
       "nome": "PÃO DOCE CARACOL",
       "hint": "Pesar a quantidade perdida",
-      "unidade": "KG"
+      "unidade": "KG",
+      "imagem": "assets/images/paodocecaracolx.png",
     },
     {
       "codigo": "81240",
       "nome": "PÃO DOCE FERRADURA",
       "hint": "Pesar a quantidade perdida",
-      "unidade": "KG"
+      "unidade": "KG",
+      "imagem": "assets/images/paodoceferradurax.png",
     },
     {
       "codigo": "81235",
       "nome": "PÃO BAGUETE FRANCESA C/ QUEIJO",
       "hint": "Pesar a quantidade perdida",
-      "unidade": "KG"
+      "unidade": "KG",
+      "imagem": "assets/images/paobaguetefrancesacomqueijox.png",
     },
     {
       "codigo": "812352",
       "nome": "PÃO BAGUETE FRANCESA C/ GERGELIM",
       "hint": "Pesar a quantidade perdida",
-      "unidade": "KG"
+      "unidade": "KG",
+      "imagem": "assets/images/paobaguetefrancesacomgergelimx.png",
     },
     {
       "codigo": "68170",
       "nome": "PÂO FRANCÊS C/ QUEIJO",
       "hint": "Pesar a quantidade perdida",
-      "unidade": "KG"
+      "unidade": "KG",
+      "imagem": "assets/images/paofrancescomqueijox.png",
     },
     {
       "codigo": "62901",
       "nome": "RABANADA ASSADA",
       "hint": "Pesar a quantidade perdida",
-      "unidade": "KG"
+      "unidade": "KG",
+      "imagem": "assets/images/rabanadaassadax.png",
     },
     {
       "codigo": "131281",
       "nome": "PÃO PARA RABANADA",
       "hint": "Pesar a quantidade perdida",
-      "unidade": "KG"
+      "unidade": "KG",
+      "imagem": "assets/images/paopararabanadax.png",
     },
   ];
 
@@ -18956,32 +19123,69 @@ class _RequisicaoState extends State<Requisicao>
       ),
     );
 
+    // Mostrar loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
+
     try {
-      final dir = await getTemporaryDirectory();
-      final fileName =
-          'requisicao_padaria_${widget.storeName}_${DateFormat('ddMMyyyy').format(_dataSelecionada)}.pdf';
-      final file = File('${dir.path}/$fileName');
-      await file.writeAsBytes(await pdf.save());
+      final bytes = await pdf.save();
 
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text:
-            'Requisição Padaria - ${widget.storeName} - ${DateFormat('dd/MM/yyyy').format(_dataSelecionada)}',
-      );
+      // Para Web - faz download
+      if (kIsWeb) {
+        final base64 = base64Encode(bytes);
+        final anchor = html.AnchorElement(
+            href:
+                'data:application/octet-stream;charset=utf-16le;base64,$base64')
+          ..setAttribute('download',
+              'requisicao_padaria_${widget.storeName}_${DateFormat('ddMMyyyy').format(_dataSelecionada)}.pdf')
+          ..click();
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('PDF gerado e compartilhado com sucesso!'),
-            backgroundColor: Colors.green,
-          ),
+        if (context.mounted) Navigator.of(context).pop();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF baixado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        // Para Mobile - compartilha
+        final dir = await getTemporaryDirectory();
+        final fileName =
+            'requisicao_padaria_${widget.storeName}_${DateFormat('ddMMyyyy').format(_dataSelecionada)}.pdf';
+        final file = File('${dir.path}/$fileName');
+        await file.writeAsBytes(bytes);
+
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text:
+              'Requisição Padaria - ${widget.storeName} - ${DateFormat('dd/MM/yyyy').format(_dataSelecionada)}',
         );
+
+        if (context.mounted) Navigator.of(context).pop();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF gerado e compartilhado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
     } catch (e) {
+      if (context.mounted) Navigator.of(context).pop();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao gerar ou compartilhar PDF: $e'),
+            content: Text('Erro ao gerar PDF: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -19572,38 +19776,113 @@ class _RequisicaoState extends State<Requisicao>
     final codigo = item['codigo']!;
     final nome = item['nome']!;
     final hint = item['hint']!;
+    final imagemPath = item['imagem'];
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              nome,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
+            // Linha 1: Imagem (80x80) +Hint ao lado
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Imagem 80x80 no topo
+                Container(
+                  width: 160,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: imagemPath != null && imagemPath.isNotEmpty
+                        ? Image.asset(
+                            imagemPath,
+                            width: 160,
+                            height: 80,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                color: Colors.grey[200],
+                                child: Icon(
+                                  Icons.fastfood,
+                                  size: 40,
+                                  color: Colors.grey[400],
+                                ),
+                              );
+                            },
+                          )
+                        : Container(
+                            color: Colors.grey[200],
+                            child: Icon(
+                              Icons.fastfood,
+                              size: 40,
+                              color: Colors.grey[400],
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Hint ao lado da imagem - ocupando o espaço restante
+                Expanded(
+                  child: Text(
+                    hint,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey,
+                    ),
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 6),
-            Text(
-              hint,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: controllers[codigo],
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: "Quantidade",
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (v) => _save(tipo, codigo, nome, v),
+            const SizedBox(height: 12),
+            // Linha 2: Nome do produto + Campo de quantidade
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Nome do produto - expandido
+                Expanded(
+                  child: Text(
+                    nome,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Campo de quantidade - 4 algarismos
+                SizedBox(
+                    width: 110,
+                    child: TextField(
+                      controller: controllers[codigo],
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      textAlign: TextAlign.center,
+                      decoration: const InputDecoration(
+                        labelText: "Qtd",
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                      ),
+                      onChanged: (v) => _save(tipo, codigo, nome, v),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                        LengthLimitingTextInputFormatter(
+                            5), // 4 números + 1 vírgula + 2 decimais
+                      ],
+                    )),
+              ],
             ),
           ],
         ),
