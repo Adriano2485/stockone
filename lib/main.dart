@@ -19003,20 +19003,27 @@ class _RequisicaoState extends State<Requisicao>
           tipo == 'producao' ? controllersProducao : controllersPerdas;
       final produtos = tipo == 'producao' ? produtosProducao : produtosPerdas;
 
+      // Criar um batch para operações em lote (mais rápido)
+      final batch = _firestore.batch();
+
       for (var item in produtos) {
         final codigo = item['codigo']!;
 
         // Limpar o TextController
         controllers[codigo]?.clear();
 
-        // Limpar no Firebase
-        await _firestore
+        // Adicionar ao batch para deletar
+        final docRef = _firestore
             .collection('stores')
             .doc(widget.storeName)
             .collection(tipo)
-            .doc(codigo)
-            .delete();
+            .doc(codigo);
+
+        batch.delete(docRef);
       }
+
+      // Executar todas as deleções de uma única vez
+      await batch.commit();
 
       // Atualizar a planilha
       _planilhaNotifier.value++;
