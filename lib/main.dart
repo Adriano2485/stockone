@@ -2,8 +2,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:convert';
-import 'dart:html' as html;
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:convert';
 import 'dart:io';
 
@@ -3657,73 +3655,16 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
       ),
     );
 
-    // Mostrar loading
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return const Center(child: CircularProgressIndicator());
-      },
-    );
-
     try {
-      final bytes = await pdf.save();
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/acerto_estoque.pdf');
+      await file.writeAsBytes(await pdf.save());
 
-      // Verifica se é Web
-      if (kIsWeb) {
-        // WEB: Faz download
-        final base64 = base64Encode(bytes);
-        final anchor = html.AnchorElement(
-            href:
-                'data:application/octet-stream;charset=utf-16le;base64,$base64')
-          ..setAttribute('download',
-              'acerto_estoque_${widget.storeName}_${DateFormat('ddMMyyyy').format(selectedDate)}.pdf')
-          ..click();
-
-        if (context.mounted) Navigator.of(context).pop();
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('PDF baixado com sucesso!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else {
-        // MOBILE: Compartilha
-        final dir = await getTemporaryDirectory();
-        final file = File(
-            '${dir.path}/acerto_estoque_${widget.storeName}_${DateFormat('ddMMyyyy').format(selectedDate)}.pdf');
-        await file.writeAsBytes(bytes);
-
-        await Share.shareXFiles(
-          [XFile(file.path)],
-          text:
-              'Acerto Estoque - ${widget.storeName} - ${DateFormat('dd/MM/yyyy').format(selectedDate)}',
-        );
-
-        if (context.mounted) Navigator.of(context).pop();
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('PDF gerado e compartilhado com sucesso!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      }
+      await Share.shareXFiles([XFile(file.path)], text: 'Acerto Estoque PDF');
     } catch (e) {
-      if (context.mounted) Navigator.of(context).pop();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao gerar PDF: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao gerar ou compartilhar PDF: $e')),
+      );
     }
   }
 
@@ -5712,72 +5653,16 @@ class DetalhesPedidoScreen extends StatelessWidget {
       ),
     );
 
-    // Mostrar loading
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return const Center(child: CircularProgressIndicator());
-      },
-    );
-
     try {
-      final bytes = await pdf.save();
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/pedido.pdf');
+      await file.writeAsBytes(await pdf.save());
 
-      // Verifica se é Web
-      if (kIsWeb) {
-        // WEB: Faz download
-        final base64 = base64Encode(bytes);
-        final anchor = html.AnchorElement(
-            href:
-                'data:application/octet-stream;charset=utf-16le;base64,$base64')
-          ..setAttribute('download',
-              'pedido_${pedido['loja']}_${pedido['data']?.replaceAll('/', '') ?? DateTime.now().toString()}.pdf')
-          ..click();
-
-        if (context.mounted) Navigator.of(context).pop();
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('PDF baixado com sucesso!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else {
-        // MOBILE: Compartilha
-        final dir = await getTemporaryDirectory();
-        final file = File(
-            '${dir.path}/pedido_${pedido['loja']}_${DateTime.now().millisecondsSinceEpoch}.pdf');
-        await file.writeAsBytes(bytes);
-
-        await Share.shareXFiles(
-          [XFile(file.path)],
-          text: 'Pedido - ${pedido['loja']} - ${pedido['data']}',
-        );
-
-        if (context.mounted) Navigator.of(context).pop();
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('PDF gerado e compartilhado com sucesso!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      }
+      await Share.shareXFiles([XFile(file.path)], text: 'Pedido em PDF');
     } catch (e) {
-      if (context.mounted) Navigator.of(context).pop();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao gerar PDF: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao gerar ou compartilhar PDF: $e')),
+      );
     }
   }
 
@@ -19076,6 +18961,7 @@ class _RequisicaoState extends State<Requisicao>
 
   // Função para compartilhar em PDF
   // Função para compartilhar em PDF
+
   Future<void> _compartilharPlanilhaPDF() async {
     final motivo49 = _calcularMotivo49();
     final motivo8 = _calcularMotivo8();
@@ -19130,69 +19016,32 @@ class _RequisicaoState extends State<Requisicao>
       ),
     );
 
-    // Mostrar loading
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return const Center(child: CircularProgressIndicator());
-      },
-    );
-
     try {
-      final bytes = await pdf.save();
+      final dir = await getTemporaryDirectory();
+      final fileName =
+          'requisicao_padaria_${widget.storeName}_${DateFormat('ddMMyyyy').format(_dataSelecionada)}.pdf';
+      final file = File('${dir.path}/$fileName');
+      await file.writeAsBytes(await pdf.save());
 
-      // Para Web - faz download
-      if (kIsWeb) {
-        final base64 = base64Encode(bytes);
-        final anchor = html.AnchorElement(
-            href:
-                'data:application/octet-stream;charset=utf-16le;base64,$base64')
-          ..setAttribute('download',
-              'requisicao_padaria_${widget.storeName}_${DateFormat('ddMMyyyy').format(_dataSelecionada)}.pdf')
-          ..click();
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text:
+            'Requisição Padaria - ${widget.storeName} - ${DateFormat('dd/MM/yyyy').format(_dataSelecionada)}',
+      );
 
-        if (context.mounted) Navigator.of(context).pop();
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('PDF baixado com sucesso!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else {
-        // Para Mobile - compartilha
-        final dir = await getTemporaryDirectory();
-        final fileName =
-            'requisicao_padaria_${widget.storeName}_${DateFormat('ddMMyyyy').format(_dataSelecionada)}.pdf';
-        final file = File('${dir.path}/$fileName');
-        await file.writeAsBytes(bytes);
-
-        await Share.shareXFiles(
-          [XFile(file.path)],
-          text:
-              'Requisição Padaria - ${widget.storeName} - ${DateFormat('dd/MM/yyyy').format(_dataSelecionada)}',
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('PDF gerado e compartilhado com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
         );
-
-        if (context.mounted) Navigator.of(context).pop();
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('PDF gerado e compartilhado com sucesso!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
       }
     } catch (e) {
-      if (context.mounted) Navigator.of(context).pop();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao gerar PDF: $e'),
+            content: Text('Erro ao gerar ou compartilhar PDF: $e'),
             backgroundColor: Colors.red,
           ),
         );
