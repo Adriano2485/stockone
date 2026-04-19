@@ -1968,7 +1968,7 @@ class _SecondScreenState extends State<SecondScreen> {
                           ),
                         );
                       }),
-                      _padariaCard(Icons.note_add, "Meta", Colors.teal.shade300,
+                      _padariaCard(Icons.track_changes, "Meta", Colors.teal.shade300,
                           () {
                         Navigator.push(
                           context,
