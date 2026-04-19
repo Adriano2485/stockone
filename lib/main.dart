@@ -17349,6 +17349,11 @@ final List<Produto> produtos = [
   Produto(nome: 'Pão Francês', codigo: '510', fatorPacote: 8.4),
   Produto(nome: 'Pão Francês Fibras', codigo: '164967', fatorPacote: 2.64),
   Produto(nome: 'Pão Francês Panhoca', codigo: '137975', fatorPacote: 2.64),
+  Produto(nome: 'Pão Baguete Francesa', codigo: '137892', fatorPacote: 2.64),
+  Produto(
+      nome: 'Pão Baguete Francesa Queijo', codigo: '31541', fatorPacote: 2.93),
+  Produto(
+      nome: 'Pão Baguete Francesa Gergelim', codigo: '132', fatorPacote: 2.73),
   Produto(nome: 'Pão Queijo Tradicional', codigo: '62948', fatorPacote: 2.31),
   Produto(nome: 'Pão Queijo Coquetel', codigo: '65139', fatorPacote: 2.31),
   Produto(nome: 'Biscoito Queijo', codigo: '146428', fatorPacote: 2.31),
@@ -17358,9 +17363,21 @@ final List<Produto> produtos = [
   Produto(nome: 'Biscoito Polvilho', codigo: '97921', fatorPacote: 0.783),
   Produto(nome: 'Pão Tatu', codigo: '511', fatorPacote: 2.97),
   Produto(nome: 'Caseirinho', codigo: '114913', fatorPacote: 2.8),
-  Produto(nome: 'Pão Doce Ferradura', codigo: '33724', fatorPacote: 4.71),
+  Produto(nome: 'Pão Fofinho', codigo: '106794', fatorPacote: 2.8),
+  Produto(nome: 'Rosca Fofinha Temperada', codigo: '142098', fatorPacote: 11),
+  Produto(nome: 'Pão Doce Ferradura', codigo: '33749', fatorPacote: 4.71),
+  Produto(nome: 'Pão Doce Caracol', codigo: '33724', fatorPacote: 4.71),
   Produto(nome: 'Mini Pão Sonho', codigo: '112730', fatorPacote: 8.8),
+  Produto(nome: 'Mini Pão Sonho Chocolate', codigo: '141971', fatorPacote: 8.8),
+  Produto(nome: 'Pão Bambino', codigo: '112728', fatorPacote: 8.8),
+  Produto(nome: 'Mini Pão Marta Rocha', codigo: '112732', fatorPacote: 8.8),
   Produto(nome: 'Sanduíche Bahamas', codigo: '55961', fatorPacote: 37),
+  Produto(nome: 'Sanduíche Fofinho', codigo: '142099', fatorPacote: 55),
+  Produto(nome: 'Pão de Alho da Casa', codigo: '132317', fatorPacote: 12),
+  Produto(
+      nome: 'Pão de Alho da Casa Picante', codigo: '132320', fatorPacote: 12),
+  Produto(nome: 'Pão Samaritano', codigo: '132318', fatorPacote: 123),
+  Produto(nome: 'Pão Pizza', codigo: '132319', fatorPacote: 42),
 ];
 
 class MetaTabelaScreen extends StatefulWidget {
@@ -17429,6 +17446,48 @@ class _MetaTabelaScreenState extends State<MetaTabelaScreen> {
           "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
     },
     'Pão Francês Panhoca': {
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Verifique se não está faltando pão para o cliente em horários de pico. Garanta que a produção esteja alinhada com o fluxo de movimento da loja, há dias em que vende mais pão, fique atento e use como referência o relatório de venda diária, assim se programa pra cada dia da semana. Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Não desanime, foco e paciência é tudo. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, fique atento a venda no período da manhã para engatilhar a produção da tarde. Pra cima que ainda dá, tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência mas você é capaz. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, fique atento a venda no período da manhã para engatilhar a produção da tarde. Pra cima que ainda dá, tempo!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+    },
+    'Pão Baguete Francesa': {
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Verifique se não está faltando pão para o cliente em horários de pico. Garanta que a produção esteja alinhada com o fluxo de movimento da loja, há dias em que vende mais pão, fique atento e use como referência o relatório de venda diária, assim se programa pra cada dia da semana. Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Não desanime, foco e paciência é tudo. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, fique atento a venda no período da manhã para engatilhar a produção da tarde. Pra cima que ainda dá, tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência mas você é capaz. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, fique atento a venda no período da manhã para engatilhar a produção da tarde. Pra cima que ainda dá, tempo!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+    },
+    'Pão Baguete Francesa Queijo': {
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Verifique se não está faltando pão para o cliente em horários de pico. Garanta que a produção esteja alinhada com o fluxo de movimento da loja, há dias em que vende mais pão, fique atento e use como referência o relatório de venda diária, assim se programa pra cada dia da semana. Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Não desanime, foco e paciência é tudo. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, fique atento a venda no período da manhã para engatilhar a produção da tarde. Pra cima que ainda dá, tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência mas você é capaz. Garanta que o produto seja assado no tamanho correto, use um cortador novo e borrife água antes de realizar o corte. O cliente come com os olhos né. Não deixe faltar o produto na parte da tarde, fique atento a venda no período da manhã para engatilhar a produção da tarde. Pra cima que ainda dá, tempo!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+    },
+    'Pão Baguete Francesa Gergelim': {
       'acimaMeta':
           "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
       'zero':
@@ -17568,7 +17627,63 @@ class _MetaTabelaScreenState extends State<MetaTabelaScreen> {
       'ate1':
           "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
     },
+    'Mini Pão Sonho Chocolate': {
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Como está a qualidade? O cliente come com os olhos... Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Calma Amigo que nada está perdido.  Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Como está a qualidade? O cliente come com os olhos... Use sempre creme de confeiteiro fresco e opte por uma produção diária. Mesmo que a validade seja 3 dias, em dias quentes o produto pode não aguentar até o último dia de validade. Pra cima que ainda dá tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Como está a qualidade? O cliente come com os olhos... Use sempre creme de confeiteiro fresco e opte por uma produção diária. Mesmo que a validade seja 3 dias, em dias quentes o produto pode não aguentar até o último dia de validade. Já possui ponto extra? Vamos que vamos!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+    },
+    'Mini Marta Rocha': {
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Como está a qualidade? O cliente come com os olhos... Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Calma Amigo que nada está perdido.  Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Como está a qualidade? O cliente come com os olhos... Use sempre creme de confeiteiro fresco e opte por uma produção diária. Mesmo que a validade seja 3 dias, em dias quentes o produto pode não aguentar até o último dia de validade. Pra cima que ainda dá tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Como está a qualidade? O cliente come com os olhos... Use sempre creme de confeiteiro fresco e opte por uma produção diária. Mesmo que a validade seja 3 dias, em dias quentes o produto pode não aguentar até o último dia de validade. Já possui ponto extra? Vamos que vamos!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+    },
+    'Pão Bambino': {
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Como está a qualidade? O cliente come com os olhos... Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Calma Amigo que nada está perdido.  Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Como está a qualidade? O cliente come com os olhos... Use sempre creme de confeiteiro fresco e opte por uma produção diária. Mesmo que a validade seja 3 dias, em dias quentes o produto pode não aguentar até o último dia de validade. Pra cima que ainda dá tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Como está a qualidade? O cliente come com os olhos... Use sempre creme de confeiteiro fresco e opte por uma produção diária. Mesmo que a validade seja 3 dias, em dias quentes o produto pode não aguentar até o último dia de validade. Já possui ponto extra? Vamos que vamos!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+    },
     'Pão Doce Ferradura': {
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Como está a qualidade? Pintura, tamanho e acabamento estão atrativos? O cliente come com os olhos... Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Calma Amigo que nada está perdido. Como está a qualidade? Pintura e acabamento estão atrativos? O cliente come com os olhos... O controle de produção deve ser bem equilibrado: não deixe faltar mas também não produza em excesso, pão fresco e macio é o que o cliente procura. Se não tiver em condições em que você compraria, é porque não está bom, né.. Pra cima que ainda dá tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Pintura e acabamento estão atrativos? O cliente come com os olhos... O controle de produção deve ser bem equilibrado: não deixe faltar mas também não produza em excesso, pão fresco e macio é o que o cliente procura. E não se esqueça de embalar o produto caso fique no armário para o dia seguinte. Vamos que vamos!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+    },
+    'Pão Doce Caracol': {
       'acimaMeta':
           "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
       'zero':
@@ -17596,6 +17711,20 @@ class _MetaTabelaScreenState extends State<MetaTabelaScreen> {
       'ate1':
           "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
     },
+    'Pão Fofinho': {
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Como está a qualidade? Pintura deve estar bem atrativa, o cliente come com os olhos... Procure retirar e assar o produto no mesmo dia, isso garante mais 'força' na estrutura da massa. Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Calma Amigo que nada está perdido.  Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção. Como está a qualidade? Pintura deve estar bem atrativa, o cliente come com os olhos... Procure retirar e assar o produto no mesmo dia, isso garante mais 'força' na estrutura da massa. O controle de produção deve ser bem equilibrado: não deixe faltar mas também não produza em excesso, pão fresco e macio é o que o cliente procura. Se não tiver em condições em que você compraria, é porque não está bom, né.. Pra cima que ainda dá tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz.  Pintura deve estar bem atrativa, o cliente come com os olhos... Procure retirar e assar o produto no mesmo dia, isso garante mais 'força' na estrutura da massa. O controle de produção deve ser bem equilibrado: não deixe faltar mas também não produza em excesso, pão fresco e macio é o que o cliente procura. Vamos que vamos!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+    },
     'Sanduíche Bahamas': {
       'acimaMeta':
           "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
@@ -17609,6 +17738,48 @@ class _MetaTabelaScreenState extends State<MetaTabelaScreen> {
           "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Como está a qualidade? Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção, o item têm validade de 4 dias no refrigerado. Vamos que vamos!!!",
       'ate1':
           "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+    },
+    'Sanduíche Fofinho': {
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção, o item têm validade de 4 dias no refrigerado. Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Calma Amigo que nada está perdido.  Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção, o item têm validade de 4 dias no refrigerado. Pra cima que ainda dá tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Como está a qualidade? Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção, o item têm validade de 4 dias no refrigerado. Vamos que vamos!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Um passo é tudo que precisa. Boa sorte!!!",
+    },
+    'Pão de Alho da Casa': {
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção, o item têm validade de 5 dias. Melhor dia para produção é quinta-feira para abranger o fim de semana. Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Calma Amigo que nada está perdido.  Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção, o item têm validade de 5 dias. Pra cima que ainda dá tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Como está a qualidade? Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção, o item têm validade de 5 dias. Melhor dia para produção é quinta-feira para abranger o fim de semana. Vamos que vamos!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Foque em pontos extras junto com outros itens dirrecionados a churrasco e bebidas. Um passo é tudo que precisa. Boa sorte!!!",
+    },
+    'Pão de Alho da Casa Picante': {
+      'acimaMeta':
+          "Parabêns!!! Você atingiu resultado de excelência! Agora é só manter o que já faz e bora para o próximo nível!!!",
+      'zero':
+          "Ops! Parece que seu estoque está em ruptura. Alinhe os pedidos para não deixar faltar massa em seu freezer. Se tiver dúvidas ou dificuldades pode contar com seu gestor. Pra cima que ainda dá tempo!!!",
+      'ate50':
+          "Vamos com calma que nada está perdido. Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção, o item têm validade de 5 dias. Melhor dia para produção é quinta-feira para abranger o fim de semana. Pra cima que ainda dá tempo!!!",
+      'ate20':
+          "Calma Amigo que nada está perdido.  Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção, o item têm validade de 5 dias. Pra cima que ainda dá tempo!!!",
+      'ate10':
+          "Sua venda não está ruim amigo, talvez falte um pouco de toque de excelência, mas você é capaz. Como está a qualidade? Verifique se não há rupturas constantes no PDV, se for o caso aumente a produção, o item têm validade de 5 dias. Melhor dia para produção é quinta-feira para abranger o fim de semana. Vamos que vamos!!!",
+      'ate1':
+          "Você é o cara!!! Chegou até aqui porque trabalha com excelência e vigor. Falta muito pouco, concentre em melhorar aquilo que já é bem feito. Foque em pontos extras junto com outros itens dirrecionados a churrasco e bebidas. Um passo é tudo que precisa. Boa sorte!!!",
     },
   };
 
