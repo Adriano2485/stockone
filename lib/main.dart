@@ -20563,6 +20563,7 @@ class _RequisicaoState extends State<Requisicao>
   }
 }
 
+
 class HoleriteScreen extends StatefulWidget {
   const HoleriteScreen({super.key});
 
@@ -20583,6 +20584,45 @@ class _HoleriteScreenState extends State<HoleriteScreen> {
 
   double bruto = 0;
   double liquido = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+
+    // salva automaticamente ao digitar
+    salarioController.addListener(_saveData);
+    extra60Controller.addListener(_saveData);
+    extra100Controller.addListener(_saveData);
+    atrasoController.addListener(_saveData);
+    faltaController.addListener(_saveData);
+    descontosExtrasController.addListener(_saveData);
+  }
+
+  Future<void> _saveData() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.setString('salario', salarioController.text);
+    await prefs.setString('extra60', extra60Controller.text);
+    await prefs.setString('extra100', extra100Controller.text);
+    await prefs.setString('atraso', atrasoController.text);
+    await prefs.setString('falta', faltaController.text);
+    await prefs.setString('descontosExtras', descontosExtrasController.text);
+  }
+
+  Future<void> _loadData() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    setState(() {
+      salarioController.text = prefs.getString('salario') ?? '';
+      extra60Controller.text = prefs.getString('extra60') ?? '';
+      extra100Controller.text = prefs.getString('extra100') ?? '';
+      atrasoController.text = prefs.getString('atraso') ?? '';
+      faltaController.text = prefs.getString('falta') ?? '';
+      descontosExtrasController.text =
+          prefs.getString('descontosExtras') ?? '';
+    });
+  }
 
   double parse(String v) {
     return double.tryParse(v.replaceAll(',', '.')) ?? 0;
@@ -20703,6 +20743,17 @@ class _HoleriteScreenState extends State<HoleriteScreen> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    salarioController.dispose();
+    extra60Controller.dispose();
+    extra100Controller.dispose();
+    atrasoController.dispose();
+    faltaController.dispose();
+    descontosExtrasController.dispose();
+    super.dispose();
   }
 
   @override
