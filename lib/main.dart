@@ -6354,6 +6354,7 @@ class _ManutencaoEquipamentosScreenState
   }
 }
 
+
 class ReportAberturaScreen extends StatefulWidget {
   final String storeName;
   const ReportAberturaScreen({super.key, required this.storeName});
@@ -6423,7 +6424,7 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
 
 *Posicionamento: ${widget.storeName}
 *Data: $dataFormatada
-*Técnico: $userName
+*Promotor: $userName
 *Crachá: ${crachaController.text}
 *Gerência: ${gerenteController.text}
 *Encarregado: ${encarregadoController.text}
@@ -6858,7 +6859,7 @@ BOA TARDE A TODOS!
 *Término de visita: ${widget.storeName}
 *Data: $dataFormatada
 *Horário: ${horarioSaida.format(context)}
-*Técnico(s): $userName 
+*Promotor: $userName 
 *Crachá: ${crachaController.text}
 *Gerência: ${gerenteController.text}
 *Encarregado: ${encarregadoController.text}
@@ -20563,7 +20564,6 @@ class _RequisicaoState extends State<Requisicao>
   }
 }
 
-
 class HoleriteScreen extends StatefulWidget {
   const HoleriteScreen({super.key});
 
@@ -20619,8 +20619,7 @@ class _HoleriteScreenState extends State<HoleriteScreen> {
       extra100Controller.text = prefs.getString('extra100') ?? '';
       atrasoController.text = prefs.getString('atraso') ?? '';
       faltaController.text = prefs.getString('falta') ?? '';
-      descontosExtrasController.text =
-          prefs.getString('descontosExtras') ?? '';
+      descontosExtrasController.text = prefs.getString('descontosExtras') ?? '';
     });
   }
 
