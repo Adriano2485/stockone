@@ -115876,7 +115876,7 @@ n===$&&A.a()
 n=n.a.a
 m=q.f
 m===$&&A.a()
-m=B.o.ev(" BOM DIA A TODOS!\n\n*Posicionamento: "+l+"\n*Data: "+k+"\n*T\xe9cnico: "+p+"\n*Crach\xe1: "+o+"\n*Ger\xeancia: "+n+"\n*Encarregado: "+m.a.a+"\n*Colaboradores ativos: "+q.r+"\n*Sobras P\xe3o Franc\xeas: "+q.w+" telas\n")
+m=B.o.ev(" BOM DIA A TODOS!\n\n*Posicionamento: "+l+"\n*Data: "+k+"\n*Promotor: "+p+"\n*Crach\xe1: "+o+"\n*Ger\xeancia: "+n+"\n*Encarregado: "+m.a.a+"\n*Colaboradores ativos: "+q.r+"\n*Sobras P\xe3o Franc\xeas: "+q.w+" telas\n")
 s=2
 return A.k($.ad8().oN(0,m,null,"Relat\xf3rio Abertura"),$async$CT)
 case 2:return A.o(null,r)}})
@@ -116173,7 +116173,7 @@ k=q.Q
 j=q.x
 i=B.l.aS(q.ax,", ")
 h=B.l.p(q.ax,"outros")?" ("+q.ay+")":""
-h=B.o.ev("BOA TARDE A TODOS!\n\n*T\xe9rmino de visita: "+g+"\n*Data: "+f+"\n*Hor\xe1rio: "+p+"\n*T\xe9cnico(s): "+n+" \n*Crach\xe1: "+o+"\n*Ger\xeancia: "+m+"\n*Encarregado: "+l+"\n*Colaboradores no dia: "+k+"\n*Venda P\xe3o Franc\xeas/dia: \n"+j+" unidades\n\n*Motivo: \n\n"+i+h+"\n\n*Trabalho Realizado No Setor:\n\n"+q.ch+"\n\n*Vendas Do Dia Anterior:\n\n#P\xe3o Franc\xeas: \n"+q.y+" unidades\n#P\xe3o de Queijo Tradicional: \n"+q.cx+" Kilos\n#P\xe3o de Queijo Coquetel: \n"+q.cy+" Kilos\n#Biscoito de Queijo: \n"+q.db+" Kilos\n\n*Rupturas: \n\n"+q.amb()+"\n\n")
+h=B.o.ev("BOA TARDE A TODOS!\n\n*T\xe9rmino de visita: "+g+"\n*Data: "+f+"\n*Hor\xe1rio: "+p+"\n*Promotor: "+n+" \n*Crach\xe1: "+o+"\n*Ger\xeancia: "+m+"\n*Encarregado: "+l+"\n*Colaboradores no dia: "+k+"\n*Venda P\xe3o Franc\xeas/dia: \n"+j+" unidades\n\n*Motivo: \n\n"+i+h+"\n\n*Trabalho Realizado No Setor:\n\n"+q.ch+"\n\n*Vendas Do Dia Anterior:\n\n#P\xe3o Franc\xeas: \n"+q.y+" unidades\n#P\xe3o de Queijo Tradicional: \n"+q.cx+" Kilos\n#P\xe3o de Queijo Coquetel: \n"+q.cy+" Kilos\n#Biscoito de Queijo: \n"+q.db+" Kilos\n\n*Rupturas: \n\n"+q.amb()+"\n\n")
 s=2
 return A.k($.ad8().oN(0,h,null,"Relat\xf3rio Final"),$async$CU)
 case 2:return A.o(null,r)}})
