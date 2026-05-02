@@ -6003,15 +6003,31 @@ class _ManutencaoEquipamentosScreenState
     }
   }
 
+  // ✅ COMPARTILHAR
   Future<void> _compartilharRelatorio() async {
+    String texto = _gerarTextoRelatorio();
+    await Share.share(texto);
+  }
+
+  // ✅ COPIAR (novo)
+  Future<void> _copiarRelatorio() async {
+    String texto = _gerarTextoRelatorio();
+
+    await Clipboard.setData(ClipboardData(text: texto));
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Texto copiado!')),
+    );
+  }
+
+  // ✅ FUNÇÃO CENTRAL (melhor prática)
+  String _gerarTextoRelatorio() {
     StringBuffer relatorio = StringBuffer();
 
-    relatorio.writeln("ORDEM DE SERVIÇO");
-    relatorio.writeln("");
+    relatorio.writeln("ORDEM DE SERVIÇO\n");
     relatorio.writeln("${widget.storeName}");
     relatorio.writeln("Data: $dataFormatada");
-    relatorio.writeln("Gerência: ${gerenteController.text}");
-    relatorio.writeln("");
+    relatorio.writeln("Gerência: ${gerenteController.text}\n");
     relatorio.writeln("Equipamentos:");
 
     equipamentosSelecionados.entries
@@ -6026,21 +6042,19 @@ class _ManutencaoEquipamentosScreenState
 
       relatorio.writeln("- ${_tituloEquipamento(tipo, index, equipamento)}");
 
-      // REMOVE photoUrl do PDF
       equipamento.forEach((campo, valor) {
         if (campo != 'photoUrl') {
           relatorio.writeln("   $campo: $valor");
         }
       });
 
-      relatorio.writeln("   Defeito(s): $defeito");
-      relatorio.writeln("");
+      relatorio.writeln("   Defeito(s): $defeito\n");
     });
 
     relatorio.writeln("Observações:");
     relatorio.writeln(observacoesController.text);
 
-    await Share.share(relatorio.toString());
+    return relatorio.toString();
   }
 
   String _tituloEquipamento(String tipo, int index, Map<String, dynamic> eq) {
@@ -6097,9 +6111,7 @@ class _ManutencaoEquipamentosScreenState
         ),
       ),
       body: dadosResumo.isEmpty
-          ? const Center(
-              child: Text("Nenhum equipamento cadastrado."),
-            )
+          ? const Center(child: Text("Nenhum equipamento cadastrado."))
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: DefaultTextStyle(
@@ -6113,6 +6125,7 @@ class _ManutencaoEquipamentosScreenState
                             fontSize: 19,
                             color: verdeEscuro)),
                     const SizedBox(height: 16),
+
                     TextField(
                       decoration: InputDecoration(
                         labelText: "Gerência:",
@@ -6121,12 +6134,15 @@ class _ManutencaoEquipamentosScreenState
                       controller: gerenteController,
                       onChanged: (_) => _salvarGerente(),
                     ),
+
                     const SizedBox(height: 24),
+
                     ...dadosResumo.keys.expand((tipo) {
                       var lista = dadosResumo[tipo];
                       return List.generate(lista.length, (index) {
                         String key = "$tipo-$index";
                         final equipamento = lista[index];
+
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -6171,7 +6187,9 @@ class _ManutencaoEquipamentosScreenState
                         );
                       });
                     }),
+
                     const SizedBox(height: 16),
+
                     TextField(
                       maxLines: null,
                       minLines: 3,
@@ -6181,19 +6199,37 @@ class _ManutencaoEquipamentosScreenState
                       ),
                       controller: observacoesController,
                     ),
+
                     const SizedBox(height: 32),
+
+                    // 🔥 BOTÕES
                     Center(
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.grey,
-                          foregroundColor: Colors.white,
-                        ),
-                        onPressed: _compartilharRelatorio,
-                        icon: const Icon(Icons.share),
-                        label: const Text(
-                          'Compartilhar',
-                          style: TextStyle(fontSize: 19),
-                        ),
+                      child: Column(
+                        children: [
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.share),
+                            label: const Text('Compartilhar'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.grey,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 14),
+                              textStyle: const TextStyle(fontSize: 20),
+                            ),
+                            onPressed: _compartilharRelatorio,
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.copy),
+                            label: const Text('Copiar texto'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.black,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 14),
+                              textStyle: const TextStyle(fontSize: 20),
+                            ),
+                            onPressed: _copiarRelatorio,
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -6207,6 +6243,7 @@ class _ManutencaoEquipamentosScreenState
 class ReportAberturaScreen extends StatefulWidget {
   final String storeName;
   const ReportAberturaScreen({super.key, required this.storeName});
+
   @override
   State<ReportAberturaScreen> createState() => _ReportAberturaScreenState();
 }
@@ -6215,19 +6252,25 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
   late TextEditingController crachaController;
   late TextEditingController gerenteController;
   late TextEditingController encarregadoController;
+
   int colaboradoresAtivos = 0;
   int sobrasGeladeira = 0;
+
   late String userName;
   late String dataFormatada;
+
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
     super.initState();
+
     crachaController = TextEditingController();
     gerenteController = TextEditingController();
     encarregadoController = TextEditingController();
+
     _carregarPreferencias();
+
     final dataHoje = DateTime.now();
     dataFormatada =
         "${dataHoje.day.toString().padLeft(2, '0')}/${dataHoje.month.toString().padLeft(2, '0')}/${dataHoje.year}";
@@ -6237,8 +6280,10 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     try {
       final doc =
           await _firestore.collection('stores').doc(widget.storeName).get();
+
       if (doc.exists) {
         final data = doc.data() ?? {};
+
         setState(() {
           crachaController.text = data['cracha'] ?? '';
           gerenteController.text = data['gerente'] ?? '';
@@ -6284,6 +6329,26 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     await Share.share(texto.trim(), subject: 'Relatório Abertura');
   }
 
+  Future<void> _copiarRelatorioAbertura() async {
+    String texto = """ BOM DIA A TODOS!
+
+*Posicionamento: ${widget.storeName}
+*Data: $dataFormatada
+*Promotor: $userName
+*Crachá: ${crachaController.text}
+*Gerência: ${gerenteController.text}
+*Encarregado: ${encarregadoController.text}
+*Colaboradores ativos: $colaboradoresAtivos
+*Sobras Pão Francês: $sobrasGeladeira telas
+""";
+
+    await Clipboard.setData(ClipboardData(text: texto.trim()));
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Texto copiado!')),
+    );
+  }
+
   @override
   void dispose() {
     crachaController.dispose();
@@ -6296,6 +6361,7 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
   Widget build(BuildContext context) {
     const verdeEscuro = Color(0xFF006400);
     const preto = Color(0xff0e0101);
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: verdeEscuro,
@@ -6394,17 +6460,32 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
               ),
               const SizedBox(height: 32),
               Center(
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: verdeEscuro,
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: _compartilharRelatorioComImagens,
-                  icon: const Icon(Icons.share),
-                  label: const Text(
-                    'Compartilhar',
-                    style: TextStyle(fontSize: 19),
-                  ),
+                child: Column(
+                  children: [
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.share),
+                      label: const Text('Compartilhar'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: verdeEscuro,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 14),
+                        textStyle: const TextStyle(fontSize: 20),
+                      ),
+                      onPressed: _compartilharRelatorioComImagens,
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.copy),
+                      label: const Text('Copiar texto'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xff920b0b),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 14),
+                        textStyle: const TextStyle(fontSize: 20),
+                      ),
+                      onPressed: _copiarRelatorioAbertura,
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -6463,7 +6544,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
 
   final List<String> produtos = [
     'Pão Francês',
-    'Pão Francês integral',
+    'Pão Francês Fibras',
     'Pão Francês Panhoca',
     'Pão Francês com Queijo',
     'Pão Baguete Francesa Queijo',
@@ -6742,6 +6823,52 @@ ${_formatarRupturas()}
 ''';
 
     await Share.share(texto.trim(), subject: 'Relatório Final');
+  }
+
+  Future<void> _copiarRelatorioFinal() async {
+    String texto = '''
+BOA TARDE A TODOS!
+
+*Término de visita: ${widget.storeName}
+*Data: $dataFormatada
+*Horário: ${horarioSaida.format(context)}
+*Promotor: $userName 
+*Crachá: ${crachaController.text}
+*Gerência: ${gerenteController.text}
+*Encarregado: ${encarregadoController.text}
+*Colaboradores no dia: $colaboradoresAtivos
+*Venda Pão Francês/dia: 
+$resultadoInteiro unidades
+
+*Motivo: 
+
+${rotinaSelecionadas.join(', ')}${rotinaSelecionadas.contains('outros') ? ' ($rotinaOutros)' : ''}
+
+*Trabalho Realizado No Setor:
+
+$trabalhoRealizado
+
+*Vendas Do Dia Anterior:
+
+#Pão Francês: 
+$vendamediadiaria unidades
+#Pão de Queijo Tradicional: 
+$qtdRetirada Kilos
+#Pão de Queijo Coquetel: 
+$lotesRetirados Kilos
+#Biscoito de Queijo: 
+$qtdSobra Kilos
+
+*Rupturas: 
+
+${_formatarRupturas()}
+''';
+
+    await Clipboard.setData(ClipboardData(text: texto.trim()));
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Texto copiado!')),
+    );
   }
 
   void _toggleRotina(String item, bool checked) {
@@ -7176,16 +7303,32 @@ ${_formatarRupturas()}
               ),
               const SizedBox(height: 40),
               Center(
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.share),
-                  label: const Text('Compartilhar'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: vermelhoEscuro,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 14),
-                    textStyle: const TextStyle(fontSize: 20),
-                  ),
-                  onPressed: _compartilharRelatorioFinal,
+                child: Column(
+                  children: [
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.share),
+                      label: const Text('Compartilhar'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: vermelhoEscuro,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 14),
+                        textStyle: const TextStyle(fontSize: 20),
+                      ),
+                      onPressed: _compartilharRelatorioFinal,
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.copy),
+                      label: const Text('Copiar texto'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: verdeEscuro,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 14),
+                        textStyle: const TextStyle(fontSize: 20),
+                      ),
+                      onPressed: _copiarRelatorioFinal,
+                    ),
+                  ],
                 ),
               ),
             ],
