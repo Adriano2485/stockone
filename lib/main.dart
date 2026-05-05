@@ -2,8 +2,11 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:convert';
+import 'dart:html' as html;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -163,7 +166,8 @@ class RedeScreen extends StatefulWidget {
 class _RedeScreenState extends State<RedeScreen> {
   bool _checking = false;
 
-  // ===== NOVO: Função para abrir vídeo =====
+  Timer? _pressTimer;
+
   void _mostrarAjuda() async {
     final resposta = await showDialog<bool>(
       context: context,
@@ -194,44 +198,24 @@ class _RedeScreenState extends State<RedeScreen> {
       }
     }
   }
-  // =========================================
 
   Future<void> _onCardTap(String rede, Widget destino) async {
     if (_checking) return;
     setState(() => _checking = true);
+
     try {
-      print("DEBUG: clique em '$rede' recebido");
-
-      try {
-        final apps = Firebase.apps;
-        print("DEBUG: Firebase.apps.length = ${apps.length}");
-        if (apps.isEmpty) {
-          _showError("Firebase não inicializado. Verifique main.dart.");
-          return;
-        }
-      } catch (e) {
-        _showError("Firebase inacessível: $e");
-        return;
-      }
-
       final doc =
           await FirebaseFirestore.instance.collection('redes').doc(rede).get();
 
       if (!doc.exists) {
-        _showError("Rede '$rede' não encontrada no Firestore.");
+        _showError("Rede '$rede' não encontrada.");
         return;
       }
 
       final senhaFirebase = doc.data()?['senha'];
-      if (senhaFirebase == null) {
-        _showError("Campo 'senha' ausente em '$rede'.");
-        return;
-      }
 
       final prefs = await SharedPreferences.getInstance();
-      final chave = "senha_$rede";
-      final senhaLocal = prefs.getString(chave);
-      print("DEBUG: senhaLocal='$senhaLocal' | senhaFirebase='$senhaFirebase'");
+      final senhaLocal = prefs.getString("senha_$rede");
 
       if (senhaLocal == senhaFirebase) {
         if (!mounted) return;
@@ -240,16 +224,14 @@ class _RedeScreenState extends State<RedeScreen> {
       }
 
       final aceita = await _mostrarDialogSenha(rede, senhaFirebase);
+
       if (aceita == true) {
-        await prefs.setString(chave, senhaFirebase);
+        await prefs.setString("senha_$rede", senhaFirebase);
         if (!mounted) return;
         Navigator.push(context, MaterialPageRoute(builder: (_) => destino));
-      } else {
-        print("DEBUG: usuário cancelou ou falhou na senha para '$rede'");
       }
-    } catch (e, st) {
-      print("DEBUG: erro inesperado em _onCardTap -> $e\n$st");
-      _showError("Erro inesperado: ${e.toString()}");
+    } catch (e) {
+      _showError("Erro: $e");
     } finally {
       if (mounted) setState(() => _checking = false);
     }
@@ -264,18 +246,13 @@ class _RedeScreenState extends State<RedeScreen> {
       builder: (ctx) {
         return AlertDialog(
           title: Text("Senha $rede"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: controller,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: "Digite a senha",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
+          content: TextField(
+            controller: controller,
+            obscureText: true,
+            decoration: const InputDecoration(
+              labelText: "Digite a senha",
+              border: OutlineInputBorder(),
+            ),
           ),
           actions: [
             TextButton(
@@ -285,6 +262,7 @@ class _RedeScreenState extends State<RedeScreen> {
             ElevatedButton(
               onPressed: () {
                 final digitada = controller.text.trim();
+
                 if (digitada == senhaCorreta) {
                   Navigator.pop(ctx, true);
                 } else {
@@ -304,12 +282,10 @@ class _RedeScreenState extends State<RedeScreen> {
     );
   }
 
-  void _showError(String mensagem) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(mensagem), backgroundColor: Colors.red),
-      );
-    }
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: Colors.red),
+    );
   }
 
   Widget _card(String imgPath, String rede, Widget destino) {
@@ -317,6 +293,24 @@ class _RedeScreenState extends State<RedeScreen> {
       color: Colors.transparent,
       child: InkWell(
         onTap: () => _onCardTap(rede, destino),
+        onLongPress: () {
+          if (rede == "bahamas") {
+            _pressTimer = Timer(const Duration(seconds: 5), () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const HoleriteScreen(),
+                ),
+              );
+            });
+          }
+        },
+        onTapUp: (_) {
+          _pressTimer?.cancel();
+        },
+        onTapCancel: () {
+          _pressTimer?.cancel();
+        },
         borderRadius: BorderRadius.circular(16),
         child: Ink(
           height: double.infinity,
@@ -328,6 +322,12 @@ class _RedeScreenState extends State<RedeScreen> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _pressTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -345,10 +345,12 @@ class _RedeScreenState extends State<RedeScreen> {
             const SizedBox(width: 12),
           ],
         ),
-
-        // ======== ÍCONE DE AJUDA AQUI ========
-
-        // =====================================
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            onPressed: _mostrarAjuda,
+          )
+        ],
       ),
       body: Stack(
         children: [
@@ -358,8 +360,8 @@ class _RedeScreenState extends State<RedeScreen> {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Color(0xff4dcd7e), // Verde bandeira
-                  Color(0xff094e0b), // Verde mais claro
+                  Color(0xff4dcd7e),
+                  Color(0xff094e0b),
                 ],
               ),
             ),
@@ -1967,7 +1969,8 @@ class _SecondScreenState extends State<SecondScreen> {
                         );
                       }),
                       _padariaCard(
-                          Icons.gps_fixed, "Meta", Colors.teal.shade300, () {
+                          Icons.track_changes, "Meta", Colors.teal.shade300,
+                          () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -2033,6 +2036,40 @@ class _SecondScreenState extends State<SecondScreen> {
       ),
     );
   }
+}
+
+Widget _padariaCard(
+    IconData icon, String label, Color color, VoidCallback onPressed) {
+  return Material(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(16),
+    elevation: 4,
+    child: InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(16),
+      splashColor: color.withOpacity(0.3),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 36, color: color),
+            const SizedBox(height: 12),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'Roboto',
+                color: Color(0xFF5D4037),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class ThirdScreen extends StatefulWidget {
@@ -3674,16 +3711,73 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
       ),
     );
 
-    try {
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/acerto_estoque.pdf');
-      await file.writeAsBytes(await pdf.save());
+    // Mostrar loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
 
-      await Share.shareXFiles([XFile(file.path)], text: 'Acerto Estoque PDF');
+    try {
+      final bytes = await pdf.save();
+
+      // Verifica se é Web
+      if (kIsWeb) {
+        // WEB: Faz download
+        final base64 = base64Encode(bytes);
+        final anchor = html.AnchorElement(
+            href:
+                'data:application/octet-stream;charset=utf-16le;base64,$base64')
+          ..setAttribute('download',
+              'acerto_estoque_${widget.storeName}_${DateFormat('ddMMyyyy').format(selectedDate)}.pdf')
+          ..click();
+
+        if (context.mounted) Navigator.of(context).pop();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF baixado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        // MOBILE: Compartilha
+        final dir = await getTemporaryDirectory();
+        final file = File(
+            '${dir.path}/acerto_estoque_${widget.storeName}_${DateFormat('ddMMyyyy').format(selectedDate)}.pdf');
+        await file.writeAsBytes(bytes);
+
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text:
+              'Acerto Estoque - ${widget.storeName} - ${DateFormat('dd/MM/yyyy').format(selectedDate)}',
+        );
+
+        if (context.mounted) Navigator.of(context).pop();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF gerado e compartilhado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao gerar ou compartilhar PDF: $e')),
-      );
+      if (context.mounted) Navigator.of(context).pop();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao gerar PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -5672,16 +5766,72 @@ class DetalhesPedidoScreen extends StatelessWidget {
       ),
     );
 
-    try {
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/pedido.pdf');
-      await file.writeAsBytes(await pdf.save());
+    // Mostrar loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
 
-      await Share.shareXFiles([XFile(file.path)], text: 'Pedido em PDF');
+    try {
+      final bytes = await pdf.save();
+
+      // Verifica se é Web
+      if (kIsWeb) {
+        // WEB: Faz download
+        final base64 = base64Encode(bytes);
+        final anchor = html.AnchorElement(
+            href:
+                'data:application/octet-stream;charset=utf-16le;base64,$base64')
+          ..setAttribute('download',
+              'pedido_${pedido['loja']}_${pedido['data']?.replaceAll('/', '') ?? DateTime.now().toString()}.pdf')
+          ..click();
+
+        if (context.mounted) Navigator.of(context).pop();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF baixado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        // MOBILE: Compartilha
+        final dir = await getTemporaryDirectory();
+        final file = File(
+            '${dir.path}/pedido_${pedido['loja']}_${DateTime.now().millisecondsSinceEpoch}.pdf');
+        await file.writeAsBytes(bytes);
+
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text: 'Pedido - ${pedido['loja']} - ${pedido['data']}',
+        );
+
+        if (context.mounted) Navigator.of(context).pop();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF gerado e compartilhado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao gerar ou compartilhar PDF: $e')),
-      );
+      if (context.mounted) Navigator.of(context).pop();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao gerar PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -6003,31 +6153,15 @@ class _ManutencaoEquipamentosScreenState
     }
   }
 
-  // ✅ COMPARTILHAR
   Future<void> _compartilharRelatorio() async {
-    String texto = _gerarTextoRelatorio();
-    await Share.share(texto);
-  }
-
-  // ✅ COPIAR (novo)
-  Future<void> _copiarRelatorio() async {
-    String texto = _gerarTextoRelatorio();
-
-    await Clipboard.setData(ClipboardData(text: texto));
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Texto copiado!')),
-    );
-  }
-
-  // ✅ FUNÇÃO CENTRAL (melhor prática)
-  String _gerarTextoRelatorio() {
     StringBuffer relatorio = StringBuffer();
 
-    relatorio.writeln("ORDEM DE SERVIÇO\n");
+    relatorio.writeln("ORDEM DE SERVIÇO");
+    relatorio.writeln("");
     relatorio.writeln("${widget.storeName}");
     relatorio.writeln("Data: $dataFormatada");
-    relatorio.writeln("Gerência: ${gerenteController.text}\n");
+    relatorio.writeln("Gerência: ${gerenteController.text}");
+    relatorio.writeln("");
     relatorio.writeln("Equipamentos:");
 
     equipamentosSelecionados.entries
@@ -6042,19 +6176,21 @@ class _ManutencaoEquipamentosScreenState
 
       relatorio.writeln("- ${_tituloEquipamento(tipo, index, equipamento)}");
 
+      // REMOVE photoUrl do PDF
       equipamento.forEach((campo, valor) {
         if (campo != 'photoUrl') {
           relatorio.writeln("   $campo: $valor");
         }
       });
 
-      relatorio.writeln("   Defeito(s): $defeito\n");
+      relatorio.writeln("   Defeito(s): $defeito");
+      relatorio.writeln("");
     });
 
     relatorio.writeln("Observações:");
     relatorio.writeln(observacoesController.text);
 
-    return relatorio.toString();
+    await Share.share(relatorio.toString());
   }
 
   String _tituloEquipamento(String tipo, int index, Map<String, dynamic> eq) {
@@ -6111,7 +6247,9 @@ class _ManutencaoEquipamentosScreenState
         ),
       ),
       body: dadosResumo.isEmpty
-          ? const Center(child: Text("Nenhum equipamento cadastrado."))
+          ? const Center(
+              child: Text("Nenhum equipamento cadastrado."),
+            )
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: DefaultTextStyle(
@@ -6125,7 +6263,6 @@ class _ManutencaoEquipamentosScreenState
                             fontSize: 19,
                             color: verdeEscuro)),
                     const SizedBox(height: 16),
-
                     TextField(
                       decoration: InputDecoration(
                         labelText: "Gerência:",
@@ -6134,15 +6271,12 @@ class _ManutencaoEquipamentosScreenState
                       controller: gerenteController,
                       onChanged: (_) => _salvarGerente(),
                     ),
-
                     const SizedBox(height: 24),
-
                     ...dadosResumo.keys.expand((tipo) {
                       var lista = dadosResumo[tipo];
                       return List.generate(lista.length, (index) {
                         String key = "$tipo-$index";
                         final equipamento = lista[index];
-
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -6187,9 +6321,7 @@ class _ManutencaoEquipamentosScreenState
                         );
                       });
                     }),
-
                     const SizedBox(height: 16),
-
                     TextField(
                       maxLines: null,
                       minLines: 3,
@@ -6199,37 +6331,19 @@ class _ManutencaoEquipamentosScreenState
                       ),
                       controller: observacoesController,
                     ),
-
                     const SizedBox(height: 32),
-
-                    // 🔥 BOTÕES
                     Center(
-                      child: Column(
-                        children: [
-                          ElevatedButton.icon(
-                            icon: const Icon(Icons.share),
-                            label: const Text('Compartilhar'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.grey,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 14),
-                              textStyle: const TextStyle(fontSize: 20),
-                            ),
-                            onPressed: _compartilharRelatorio,
-                          ),
-                          const SizedBox(height: 12),
-                          ElevatedButton.icon(
-                            icon: const Icon(Icons.copy),
-                            label: const Text('Copiar texto'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.black,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 14),
-                              textStyle: const TextStyle(fontSize: 20),
-                            ),
-                            onPressed: _copiarRelatorio,
-                          ),
-                        ],
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: _compartilharRelatorio,
+                        icon: const Icon(Icons.share),
+                        label: const Text(
+                          'Compartilhar',
+                          style: TextStyle(fontSize: 19),
+                        ),
                       ),
                     ),
                   ],
@@ -6243,7 +6357,6 @@ class _ManutencaoEquipamentosScreenState
 class ReportAberturaScreen extends StatefulWidget {
   final String storeName;
   const ReportAberturaScreen({super.key, required this.storeName});
-
   @override
   State<ReportAberturaScreen> createState() => _ReportAberturaScreenState();
 }
@@ -6252,25 +6365,19 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
   late TextEditingController crachaController;
   late TextEditingController gerenteController;
   late TextEditingController encarregadoController;
-
   int colaboradoresAtivos = 0;
   int sobrasGeladeira = 0;
-
   late String userName;
   late String dataFormatada;
-
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
     super.initState();
-
     crachaController = TextEditingController();
     gerenteController = TextEditingController();
     encarregadoController = TextEditingController();
-
     _carregarPreferencias();
-
     final dataHoje = DateTime.now();
     dataFormatada =
         "${dataHoje.day.toString().padLeft(2, '0')}/${dataHoje.month.toString().padLeft(2, '0')}/${dataHoje.year}";
@@ -6280,10 +6387,8 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     try {
       final doc =
           await _firestore.collection('stores').doc(widget.storeName).get();
-
       if (doc.exists) {
         final data = doc.data() ?? {};
-
         setState(() {
           crachaController.text = data['cracha'] ?? '';
           gerenteController.text = data['gerente'] ?? '';
@@ -6318,7 +6423,7 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
 
 *Posicionamento: ${widget.storeName}
 *Data: $dataFormatada
-*Promotor: $userName
+*Técnico: $userName
 *Crachá: ${crachaController.text}
 *Gerência: ${gerenteController.text}
 *Encarregado: ${encarregadoController.text}
@@ -6327,26 +6432,6 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
 """;
 
     await Share.share(texto.trim(), subject: 'Relatório Abertura');
-  }
-
-  Future<void> _copiarRelatorioAbertura() async {
-    String texto = """ BOM DIA A TODOS!
-
-*Posicionamento: ${widget.storeName}
-*Data: $dataFormatada
-*Promotor: $userName
-*Crachá: ${crachaController.text}
-*Gerência: ${gerenteController.text}
-*Encarregado: ${encarregadoController.text}
-*Colaboradores ativos: $colaboradoresAtivos
-*Sobras Pão Francês: $sobrasGeladeira telas
-""";
-
-    await Clipboard.setData(ClipboardData(text: texto.trim()));
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Texto copiado!')),
-    );
   }
 
   @override
@@ -6361,7 +6446,6 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
   Widget build(BuildContext context) {
     const verdeEscuro = Color(0xFF006400);
     const preto = Color(0xff0e0101);
-
     return Scaffold(
       appBar: AppBar(
         backgroundColor: verdeEscuro,
@@ -6460,32 +6544,17 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
               ),
               const SizedBox(height: 32),
               Center(
-                child: Column(
-                  children: [
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.share),
-                      label: const Text('Compartilhar'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: verdeEscuro,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 14),
-                        textStyle: const TextStyle(fontSize: 20),
-                      ),
-                      onPressed: _compartilharRelatorioComImagens,
-                    ),
-                    const SizedBox(height: 12),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.copy),
-                      label: const Text('Copiar texto'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xff920b0b),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 14),
-                        textStyle: const TextStyle(fontSize: 20),
-                      ),
-                      onPressed: _copiarRelatorioAbertura,
-                    ),
-                  ],
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: verdeEscuro,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: _compartilharRelatorioComImagens,
+                  icon: const Icon(Icons.share),
+                  label: const Text(
+                    'Compartilhar',
+                    style: TextStyle(fontSize: 19),
+                  ),
                 ),
               ),
             ],
@@ -6544,7 +6613,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
 
   final List<String> produtos = [
     'Pão Francês',
-    'Pão Francês Fibras',
+    'Pão Francês integral',
     'Pão Francês Panhoca',
     'Pão Francês com Queijo',
     'Pão Baguete Francesa Queijo',
@@ -6789,7 +6858,7 @@ BOA TARDE A TODOS!
 *Término de visita: ${widget.storeName}
 *Data: $dataFormatada
 *Horário: ${horarioSaida.format(context)}
-*Promotor: $userName 
+*Técnico(s): $userName 
 *Crachá: ${crachaController.text}
 *Gerência: ${gerenteController.text}
 *Encarregado: ${encarregadoController.text}
@@ -6823,52 +6892,6 @@ ${_formatarRupturas()}
 ''';
 
     await Share.share(texto.trim(), subject: 'Relatório Final');
-  }
-
-  Future<void> _copiarRelatorioFinal() async {
-    String texto = '''
-BOA TARDE A TODOS!
-
-*Término de visita: ${widget.storeName}
-*Data: $dataFormatada
-*Horário: ${horarioSaida.format(context)}
-*Promotor: $userName 
-*Crachá: ${crachaController.text}
-*Gerência: ${gerenteController.text}
-*Encarregado: ${encarregadoController.text}
-*Colaboradores no dia: $colaboradoresAtivos
-*Venda Pão Francês/dia: 
-$resultadoInteiro unidades
-
-*Motivo: 
-
-${rotinaSelecionadas.join(', ')}${rotinaSelecionadas.contains('outros') ? ' ($rotinaOutros)' : ''}
-
-*Trabalho Realizado No Setor:
-
-$trabalhoRealizado
-
-*Vendas Do Dia Anterior:
-
-#Pão Francês: 
-$vendamediadiaria unidades
-#Pão de Queijo Tradicional: 
-$qtdRetirada Kilos
-#Pão de Queijo Coquetel: 
-$lotesRetirados Kilos
-#Biscoito de Queijo: 
-$qtdSobra Kilos
-
-*Rupturas: 
-
-${_formatarRupturas()}
-''';
-
-    await Clipboard.setData(ClipboardData(text: texto.trim()));
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Texto copiado!')),
-    );
   }
 
   void _toggleRotina(String item, bool checked) {
@@ -7303,32 +7326,16 @@ ${_formatarRupturas()}
               ),
               const SizedBox(height: 40),
               Center(
-                child: Column(
-                  children: [
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.share),
-                      label: const Text('Compartilhar'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: vermelhoEscuro,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 14),
-                        textStyle: const TextStyle(fontSize: 20),
-                      ),
-                      onPressed: _compartilharRelatorioFinal,
-                    ),
-                    const SizedBox(height: 12),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.copy),
-                      label: const Text('Copiar texto'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: verdeEscuro,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 14),
-                        textStyle: const TextStyle(fontSize: 20),
-                      ),
-                      onPressed: _copiarRelatorioFinal,
-                    ),
-                  ],
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.share),
+                  label: const Text('Compartilhar'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: vermelhoEscuro,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 14),
+                    textStyle: const TextStyle(fontSize: 20),
+                  ),
+                  onPressed: _compartilharRelatorioFinal,
                 ),
               ),
             ],
@@ -19294,7 +19301,6 @@ class _RequisicaoState extends State<Requisicao>
 
   // Função para compartilhar em PDF
   // Função para compartilhar em PDF
-
   Future<void> _compartilharPlanilhaPDF() async {
     final motivo49 = _calcularMotivo49();
     final motivo8 = _calcularMotivo8();
@@ -19349,32 +19355,69 @@ class _RequisicaoState extends State<Requisicao>
       ),
     );
 
+    // Mostrar loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
+
     try {
-      final dir = await getTemporaryDirectory();
-      final fileName =
-          'requisicao_padaria_${widget.storeName}_${DateFormat('ddMMyyyy').format(_dataSelecionada)}.pdf';
-      final file = File('${dir.path}/$fileName');
-      await file.writeAsBytes(await pdf.save());
+      final bytes = await pdf.save();
 
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text:
-            'Requisição Padaria - ${widget.storeName} - ${DateFormat('dd/MM/yyyy').format(_dataSelecionada)}',
-      );
+      // Para Web - faz download
+      if (kIsWeb) {
+        final base64 = base64Encode(bytes);
+        final anchor = html.AnchorElement(
+            href:
+                'data:application/octet-stream;charset=utf-16le;base64,$base64')
+          ..setAttribute('download',
+              'requisicao_padaria_${widget.storeName}_${DateFormat('ddMMyyyy').format(_dataSelecionada)}.pdf')
+          ..click();
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('PDF gerado e compartilhado com sucesso!'),
-            backgroundColor: Colors.green,
-          ),
+        if (context.mounted) Navigator.of(context).pop();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF baixado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        // Para Mobile - compartilha
+        final dir = await getTemporaryDirectory();
+        final fileName =
+            'requisicao_padaria_${widget.storeName}_${DateFormat('ddMMyyyy').format(_dataSelecionada)}.pdf';
+        final file = File('${dir.path}/$fileName');
+        await file.writeAsBytes(bytes);
+
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text:
+              'Requisição Padaria - ${widget.storeName} - ${DateFormat('dd/MM/yyyy').format(_dataSelecionada)}',
         );
+
+        if (context.mounted) Navigator.of(context).pop();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF gerado e compartilhado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
     } catch (e) {
+      if (context.mounted) Navigator.of(context).pop();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao gerar ou compartilhar PDF: $e'),
+            content: Text('Erro ao gerar PDF: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -20515,6 +20558,235 @@ class _RequisicaoState extends State<Requisicao>
           _buildLista(produtosPerdas, controllersPerdas, "perdas", "Perdas"),
           _buildPlanilha(),
         ],
+      ),
+    );
+  }
+}
+
+class HoleriteScreen extends StatefulWidget {
+  const HoleriteScreen({super.key});
+
+  @override
+  State<HoleriteScreen> createState() => _HoleriteScreenState();
+}
+
+class _HoleriteScreenState extends State<HoleriteScreen> {
+  final salarioController = TextEditingController();
+  final extra60Controller = TextEditingController();
+  final extra100Controller = TextEditingController();
+  final atrasoController = TextEditingController();
+  final faltaController = TextEditingController();
+  final descontosExtrasController = TextEditingController();
+
+  Map<String, double> vencimentos = {};
+  Map<String, double> descontos = {};
+
+  double bruto = 0;
+  double liquido = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+
+    // salva automaticamente ao digitar
+    salarioController.addListener(_saveData);
+    extra60Controller.addListener(_saveData);
+    extra100Controller.addListener(_saveData);
+    atrasoController.addListener(_saveData);
+    faltaController.addListener(_saveData);
+    descontosExtrasController.addListener(_saveData);
+  }
+
+  Future<void> _saveData() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.setString('salario', salarioController.text);
+    await prefs.setString('extra60', extra60Controller.text);
+    await prefs.setString('extra100', extra100Controller.text);
+    await prefs.setString('atraso', atrasoController.text);
+    await prefs.setString('falta', faltaController.text);
+    await prefs.setString('descontosExtras', descontosExtrasController.text);
+  }
+
+  Future<void> _loadData() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    setState(() {
+      salarioController.text = prefs.getString('salario') ?? '';
+      extra60Controller.text = prefs.getString('extra60') ?? '';
+      extra100Controller.text = prefs.getString('extra100') ?? '';
+      atrasoController.text = prefs.getString('atraso') ?? '';
+      faltaController.text = prefs.getString('falta') ?? '';
+      descontosExtrasController.text = prefs.getString('descontosExtras') ?? '';
+    });
+  }
+
+  double parse(String v) {
+    return double.tryParse(v.replaceAll(',', '.')) ?? 0;
+  }
+
+  double calcularINSS(double salario) {
+    double total = 0;
+
+    double f1 = salario > 1412 ? 1412 : salario;
+    total += f1 * 0.08;
+
+    if (salario > 1412) {
+      double f2 = salario > 2666.68 ? 1254.68 : salario - 1412;
+      total += f2 * 0.09;
+    }
+
+    if (salario > 2666.68) {
+      double f3 = salario > 4000.03 ? 1333.35 : salario - 2666.68;
+      total += f3 * 0.12;
+    }
+
+    if (salario > 4000.03) {
+      total += (salario - 4000.03) * 0.14;
+    }
+
+    return total;
+  }
+
+  double calcularDSR(double totalExtras) {
+    return (totalExtras / 24) * 6;
+  }
+
+  void calcular() {
+    double salario = parse(salarioController.text);
+    double he60h = parse(extra60Controller.text);
+    double he100h = parse(extra100Controller.text);
+    double atraso = parse(atrasoController.text);
+    double falta = parse(faltaController.text);
+    double descontosExtras = parse(descontosExtrasController.text);
+
+    double valorHora = salario / 220;
+
+    double he60 = he60h * valorHora * 1.6;
+    double he100 = he100h * valorHora * 2;
+
+    double totalExtras = he60 + he100;
+    double dsr = calcularDSR(totalExtras);
+
+    double baseINSS = salario + he60 + he100 + dsr;
+
+    double premio = 175;
+    if (falta > 0 || atraso >= 8) {
+      premio = 0;
+    } else if (atraso >= 2) {
+      premio = 87.5;
+    }
+
+    vencimentos = {
+      "Salário Base": salario,
+      "Horas Extra 60%": he60,
+      "Horas Extra 100%": he100,
+      "DSR Extras": dsr,
+      "Prêmio Assiduidade": premio,
+      "Auxílio Refeição": 400,
+      "Cesta Básica": 175,
+      "Vale Transporte": 345,
+    };
+
+    bruto = vencimentos.values.fold(0, (a, b) => a + b);
+
+    descontos = {
+      "INSS": calcularINSS(baseINSS),
+      "Atraso": atraso * valorHora,
+      "Adiantamento (40%)": salario * 0.4,
+      "Plano Saúde": 1,
+      "Plano Odonto": 1,
+      "Outros Descontos": descontosExtras,
+    };
+
+    double totalDesc = descontos.values.fold(0, (a, b) => a + b);
+
+    liquido = bruto - totalDesc;
+
+    setState(() {});
+  }
+
+  Widget linha(String nome, double valor) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(nome),
+        Text("R\$ ${valor.toStringAsFixed(2)}"),
+      ],
+    );
+  }
+
+  Widget bloco(String titulo, Map<String, double> dados) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(titulo, style: const TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 5),
+        ...dados.entries.map((e) => linha(e.key, e.value)),
+        const Divider(),
+      ],
+    );
+  }
+
+  Widget campo(String label, TextEditingController c) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: TextField(
+        controller: c,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    salarioController.dispose();
+    extra60Controller.dispose();
+    extra100Controller.dispose();
+    atrasoController.dispose();
+    faltaController.dispose();
+    descontosExtrasController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Holerite Teste")),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: ListView(
+          children: [
+            campo("Salário Base", salarioController),
+            campo("Horas Extra 60%", extra60Controller),
+            campo("Horas Extra 100%", extra100Controller),
+            campo("Horas de Atraso", atrasoController),
+            campo("Descontos adicionais (R\$)", descontosExtrasController),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: calcular,
+              child: const Text("Calcular Holerite"),
+            ),
+            const SizedBox(height: 20),
+            bloco("VENCIMENTOS", vencimentos),
+            bloco("DESCONTOS", descontos),
+            linha("TOTAL BRUTO", bruto),
+            linha(
+              "TOTAL DESCONTOS",
+              descontos.values.fold(0, (a, b) => a + b),
+            ),
+            const Divider(),
+            Text(
+              "LÍQUIDO: R\$ ${liquido.toStringAsFixed(2)}",
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
       ),
     );
   }
