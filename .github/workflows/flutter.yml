@@ -1,7 +1,41 @@
 name: Build do App (AAB)
 
 on:
+  push:name: Build Web
+
+on:
   push:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 📥 Baixar código
+      uses: actions/checkout@v4
+
+    - name: 🐦 Configurar Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.38.3'
+
+    - name: 📦 Instalar dependências
+      run: flutter pub get
+
+    - name: 🧹 Limpar build
+      run: flutter clean
+
+    # ---------------- WEB ----------------
+    - name: 🌐 Build Web
+      run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+
+    - name: 🚀 Deploy Web no GitHub Pages
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: build/web
+
     branches: [ master ]
 
 jobs:
