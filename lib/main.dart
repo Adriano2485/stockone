@@ -428,7 +428,6 @@ class Bahamas extends StatelessWidget {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        // Botão físico de voltar: volta para a tela de seleção de loja
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => RedeScreen()),
@@ -444,11 +443,14 @@ class Bahamas extends StatelessWidget {
           title: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.asset('assets/images/Logo StockOne.png', height: 32),
+              Image.asset(
+                'assets/images/Logo StockOne.png',
+                height: 30,
+              ),
               const SizedBox(width: 8),
               Image.asset(
                 'assets/images/logobahamas.jpg',
-                height: 40,
+                height: 36,
               ),
             ],
           ),
@@ -468,22 +470,22 @@ class Bahamas extends StatelessWidget {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Color(0xFFFFE5B4), // topo claro
-                Color(0xFFD29752), // base marrom padaria
+                Color(0xFFFFE5B4),
+                Color(0xFFD29752),
               ],
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(14.0),
             child: Column(
               children: [
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
                 Expanded(
                   child: GridView.count(
-                    crossAxisCount: 2, // 2 cards por linha
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 1.2,
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 14,
+                    mainAxisSpacing: 14,
+                    childAspectRatio: 1.32, // cards ~10% menores
                     children: [
                       _bahamasCard(
                         Icons.menu_book,
@@ -563,7 +565,6 @@ class Bahamas extends StatelessWidget {
                           );
                         },
                       ),
-                      // NOVO CARD - CONSULTAR RELATÓRIOS
                       _bahamasCard(
                         Icons.search,
                         'CONSULTAR RELATÓRIOS',
@@ -596,24 +597,28 @@ class Bahamas extends StatelessWidget {
   ) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      elevation: 4,
+      borderRadius: BorderRadius.circular(14),
+      elevation: 3,
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(16),
-        splashColor: color.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(14),
+        splashColor: color.withOpacity(0.25),
         child: Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(10),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 36, color: color),
-              const SizedBox(height: 12),
+              Icon(
+                icon,
+                size: 32, // reduzido ~10%
+                color: color,
+              ),
+              const SizedBox(height: 10),
               Text(
                 label,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontSize: 14,
+                  fontSize: 12.5, // reduzido ~10%
                   fontWeight: FontWeight.w600,
                   fontFamily: 'Roboto',
                   color: Color(0xFF5D4037),
@@ -6604,12 +6609,9 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
 
   TimeOfDay horarioSaida = TimeOfDay.now();
 
-  // Adicionar controllers para os campos compartilhados
   late TextEditingController crachaController;
   late TextEditingController gerenteController;
   late TextEditingController encarregadoController;
-
-  // Controller fixo pra Pão Francês (evita recriação no build)
   late TextEditingController giroMedioController;
 
   String resultadoInteiro = '';
@@ -6617,7 +6619,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   String userName = '';
   int colaboradoresAtivos = 0;
   late String dataFormatada;
-  late String dataParaArquivo; // Formato YYYY-MM-DD para o Firestore
+  late String dataParaArquivo;
 
   List<String> rotinaOpcoes = [
     'rotina',
@@ -6696,13 +6698,11 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   void initState() {
     super.initState();
 
-    // Inicializar os controllers
     crachaController = TextEditingController();
     gerenteController = TextEditingController();
     encarregadoController = TextEditingController();
     giroMedioController = TextEditingController();
 
-    // Inicializa os mapas para cada produto
     rupturasSelecionadas = {for (var p in produtos) p: false};
     motivosSelecionados = {for (var p in produtos) p: motivos[0]};
     outrosMotivos = {for (var p in produtos) p: ''};
@@ -6724,7 +6724,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         final data = doc.data() ?? {};
         final relatorioData = data['relatorioFinal'] ?? {};
 
-        // Extrair valores temporariamente
         final fetchedCracha = data['cracha'] ?? '';
         final fetchedGerente = data['gerente'] ?? '';
         final fetchedEncarregado = data['encarregado'] ?? '';
@@ -6745,9 +6744,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
             relatorioData['paodealhodacasapicante'] ?? '';
         final fetchedQtdSobra = relatorioData['qtdSobra'] ?? '';
         final fetchedUserName = data['userName'] ?? '';
-        final fetchedResultadoInteiro = relatorioData['resultadoInteiro'] ?? '';
 
-        // Carregar vendas do Firebase para calcular resultadoInteiro
         final vendasData = data['vendas'] ?? {};
         final vendaMensalPaoFrances =
             (vendasData['Pão Francês'] ?? 0).toDouble();
@@ -6757,12 +6754,9 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
             : 0.0;
         final calcResultadoInteiro = resultado.ceil().toString();
 
-        // Carregar rupturas e motivos
         final rupturasData = relatorioData['rupturas'] ?? {};
 
-        // Atualizar estado uma única vez
         setState(() {
-          // Carregar dados compartilhados do nível principal
           crachaController.text = fetchedCracha;
           gerenteController.text = fetchedGerente;
           encarregadoController.text = fetchedEncarregado;
@@ -6780,17 +6774,10 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
           rabanadaassada = fetchedrabanadaassada;
           paodealhodacasapicante = fetchedpaodealhodacasapicante;
           paodealhodacasa = fetchedpaodealhodacasa;
-          lotesRetirados = fetchedLotesRetirados;
-          qtdSobra = fetchedQtdSobra;
-          userName = fetchedUserName;
 
-          // resultadoInteiro calculado a partir das vendas e dias de giro
           resultadoInteiro = calcResultadoInteiro;
-
-          // atualiza controller do campo de KG do Pão Francês
           giroMedioController.text = giroMedio;
 
-          // calcula vendamediadiaria a partir do giroMedio (se houver)
           final parsedGiro = double.tryParse(giroMedio);
           if (parsedGiro != null && parsedGiro > 0) {
             vendamediadiaria = (parsedGiro / 0.07).toStringAsFixed(0);
@@ -6798,7 +6785,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
             vendamediadiaria = '';
           }
 
-          // Carregar rupturas e motivos
           for (var produto in produtos) {
             final produtoData = rupturasData[produto] ?? {};
             rupturasSelecionadas[produto] = produtoData['selecionado'] ?? false;
@@ -6814,7 +6800,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
 
   Future<void> _salvarPreferencias() async {
     try {
-      // Salvar dados compartilhados no nível principal
       await _firestore.collection('stores').doc(widget.storeName).set({
         'cracha': crachaController.text,
         'gerente': gerenteController.text,
@@ -6822,7 +6807,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         'lastUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      // Salvar dados específicos do relatório final
       final rupturasData = <String, dynamic>{};
       for (var produto in produtos) {
         rupturasData[produto] = {
@@ -6859,50 +6843,64 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   }
 
   String _gerarTextoRelatorio() {
-    return '''
-BOA TARDE A TODOS!
+    final buffer = StringBuffer();
+    buffer.writeln('BOA TARDE A TODOS!');
+    buffer.writeln();
+    buffer.writeln('*Término de visita: ${widget.storeName}');
+    buffer.writeln('*Data: $dataFormatada');
+    buffer.writeln('*Horário: ${horarioSaida.format(context)}');
+    buffer.writeln('*Técnico(s): $userName');
+    buffer.writeln('*Crachá: ${crachaController.text}');
+    buffer.writeln('*Gerência: ${gerenteController.text}');
+    buffer.writeln('*Encarregado: ${encarregadoController.text}');
+    buffer.writeln('*Colaboradores no dia: $colaboradoresAtivos');
+    buffer.writeln('*Venda Pão Francês/dia:');
+    buffer.writeln('$resultadoInteiro unidades');
+    buffer.writeln();
+    buffer.writeln('*Motivo:');
+    buffer.writeln();
 
-*Término de visita: ${widget.storeName}
-*Data: $dataFormatada
-*Horário: ${horarioSaida.format(context)}
-*Técnico(s): $userName 
-*Crachá: ${crachaController.text}
-*Gerência: ${gerenteController.text}
-*Encarregado: ${encarregadoController.text}
-*Colaboradores no dia: $colaboradoresAtivos
-*Venda Pão Francês/dia: 
-$resultadoInteiro unidades
+    if (rotinaSelecionadas.isNotEmpty) {
+      buffer.write(rotinaSelecionadas.join(', '));
+      if (rotinaSelecionadas.contains('outros') && rotinaOutros.isNotEmpty) {
+        buffer.write(' ($rotinaOutros)');
+      }
+    } else {
+      buffer.write('Nenhum motivo selecionado');
+    }
+    buffer.writeln();
+    buffer.writeln();
+    buffer.writeln('*Trabalho Realizado No Setor:');
+    buffer.writeln();
+    buffer.writeln(
+        trabalhoRealizado.isEmpty ? 'Não informado' : trabalhoRealizado);
+    buffer.writeln();
+    buffer.writeln('*Vendas Do Dia Anterior:');
+    buffer.writeln();
+    buffer.writeln('#Pão Francês:');
+    buffer.writeln(
+        '${vendamediadiaria.isEmpty ? '0' : vendamediadiaria} unidades');
+    buffer.writeln('#Pão de Queijo Tradicional:');
+    buffer.writeln('${qtdRetirada.isEmpty ? '0' : qtdRetirada} Kilos');
+    buffer.writeln('#Pão de Queijo Coquetel:');
+    buffer.writeln('${lotesRetirados.isEmpty ? '0' : lotesRetirados} Kilos');
+    buffer.writeln('#Biscoito de Queijo:');
+    buffer.writeln('${qtdSobra.isEmpty ? '0' : qtdSobra} Kilos');
+    buffer.writeln();
+    buffer.writeln('*Rupturas:');
+    buffer.writeln();
+    buffer.write(_formatarRupturas());
 
-*Motivo: 
-
-${rotinaSelecionadas.join(', ')}${rotinaSelecionadas.contains('outros') ? ' ($rotinaOutros)' : ''}
-
-*Trabalho Realizado No Setor:
-
-$trabalhoRealizado
-
-*Vendas Do Dia Anterior:
-
-#Pão Francês: 
-$vendamediadiaria unidades
-#Pão de Queijo Tradicional: 
-$qtdRetirada Kilos
-#Pão de Queijo Coquetel: 
-$lotesRetirados Kilos
-#Biscoito de Queijo: 
-$qtdSobra Kilos
-
-*Rupturas: 
-
-${_formatarRupturas()}
-
-''';
+    return buffer.toString().trim();
   }
 
   String _formatarRupturas() {
     final buffer = StringBuffer();
+    bool hasRuptura = false;
+
     for (var produto in produtos) {
       if (rupturasSelecionadas[produto] == true) {
+        hasRuptura = true;
         final motivo = motivosSelecionados[produto];
         if (motivo == 'outros') {
           final outroMotivo = (outrosMotivos[produto]?.isNotEmpty == true)
@@ -6914,17 +6912,17 @@ ${_formatarRupturas()}
         }
       }
     }
-    if (buffer.isEmpty) {
-      buffer.writeln('Nenhuma');
+
+    if (!hasRuptura) {
+      buffer.writeln('Nenhuma ruptura registrada');
     }
     return buffer.toString();
   }
 
   Future<void> _copiarTexto() async {
     final texto = _gerarTextoRelatorio();
-    await Clipboard.setData(ClipboardData(text: texto.trim()));
+    await Clipboard.setData(ClipboardData(text: texto));
 
-    // Mostrar mensagem de sucesso
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -6966,10 +6964,12 @@ ${_formatarRupturas()}
         'qtdRetirada': qtdRetirada,
         'lotesRetirados': lotesRetirados,
         'qtdSobra': qtdSobra,
+        'vendamediadiaria': vendamediadiaria,
         'rabanadaassada': rabanadaassada,
         'paopararabanada': paopararabanada,
         'paodealhodacasa': paodealhodacasa,
         'paodealhodacasapicante': paodealhodacasapicante,
+        'rupturas': _salvarRupturasParaFirestore(),
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -6997,9 +6997,21 @@ ${_formatarRupturas()}
     }
   }
 
+  Map<String, dynamic> _salvarRupturasParaFirestore() {
+    final rupturasData = <String, dynamic>{};
+    for (var produto in produtos) {
+      rupturasData[produto] = {
+        'selecionado': rupturasSelecionadas[produto] ?? false,
+        'motivo': motivosSelecionados[produto] ?? motivos[0],
+        'outroMotivo': outrosMotivos[produto] ?? '',
+      };
+    }
+    return rupturasData;
+  }
+
   Future<void> _compartilharRelatorioFinal() async {
     final texto = _gerarTextoRelatorio();
-    await Share.share(texto.trim(), subject: 'Relatório Final');
+    await Share.share(texto, subject: 'Relatório Final');
   }
 
   void _toggleRotina(String item, bool checked) {
@@ -7430,7 +7442,6 @@ ${_formatarRupturas()}
               Center(
                 child: Column(
                   children: [
-                    // Botão Compartilhar
                     ElevatedButton.icon(
                       icon: const Icon(Icons.share),
                       label: const Text('Compartilhar'),
@@ -7443,7 +7454,6 @@ ${_formatarRupturas()}
                       onPressed: _compartilharRelatorioFinal,
                     ),
                     const SizedBox(height: 16),
-                    // Botão Arquivar
                     ElevatedButton.icon(
                       icon: const Icon(Icons.archive),
                       label: const Text('Arquivar'),
@@ -7456,7 +7466,6 @@ ${_formatarRupturas()}
                       onPressed: _arquivarRelatorio,
                     ),
                     const SizedBox(height: 16),
-                    // Botão Copiar
                     ElevatedButton.icon(
                       icon: const Icon(Icons.copy),
                       label: const Text('Copiar texto'),
@@ -20935,7 +20944,6 @@ class ConsultarRelatorios extends StatefulWidget {
 class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
   static const verdeEscuro = Color(0xFF006400);
   static const rosaEscuro = Color(0xFFE91E63);
-  static const rosaClaro = Color(0xFFF48FB1);
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -20945,13 +20953,11 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
   bool carregando = false;
   List<Map<String, dynamic>> relatorios = [];
 
-  // Lista fixa de Loja 1 a Loja 100
   late List<String> lojas;
 
   @override
   void initState() {
     super.initState();
-    // Gera as lojas de Loja 1 até Loja 100
     lojas = List.generate(100, (index) => 'Loja ${index + 1}');
   }
 
@@ -20961,7 +20967,7 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
       initialDate: dataSelecionada ?? DateTime.now(),
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
-      locale: const Locale('pt', 'BR'), // ← Só adicionar esta linha
+      locale: const Locale('pt', 'BR'),
     );
 
     if (picked != null) {
@@ -21010,19 +21016,15 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
     });
 
     try {
-      Query<Map<String, dynamic>> query = _firestore
+      final snapshot = await _firestore
           .collection('relatorios')
           .doc('lojas')
           .collection('lojas')
           .doc(lojaSelecionada)
-          .collection('datas');
-
-      query = query.where(
-        'data',
-        isEqualTo: _formatarDataFirestore(dataSelecionada!),
-      );
-
-      final snapshot = await query.orderBy('data', descending: true).get();
+          .collection('datas')
+          .where('data', isEqualTo: _formatarDataFirestore(dataSelecionada!))
+          .orderBy('data', descending: true)
+          .get();
 
       setState(() {
         relatorios = snapshot.docs.map((e) => e.data()).toList();
@@ -21050,6 +21052,31 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
     });
   }
 
+  Future<void> _copiarRelatorio(String textoCompleto) async {
+    if (textoCompleto.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não há texto para copiar!'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    await Clipboard.setData(ClipboardData(text: textoCompleto));
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Relatório copiado para a área de transferência!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   Widget _campoInfo(String titulo, String valor) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -21071,6 +21098,153 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildMotivo(Map<String, dynamic> data) {
+    final rotinaSelecionadas =
+        List<String>.from(data['rotinaSelecionadas'] ?? []);
+    final rotinaOutros = data['rotinaOutros'] ?? '';
+
+    if (rotinaSelecionadas.isEmpty) {
+      return _campoInfo('Motivo:', 'Nenhum motivo selecionado');
+    }
+
+    String motivoTexto = rotinaSelecionadas.join(', ');
+    if (rotinaSelecionadas.contains('outros') && rotinaOutros.isNotEmpty) {
+      motivoTexto = '$motivoTexto ($rotinaOutros)';
+    }
+
+    return _campoInfo('Motivo:', motivoTexto);
+  }
+
+  Widget _buildVendasDiaAnterior(Map<String, dynamic> data) {
+    final vendamediadiaria = data['vendamediadiaria'] ?? '';
+    final qtdRetirada = data['qtdRetirada'] ?? '0';
+    final lotesRetirados = data['lotesRetirados'] ?? '0';
+    final qtdSobra = data['qtdSobra'] ?? '0';
+    final giroMedio = data['giroMedio'] ?? '0';
+
+    String paoFrancesUnidades = vendamediadiaria;
+    if (paoFrancesUnidades.isEmpty && giroMedio != '0') {
+      final valor = double.tryParse(giroMedio.toString()) ?? 0;
+      paoFrancesUnidades = (valor / 0.07).toStringAsFixed(0);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 18),
+        const Text(
+          'Vendas do Dia Anterior:',
+          style: TextStyle(
+            fontSize: 21,
+            fontWeight: FontWeight.bold,
+            color: verdeEscuro,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Pão Francês: ${paoFrancesUnidades.isEmpty ? '0' : paoFrancesUnidades} unidades',
+                style: const TextStyle(fontSize: 17, color: Colors.black87),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Pão de Queijo Tradicional: $qtdRetirada Kilos',
+                style: const TextStyle(fontSize: 17, color: Colors.black87),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Pão de Queijo Coquetel: $lotesRetirados Kilos',
+                style: const TextStyle(fontSize: 17, color: Colors.black87),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Biscoito de Queijo: $qtdSobra Kilos',
+                style: const TextStyle(fontSize: 17, color: Colors.black87),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRupturas(Map<String, dynamic> data) {
+    final rupturas = data['rupturas'] ?? {};
+
+    final List<MapEntry<String, dynamic>> produtosComRuptura = [];
+
+    if (rupturas is Map) {
+      rupturas.forEach((produto, info) {
+        if (info is Map && info['selecionado'] == true) {
+          produtosComRuptura.add(MapEntry(produto, info));
+        }
+      });
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 18),
+        const Text(
+          'Rupturas:',
+          style: TextStyle(
+            fontSize: 21,
+            fontWeight: FontWeight.bold,
+            color: verdeEscuro,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: produtosComRuptura.isEmpty
+              ? const Text(
+                  'Nenhuma ruptura registrada',
+                  style: TextStyle(fontSize: 17, color: Colors.black87),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: produtosComRuptura.map((entry) {
+                    final produto = entry.key;
+                    final info = entry.value;
+                    final motivo = info['motivo'] ?? 'sem motivo';
+                    final outroMotivo = info['outroMotivo'] ?? '';
+
+                    String motivoTexto = motivo;
+                    if (motivo == 'outros' && outroMotivo.isNotEmpty) {
+                      motivoTexto = 'outros ($outroMotivo)';
+                    }
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        '• $produto (Motivo: $motivoTexto)',
+                        style: const TextStyle(
+                            fontSize: 16, color: Colors.black87),
+                      ),
+                    );
+                  }).toList(),
+                ),
+        ),
+      ],
     );
   }
 
@@ -21135,7 +21309,6 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
               onChanged: (value) {
                 setState(() {
                   lojaSelecionada = value;
-                  // Limpa os resultados quando mudar de loja
                   relatorios.clear();
                 });
               },
@@ -21202,6 +21375,8 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
                 ),
               ),
             ...relatorios.map((data) {
+              final textoCompleto = data['textoCompleto'] ?? '';
+
               return Card(
                 elevation: 5,
                 margin: const EdgeInsets.only(bottom: 20),
@@ -21227,6 +21402,13 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
                               ),
                             ),
                           ),
+                          // Botão de copiar ao lado do nome da loja
+                          if (textoCompleto.isNotEmpty)
+                            IconButton(
+                              icon: const Icon(Icons.copy, color: Colors.blue),
+                              tooltip: 'Copiar relatório completo',
+                              onPressed: () => _copiarRelatorio(textoCompleto),
+                            ),
                         ],
                       ),
                       const Divider(height: 30),
@@ -21238,8 +21420,11 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
                       _campoInfo('Encarregado:', data['encarregado'] ?? ''),
                       _campoInfo('Colaboradores:',
                           '${data['colaboradoresAtivos'] ?? ''}'),
-                      _campoInfo('Venda Média:',
-                          '${data['resultadoInteiro'] ?? ''} unidades'),
+                      _campoInfo('Venda Média Pão Francês/Dia:',
+                          '${data['resultadoInteiro'] ?? '0'} unidades'),
+
+                      _buildMotivo(data),
+
                       const SizedBox(height: 18),
                       const Text(
                         'Trabalho Realizado:',
@@ -21259,11 +21444,39 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
                           border: Border.all(color: Colors.grey.shade300),
                         ),
                         child: Text(
-                          data['trabalhoRealizado'] ?? 'Sem descrição',
+                          data['trabalhoRealizado'] ?? 'Não informado',
                           style: const TextStyle(
-                              fontSize: 18, color: Colors.black87),
+                              fontSize: 17, color: Colors.black87),
                         ),
                       ),
+
+                      _buildVendasDiaAnterior(data),
+                      _buildRupturas(data),
+
+                      const SizedBox(height: 16),
+                      // Botão de copiar no final do card
+                      if (textoCompleto.isNotEmpty)
+                        Center(
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.copy, size: 20),
+                            label: const Text(
+                              'Copiar Relatório',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue.shade700,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onPressed: () => _copiarRelatorio(textoCompleto),
+                          ),
+                        ),
                     ],
                   ),
                 ),
