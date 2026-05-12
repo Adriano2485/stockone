@@ -8260,7 +8260,7 @@ class PaoFrancesScreen extends StatelessWidget {
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 50.0, // sensibilidade média
+              scaleFactor: 10.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paofrances.jpg',
                 fit: BoxFit.fitWidth,
