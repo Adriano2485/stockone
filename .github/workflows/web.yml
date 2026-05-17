@@ -1,21 +1,32 @@
 name: 🌐 Build Web
 
 on:
-  workflow_dispatch:  # ← Isso cria um botão
-  push:
-    branches: [ master ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v4
-    - uses: subosito/flutter-action@v2
+    - name: 📥 Baixar código
+      uses: actions/checkout@v4
+
+    - name: 🐦 Configurar Flutter
+      uses: subosito/flutter-action@v2
       with:
         flutter-version: '3.38.3'
-    - run: flutter pub get
-    - run: flutter build web --release
-    - uses: peaceiris/actions-gh-pages@v4
+
+    - name: 📦 Instalar dependências
+      run: flutter pub get
+
+    - name: 🧹 Limpar build
+      run: flutter clean
+
+    - name: 🌐 Build Web
+      run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+
+    - name: 🚀 Deploy Web no GitHub Pages
+      uses: peaceiris/actions-gh-pages@v4
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: build/web
