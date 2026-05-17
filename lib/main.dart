@@ -8260,7 +8260,7 @@ class PaoFrancesScreen extends StatelessWidget {
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 10.0, // sensibilidade média
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paofrances.jpg',
                 fit: BoxFit.fitWidth,
@@ -8296,21 +8296,19 @@ class integral extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paofrancesfibras.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -8339,21 +8337,19 @@ class panhoca extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/panhoca.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -8382,21 +8378,19 @@ class paobaguete extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paobaguete.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -8424,21 +8418,19 @@ class PaoBagueteFrancesaCGergelimScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paobaguetefrancesagergelim.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -8467,21 +8459,19 @@ class PaoBagueteFrancesaCQueijoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paobaguetefrancesaqueijo.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -8509,21 +8499,19 @@ class RoscaCaseiraCocoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/roscacaseiracoco.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -8551,21 +8539,19 @@ class RoscaCaseiraScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/roscacaseira.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -8594,21 +8580,19 @@ class MiniPaoMartaRochaScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/minipaomartarocha.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -8636,21 +8620,19 @@ class PaoBambinoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paobambino.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -8678,21 +8660,19 @@ class MiniPaoSonhoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/minipaosonho.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -8721,21 +8701,19 @@ class MiniPaoSonhoChocolateScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/minipaosonhochocolate.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -8764,21 +8742,19 @@ class RoscaFofinhaTemperadaScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/roscafofinhatemperada.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -8807,21 +8783,19 @@ class PaoCaseirinhoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paocaseirinho.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -8850,21 +8824,19 @@ class PaoTatuScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paotatu.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -8892,21 +8864,19 @@ class PaoMilhoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paomilho.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -8934,21 +8904,19 @@ class PaoDoceCompridoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paodocecomprido.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -8977,21 +8945,19 @@ class PaoDoceFerraduraScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paodoceferradura.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9019,21 +8985,19 @@ class PaoDoceCaracolScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paodocecaracol.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9061,21 +9025,19 @@ class TorradaIntegralDeAlhoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/torradafibrasdealho.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9103,21 +9065,19 @@ class TorradaIntegralScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/torradafibras.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9146,21 +9106,19 @@ class TorradaDeAlhoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/torradadealho.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9189,21 +9147,19 @@ class TorradaDeAlhoPicanteScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/torradadealhopicante.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9232,21 +9188,19 @@ class TorradaComumScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/torradacomum.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9275,21 +9229,19 @@ class PaoDeAlhoDaCasaPicanteScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paodealhodacasapicante.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9318,21 +9270,19 @@ class PaoDeAlhoDaCasaScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paodealhodacasa.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9361,21 +9311,19 @@ class PaoFrancesCQueijoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paofrancesqueijo.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9404,21 +9352,19 @@ class MiniPaoFrancesCGergelimScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/minipaofrancesgergelim.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9447,21 +9393,19 @@ class BagueteFrancesaCQueijoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/baguetefrancesaqueijo.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9490,21 +9434,19 @@ class BagueteFrancesaScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/baguetefrancesa.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9533,21 +9475,19 @@ class PaoFofinhoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paofofinho.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9576,21 +9516,19 @@ class ProfiterolesDoceDeLeiteScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/profiterolesdocedeleite.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9618,21 +9556,19 @@ class ProfiterolesBrigadeiroBrancoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/profiterolesbrigadeirobranco.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9661,21 +9597,19 @@ class ProfiterolesBrigadeiroScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/profiterolesbrigadeiro.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9703,21 +9637,19 @@ class BiscoitoPolvilhoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/biscoitopolvilho.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9746,21 +9678,19 @@ class BiscoitoQueijoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/biscoitodequeijo.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9788,21 +9718,19 @@ class PaoDeQueijoCoquetelScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paodequeijocoquetel.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9830,21 +9758,19 @@ class PaoDeQueijoTradicionalScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paodequeijotradicional.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9872,21 +9798,19 @@ class SanduicheBahamasScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/sanduichebahamas.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9915,21 +9839,19 @@ class SanduicheFofinhoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/sanduichefofinho.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9957,21 +9879,19 @@ class PaoPizzaScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paopizza.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9999,21 +9919,19 @@ class PaoSamaritanoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paosamaritano.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10041,21 +9959,19 @@ class RabanadaAssadaScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/rabanadaassada.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10083,21 +9999,19 @@ class PaoParaRabanadaScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paopararabanada.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10125,21 +10039,19 @@ class RoscaCocoEQueijoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/roscacocoequeijo.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10168,21 +10080,19 @@ class RoscaCaseiraLeiteEmPoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/roscacaseiraleiteempo.jpg',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10211,21 +10121,19 @@ class Codigos extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
+              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/codigos.png',
-                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
+                fit: BoxFit.fitWidth,
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
-
-          // Botão de voltar sobre a imagem
           Positioned(
             top: 20,
             left: 10,
