@@ -2,140 +2,87 @@ import java.util.Properties
 import java.io.FileInputStream
 
 plugins {
-    id("com.android.application")
-    id("kotlin-android")
-    id("dev.flutter.flutter-gradle-plugin")
-    id("com.google.gms.google-services")
+id("com.android.application") 
+id("kotlin-android")
+id("dev.flutter.flutter-gradle-plugin")
+id("com.google.gms.google-services")
 }
 
 android {
+namespace = "com.dusso40.stockone"
+compileSdk = 36
+ndkVersion = "27.0.12077973"
 
-    namespace = "com.dusso40.stockone"
+buildFeatures {
+buildConfig = true // necessário para Firebase
+}
 
-    compileSdk = 35
+compileOptions {
+sourceCompatibility = JavaVersion.VERSION_11
+targetCompatibility = JavaVersion.VERSION_11
+}
 
-    ndkVersion = "27.0.12077973"
+kotlinOptions {
+jvmTarget = JavaVersion.VERSION_11.toString()
+}
 
-    buildFeatures {
-        buildConfig = true
-    }
+defaultConfig {
+applicationId = "com.dusso40.stockone"
+minSdk = 23
+targetSdk = 36
+versionCode = 50 // se quiser, pode usar flutter.versionCode
+versionName = "2.0.3" // se quiser, pode usar flutter.versionName
+}
 
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
+// Configuração da keystore
+val keystorePropertiesFile = file("../key.properties")
+val keystoreProperties = Properties()
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
-    }
+if (keystorePropertiesFile.exists()) {
+keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+println("✅ key.properties encontrado e carregado")
+} else {
+println("⚠️ key.properties NÃO encontrado em ${keystorePropertiesFile.absolutePath}")
+}
 
-    defaultConfig {
+signingConfigs {
+create("release") {
+if (keystorePropertiesFile.exists()) {
+val storePath = keystoreProperties["storeFile"] as String
+val storeFileObj = file(storePath)
+if (storeFileObj.exists()) {
+storeFile = storeFileObj
+storePassword = keystoreProperties["storePassword"] as String
+keyAlias = keystoreProperties["keyAlias"] as String
+keyPassword = keystoreProperties["keyPassword"] as String
+println("✅ Keystore encontrada em $storePath")
+} else {
+println("⚠️ Keystore NÃO encontrada em $storePath")
+}
+}
+}
+}
 
-        applicationId = "com.dusso40.stockone"
-
-        minSdk = 23
-
-        targetSdk = 35
-
-        versionCode = 51
-
-        versionName = "2.0.4"
-    }
-
-    // =========================
-    // CONFIGURAÇÃO DA KEYSTORE
-    // =========================
-
-    val keystorePropertiesFile = file("../key.properties")
-
-    val keystoreProperties = Properties()
-
-    if (keystorePropertiesFile.exists()) {
-
-        keystoreProperties.load(
-            FileInputStream(keystorePropertiesFile)
-        )
-
-        println("✅ key.properties encontrado e carregado")
-
-    } else {
-
-        println(
-            "⚠️ key.properties NÃO encontrado em ${
-                keystorePropertiesFile.absolutePath
-            }"
-        )
-    }
-
-    signingConfigs {
-
-        create("release") {
-
-            if (keystorePropertiesFile.exists()) {
-
-                val storePath =
-                    keystoreProperties["storeFile"] as String
-
-                val storeFileObj = file(storePath)
-
-                if (storeFileObj.exists()) {
-
-                    storeFile = storeFileObj
-
-                    storePassword =
-                        keystoreProperties["storePassword"] as String
-
-                    keyAlias =
-                        keystoreProperties["keyAlias"] as String
-
-                    keyPassword =
-                        keystoreProperties["keyPassword"] as String
-
-                    println("✅ Keystore encontrada em $storePath")
-
-                } else {
-
-                    println("⚠️ Keystore NÃO encontrada em $storePath")
-                }
-            }
-        }
-    }
-
-    buildTypes {
-
-        release {
-
-            signingConfig =
-                signingConfigs.getByName("release")
-
-            isMinifyEnabled = false
-
-            isShrinkResources = false
-        }
-
-        debug {
-
-            signingConfig =
-                signingConfigs.getByName("debug")
-        }
-    }
+buildTypes {
+release {
+signingConfig = signingConfigs.getByName("release")
+isMinifyEnabled = false
+isShrinkResources = false
+}
+debug {
+signingConfig = signingConfigs.getByName("debug")
+}
+}
 }
 
 flutter {
-    source = "../.."
+source = "../.."
 }
 
 dependencies {
+// 🔹 Firebase BoM para alinhar versões compatíveis
+implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
 
-    // Firebase BoM
-    implementation(
-        platform(
-            "com.google.firebase:firebase-bom:34.3.0"
-        )
-    )
-
-    // Firebase Analytics
-    implementation(
-        "com.google.firebase:firebase-analytics"
-    )
+// 🔹 Firebase Analytics (opcional)
+implementation("com.google.firebase:firebase-analytics")
 }
