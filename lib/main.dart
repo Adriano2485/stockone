@@ -3570,7 +3570,11 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
     _loadData();
     _loadUserData();
     dateController.text = DateFormat('dd/MM/yy').format(selectedDate);
-    WakelockPlus.enable();
+    try {
+      WakelockPlus.enable();
+    } catch (e) {
+      print('Erro ao ativar Wakelock: $e');
+    }
   }
 
   void _inicializarControllers() {
@@ -3709,16 +3713,11 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
                 double adicionar = double.tryParse(addController.text) ?? 0;
 
                 if (isKg) {
-                  // Produto em KG: trabalhar em KG diretamente
                   double atualPacotes =
                       double.tryParse(controllers[produto]!.text) ?? 0;
                   double peso = produtosKg[produto] ?? 3.3;
-
-                  // Converter atual de PACOTES para KG
                   double atualKg = atualPacotes * peso;
-                  // Somar os kg adicionados
                   double novoKg = atualKg + adicionar;
-                  // Converter de volta para PACOTES
                   double novoValorPacotes = novoKg / peso;
 
                   setState(() {
@@ -3726,16 +3725,11 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
                         _formatNumber(novoValorPacotes);
                   });
                 } else {
-                  // Produto em UNIDADES: trabalhar em UNIDADES diretamente
                   double atualPacotes =
                       double.tryParse(controllers[produto]!.text) ?? 0;
                   int unidPorPacote = produtosUnidade[produto] ?? 10;
-
-                  // Converter atual de PACOTES para UNIDADES
                   double atualUnidades = atualPacotes * unidPorPacote;
-                  // Somar as unidades adicionadas
                   double novaUnidades = atualUnidades + adicionar;
-                  // Converter de volta para PACOTES
                   double novoValorPacotes = novaUnidades / unidPorPacote;
 
                   setState(() {
@@ -3764,16 +3758,13 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
     double quantidade = double.tryParse(controllers[produto]!.text) ?? 0;
 
     if (produtosUnidade.containsKey(produto)) {
-      // Para unidades: calcular exato
       double unidades = quantidade * produtosUnidade[produto]!;
-      // Arredondar para mostrar apenas uma casa decimal
       double diff = (unidades - unidades.round()).abs();
       if (diff < 0.01) {
         return "${unidades.round()} unid";
       }
       return "${unidades.toStringAsFixed(1)} unid";
     } else {
-      // Para KG: calcular exato
       double multiplicador = produtosKg[produto] ?? 3.3;
       double resultado = quantidade * multiplicador;
       double diff = (resultado - resultado.roundToDouble()).abs();
@@ -3786,163 +3777,147 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
   }
 
   Future<void> _sharePdf() async {
-  final pdf = pw.Document();
+    final pdf = pw.Document();
 
-  pdf.addPage(
-    pw.MultiPage(
-      build: (context) {
-        // Lista para armazenar todas as linhas da tabela principal
-        List<List<String>> tabelaPrincipal = [];
-        
-        // Para cada produto, adiciona linha principal
-        for (var entry in controllers.entries) {
-          final produto = entry.key;
-          final pacotes = entry.value.text.isEmpty ? '0' : entry.value.text;
-          final convertido = _calcularConversao(produto);
-          tabelaPrincipal.add([produto, pacotes, convertido]);
-        }
-        
-        return [
-          pw.Header(level: 0, child: pw.Text('Acerto Estoque')),
-          pw.Paragraph(text: widget.storeName),
-          pw.Paragraph(text: 'Responsável: $userName'),
-          pw.Paragraph(
-              text: 'Data: ${DateFormat('dd/MM/yyyy').format(selectedDate)}'),
-          pw.SizedBox(height: 20),
-          
-          // Tabela principal
-          pw.Table.fromTextArray(
-            headers: ['Produto', 'Pacotes', 'Valor Kg/Unid'],
-            data: tabelaPrincipal,
-            cellAlignment: pw.Alignment.centerLeft,
-          ),
-          
-          pw.SizedBox(height: 30),
-          
-          // Seção de Validades
-          pw.Header(level: 1, child: pw.Text('Controle de Validades')),
-          pw.SizedBox(height: 10),
-          
-          // Para cada produto que tem lotes, criar uma subseção
-          for (var entry in lotesPorProduto.entries)
-            if (entry.value.isNotEmpty) ...[
-              pw.Header(level: 2, child: pw.Text(entry.key)),
-              pw.SizedBox(height: 5),
-              pw.Table.fromTextArray(
-                headers: ['Quantidade (pacotes)', 'Data de Validade', 'Status'],
-                data: entry.value.map((lote) {
-                  bool isVencido = lote.validade.isBefore(DateTime.now());
-                  String status = isVencido ? 'VENCIDO' : 'Válido';
-                  return [
-                    _formatNumber(lote.quantidade),
-                    DateFormat('dd/MM/yyyy').format(lote.validade),
-                    status,
-                  ];
-                }).toList(),
-                cellAlignment: pw.Alignment.centerLeft,
-              ),
-              // Calcular e mostrar total do produto
-              pw.Padding(
-                padding: pw.EdgeInsets.only(top: 5),
-                child: pw.Text(
-                  'Total: ${_formatNumber(entry.value.fold(0, (sum, lote) => sum + lote.quantidade))} pacotes',
-                  style: pw.TextStyle(
-                    fontStyle: pw.FontStyle.italic,
-                    fontSize: 10,
+    pdf.addPage(
+      pw.MultiPage(
+        build: (context) {
+          List<List<String>> tabelaPrincipal = [];
+
+          for (var entry in controllers.entries) {
+            final produto = entry.key;
+            final pacotes = entry.value.text.isEmpty ? '0' : entry.value.text;
+            final convertido = _calcularConversao(produto);
+            tabelaPrincipal.add([produto, pacotes, convertido]);
+          }
+
+          return [
+            pw.Header(level: 0, child: pw.Text('Acerto Estoque')),
+            pw.Paragraph(text: widget.storeName),
+            pw.Paragraph(text: 'Responsável: $userName'),
+            pw.Paragraph(
+                text: 'Data: ${DateFormat('dd/MM/yyyy').format(selectedDate)}'),
+            pw.SizedBox(height: 20),
+            pw.Table.fromTextArray(
+              headers: ['Produto', 'Pacotes', 'Valor Kg/Unid'],
+              data: tabelaPrincipal,
+              cellAlignment: pw.Alignment.centerLeft,
+            ),
+            pw.SizedBox(height: 30),
+            pw.Header(level: 1, child: pw.Text('Controle de Validades')),
+            pw.SizedBox(height: 10),
+            for (var entry in lotesPorProduto.entries)
+              if (entry.value.isNotEmpty) ...[
+                pw.Header(level: 2, child: pw.Text(entry.key)),
+                pw.SizedBox(height: 5),
+                pw.Table.fromTextArray(
+                  headers: [
+                    'Quantidade (pacotes)',
+                    'Data de Validade',
+                    'Status'
+                  ],
+                  data: entry.value.map((lote) {
+                    bool isVencido = lote.validade.isBefore(DateTime.now());
+                    String status = isVencido ? 'VENCIDO' : 'Válido';
+                    return [
+                      _formatNumber(lote.quantidade),
+                      DateFormat('dd/MM/yyyy').format(lote.validade),
+                      status,
+                    ];
+                  }).toList(),
+                  cellAlignment: pw.Alignment.centerLeft,
+                ),
+                pw.Padding(
+                  padding: pw.EdgeInsets.only(top: 5),
+                  child: pw.Text(
+                    'Total: ${_formatNumber(entry.value.fold(0, (sum, lote) => sum + lote.quantidade))} pacotes',
+                    style: pw.TextStyle(
+                      fontStyle: pw.FontStyle.italic,
+                      fontSize: 10,
+                    ),
                   ),
                 ),
+                pw.SizedBox(height: 15),
+              ],
+            if (lotesPorProduto.values.every((lotes) => lotes.isEmpty))
+              pw.Paragraph(
+                text: 'Nenhum lote com validade cadastrado.',
+                style: pw.TextStyle(fontStyle: pw.FontStyle.italic),
               ),
-              pw.SizedBox(height: 15),
-            ],
-          
-          // Se não houver nenhum lote cadastrado
-          if (lotesPorProduto.values.every((lotes) => lotes.isEmpty))
+            pw.SizedBox(height: 20),
             pw.Paragraph(
-              text: 'Nenhum lote com validade cadastrado.',
-              style: pw.TextStyle(fontStyle: pw.FontStyle.italic),
+              text:
+                  'Documento gerado em ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}',
+              style: pw.TextStyle(fontSize: 8, fontStyle: pw.FontStyle.italic),
             ),
-          
-          pw.SizedBox(height: 20),
-          
-          // Rodapé com data de geração
-          pw.Paragraph(
-            text: 'Documento gerado em ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}',
-            style: pw.TextStyle(fontSize: 8, fontStyle: pw.FontStyle.italic),
-          ),
-        ];
+          ];
+        },
+      ),
+    );
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(child: CircularProgressIndicator());
       },
-    ),
-  );
+    );
 
-  // Mostrar loading
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (BuildContext context) {
-      return const Center(child: CircularProgressIndicator());
-    },
-  );
+    try {
+      final bytes = await pdf.save();
 
-  try {
-    final bytes = await pdf.save();
+      if (kIsWeb) {
+        final base64 = base64Encode(bytes);
+        final anchor = html.AnchorElement(
+            href:
+                'data:application/octet-stream;charset=utf-16le;base64,$base64')
+          ..setAttribute('download',
+              'acerto_estoque_${widget.storeName}_${DateFormat('ddMMyyyy').format(selectedDate)}.pdf')
+          ..click();
 
-    // Verifica se é Web
-    if (kIsWeb) {
-      // WEB: Faz download
-      final base64 = base64Encode(bytes);
-      final anchor = html.AnchorElement(
-          href:
-              'data:application/octet-stream;charset=utf-16le;base64,$base64')
-        ..setAttribute('download',
-            'acerto_estoque_${widget.storeName}_${DateFormat('ddMMyyyy').format(selectedDate)}.pdf')
-        ..click();
+        if (context.mounted) Navigator.of(context).pop();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF baixado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        final dir = await getTemporaryDirectory();
+        final file = File(
+            '${dir.path}/acerto_estoque_${widget.storeName}_${DateFormat('ddMMyyyy').format(selectedDate)}.pdf');
+        await file.writeAsBytes(bytes);
 
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text:
+              'Acerto Estoque - ${widget.storeName} - ${DateFormat('dd/MM/yyyy').format(selectedDate)}',
+        );
+
+        if (context.mounted) Navigator.of(context).pop();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF gerado e compartilhado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
       if (context.mounted) Navigator.of(context).pop();
-
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('PDF baixado com sucesso!'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: Text('Erro ao gerar PDF: $e'),
+            backgroundColor: Colors.red,
           ),
         );
       }
-    } else {
-      // MOBILE: Compartilha
-      final dir = await getTemporaryDirectory();
-      final file = File(
-          '${dir.path}/acerto_estoque_${widget.storeName}_${DateFormat('ddMMyyyy').format(selectedDate)}.pdf');
-      await file.writeAsBytes(bytes);
-
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text:
-            'Acerto Estoque - ${widget.storeName} - ${DateFormat('dd/MM/yyyy').format(selectedDate)}',
-      );
-
-      if (context.mounted) Navigator.of(context).pop();
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('PDF gerado e compartilhado com sucesso!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    }
-  } catch (e) {
-    if (context.mounted) Navigator.of(context).pop();
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao gerar PDF: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
   }
-}
 
   void _incrementValue(String produto) {
     double atual = double.tryParse(controllers[produto]!.text) ?? 0;
@@ -3991,17 +3966,12 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
                 double remover = double.tryParse(removeController.text) ?? 0;
 
                 if (isKg) {
-                  // Produto em KG: trabalhar em KG diretamente
                   double atualPacotes =
                       double.tryParse(controllers[produto]!.text) ?? 0;
                   double peso = produtosKg[produto] ?? 3.3;
-
-                  // Converter atual de PACOTES para KG
                   double atualKg = atualPacotes * peso;
-                  // Remover os kg
                   double novoKg = atualKg - remover;
                   novoKg = novoKg < 0 ? 0 : novoKg;
-                  // Converter de volta para PACOTES
                   double novoValorPacotes = novoKg / peso;
 
                   setState(() {
@@ -4009,17 +3979,12 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
                         _formatNumber(novoValorPacotes);
                   });
                 } else {
-                  // Produto em UNIDADES: trabalhar em UNIDADES diretamente
                   double atualPacotes =
                       double.tryParse(controllers[produto]!.text) ?? 0;
                   int unidPorPacote = produtosUnidade[produto] ?? 10;
-
-                  // Converter atual de PACOTES para UNIDADES
                   double atualUnidades = atualPacotes * unidPorPacote;
-                  // Remover as unidades
                   double novaUnidades = atualUnidades - remover;
                   novaUnidades = novaUnidades < 0 ? 0 : novaUnidades;
-                  // Converter de volta para PACOTES
                   double novoValorPacotes = novaUnidades / unidPorPacote;
 
                   setState(() {
@@ -4059,34 +4024,65 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
               title: Text('Validades - $produto'),
               content: Container(
                 width: double.maxFinite,
-                height: 400,
+                height: 500,
                 child: Column(
                   children: [
-                    Text(
-                      'Total: ${_formatNumber(totalAtual)} pacotes',
-                      style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                    Text(
-                      'Equivalente: ${_calcularConversao(produto)}',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                    ),
-                    if (diferenca.abs() > 0.01)
-                      Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Text(
-                          diferenca > 0
-                              ? '⚠️ Faltam ${_formatNumber(diferenca)} pacotes'
-                              : '⚠️ Excedente de ${_formatNumber(diferenca.abs())} pacotes',
-                          style: TextStyle(
-                              color: Colors.orange,
-                              fontWeight: FontWeight.bold),
-                        ),
+                    Container(
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                    SizedBox(height: 10),
+                      child: Column(
+                        children: [
+                          Text(
+                            'Total: ${_formatNumber(totalAtual)} pacotes',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                          Text(
+                            'Equivalente: ${_calcularConversao(produto)}',
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.grey[600]),
+                          ),
+                          if (diferenca.abs() > 0.01)
+                            Padding(
+                              padding: EdgeInsets.only(top: 8),
+                              child: Text(
+                                diferenca > 0
+                                    ? '⚠️ Faltam ${_formatNumber(diferenca)} pacotes'
+                                    : '⚠️ Excedente de ${_formatNumber(diferenca.abs())} pacotes',
+                                style: TextStyle(
+                                    color: Colors.orange,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 16),
                     Expanded(
                       child: lotes.isEmpty
-                          ? Center(child: Text('Nenhum lote cadastrado'))
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.inventory,
+                                      size: 64, color: Colors.grey[400]),
+                                  SizedBox(height: 16),
+                                  Text(
+                                    'Nenhum lote cadastrado',
+                                    style: TextStyle(color: Colors.grey[600]),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Toque no card para adicionar',
+                                    style: TextStyle(
+                                        fontSize: 12, color: Colors.grey[500]),
+                                  ),
+                                ],
+                              ),
+                            )
                           : ListView.builder(
                               itemCount: lotes.length,
                               itemBuilder: (ctx, index) {
@@ -4094,28 +4090,88 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
                                 bool isVencido =
                                     lote.validade.isBefore(DateTime.now());
                                 return Card(
-                                  child: ListTile(
-                                    leading: Icon(
-                                      isVencido
-                                          ? Icons.warning
-                                          : Icons.check_circle,
-                                      color:
-                                          isVencido ? Colors.red : Colors.green,
-                                    ),
-                                    title: Text(
-                                        '${_formatNumber(lote.quantidade)} pacotes'),
-                                    subtitle: Text(
-                                        'Validade: ${DateFormat('dd/MM/yyyy').format(lote.validade)}'),
-                                    trailing: IconButton(
-                                      icon:
-                                          Icon(Icons.delete, color: Colors.red),
-                                      onPressed: () {
-                                        setDialogState(() {
-                                          lotes.removeAt(index);
-                                        });
-                                        _saveData(produto);
-                                        setState(() {});
-                                      },
+                                  margin: EdgeInsets.only(bottom: 8),
+                                  child: InkWell(
+                                    onTap: () => _editarLote(
+                                        produto, lotes, index, setDialogState),
+                                    child: Padding(
+                                      padding: EdgeInsets.all(12),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      '${_formatNumber(lote.quantidade)} pacotes',
+                                                      style: TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                    SizedBox(height: 4),
+                                                    Text(
+                                                      'Validade: ${DateFormat('dd/MM/yyyy').format(lote.validade)}',
+                                                      style: TextStyle(
+                                                        fontSize: 14,
+                                                        color: isVencido
+                                                            ? Colors.red[700]
+                                                            : Colors.grey[700],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Icon(
+                                                isVencido
+                                                    ? Icons.warning_amber
+                                                    : Icons.check_circle,
+                                                color: isVencido
+                                                    ? Colors.orange
+                                                    : Colors.green,
+                                                size: 28,
+                                              ),
+                                            ],
+                                          ),
+                                          SizedBox(height: 12),
+                                          Divider(),
+                                          SizedBox(height: 8),
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.end,
+                                            children: [
+                                              TextButton.icon(
+                                                onPressed: () {
+                                                  setDialogState(() {
+                                                    lotes.removeAt(index);
+                                                  });
+                                                  _saveData(produto);
+                                                  setState(() {});
+                                                },
+                                                icon: Icon(Icons.delete,
+                                                    color: Colors.red,
+                                                    size: 18),
+                                                label: Text(
+                                                  'Remover',
+                                                  style: TextStyle(
+                                                      color: Colors.red),
+                                                ),
+                                                style: TextButton.styleFrom(
+                                                  padding: EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 8),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 );
@@ -4128,6 +4184,12 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
                           _adicionarLote(produto, lotes, setDialogState),
                       icon: Icon(Icons.add),
                       label: Text('Adicionar Lote'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.purple,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        minimumSize: Size(double.infinity, 45),
+                      ),
                     ),
                   ],
                 ),
@@ -4144,6 +4206,80 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
               ],
             );
           },
+        );
+      },
+    );
+  }
+
+  void _editarLote(
+      String produto, List<Lote> lotes, int index, StateSetter setDialogState) {
+    Lote lote = lotes[index];
+    TextEditingController qtdController =
+        TextEditingController(text: _formatNumber(lote.quantidade));
+    DateTime selectedValidade = lote.validade;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Editar Lote'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: qtdController,
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: 'Quantidade de pacotes',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              SizedBox(height: 16),
+              ListTile(
+                title: Text('Data de Validade'),
+                subtitle:
+                    Text(DateFormat('dd/MM/yyyy').format(selectedValidade)),
+                trailing: Icon(Icons.calendar_today),
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: selectedValidade,
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime(2100),
+                  );
+                  if (picked != null) {
+                    selectedValidade = picked;
+                    setDialogState(() {});
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                double qtd = double.tryParse(qtdController.text) ?? 0;
+                if (qtd > 0) {
+                  setDialogState(() {
+                    lotes[index] =
+                        Lote(quantidade: qtd, validade: selectedValidade);
+                  });
+                  _saveData(produto);
+                  setState(() {});
+                  Navigator.pop(context);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Quantidade inválida')),
+                  );
+                }
+              },
+              child: Text('Salvar'),
+            ),
+          ],
         );
       },
     );
@@ -4257,7 +4393,11 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
 
   @override
   void dispose() {
-    WakelockPlus.disable();
+    try {
+      WakelockPlus.disable();
+    } catch (e) {
+      print('Erro ao desativar Wakelock: $e');
+    }
     controllers.forEach((_, controller) => controller.dispose());
     dateController.dispose();
     super.dispose();
@@ -4522,7 +4662,6 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
                             ],
                           ),
                           const SizedBox(height: 8),
-                          // Botão de validades abaixo
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton.icon(
@@ -4542,7 +4681,6 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
                               ),
                             ),
                           ),
-                          // Resumo dos lotes
                           if (totalAtual > 0 && lotes.isNotEmpty)
                             Padding(
                               padding: EdgeInsets.only(top: 8),
