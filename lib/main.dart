@@ -4463,9 +4463,9 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
                               },
                             ),
                     ),
-                    SizedBox(height: 8),
+                    SizedBox(height: 12),
                     Padding(
-                      padding: EdgeInsets.only(top: 4),
+                      padding: EdgeInsets.only(top: 12),
                       child: SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
