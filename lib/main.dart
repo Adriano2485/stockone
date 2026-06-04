@@ -3971,55 +3971,95 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
                 pw.Header(level: 2, child: pw.Text(entry.key)),
                 pw.SizedBox(height: 5),
 
-                // Tabela de lotes
-                pw.Table.fromTextArray(
-                  headers: [
-                    'Quantidade',
-                    'Data Validade',
-                    'Status',
-                    'Análise de Giro'
+                // Tabela de lotes com larguras definidas
+                pw.Table(
+                  columnWidths: {
+                    0: const pw.FixedColumnWidth(
+                        50), // Quantidade (+2 caracteres)
+                    1: const pw.FixedColumnWidth(85), // Data Validade
+                    2: const pw.FixedColumnWidth(80), // Status (+3 caracteres)
+                    3: const pw.FlexColumnWidth(), // Análise de Giro
+                  },
+                  border: pw.TableBorder.all(),
+                  children: [
+                    // Header
+                    pw.TableRow(
+                      children: [
+                        pw.Padding(
+                            padding: const pw.EdgeInsets.all(4),
+                            child: pw.Text('Quantidade',
+                                style: pw.TextStyle(
+                                    fontWeight: pw.FontWeight.bold))),
+                        pw.Padding(
+                            padding: const pw.EdgeInsets.all(4),
+                            child: pw.Text('Data Validade',
+                                style: pw.TextStyle(
+                                    fontWeight: pw.FontWeight.bold))),
+                        pw.Padding(
+                            padding: const pw.EdgeInsets.all(4),
+                            child: pw.Text('Status',
+                                style: pw.TextStyle(
+                                    fontWeight: pw.FontWeight.bold))),
+                        pw.Padding(
+                            padding: const pw.EdgeInsets.all(4),
+                            child: pw.Text('Análise de Giro',
+                                style: pw.TextStyle(
+                                    fontWeight: pw.FontWeight.bold))),
+                      ],
+                    ),
+                    // Dados
+                    ...entry.value.asMap().entries.map((item) {
+                      final index = item.key;
+                      final lote = item.value;
+                      bool isVencido = lote.validade.isBefore(DateTime.now());
+                      String status = isVencido ? 'VENCIDO' : 'Válido';
+
+                      String analiseGiro = '';
+                      double consumoDiario =
+                          consumoDiarioPorProduto[entry.key] ?? 0;
+
+                      if (consumoDiario > 0 && !isVencido) {
+                        double saldoAteLote = 0;
+                        for (int i = 0; i <= index; i++) {
+                          saldoAteLote += entry.value[i].quantidade;
+                        }
+                        int diasDeEstoque =
+                            (saldoAteLote / consumoDiario).ceil();
+                        int diasAteVencer =
+                            lote.validade.difference(DateTime.now()).inDays;
+
+                        if (diasAteVencer < diasDeEstoque) {
+                          analiseGiro =
+                              'ALERTA: Vence em $diasAteVencer dias, mas estoque para $diasDeEstoque dias';
+                        } else {
+                          analiseGiro =
+                              'OK: Estoque para $diasDeEstoque dias, vence em $diasAteVencer dias';
+                        }
+                      } else if (isVencido) {
+                        analiseGiro = 'Produto vencido';
+                      } else if (consumoDiario == 0) {
+                        analiseGiro = 'Sem dados de consumo';
+                      }
+
+                      return pw.TableRow(
+                        children: [
+                          pw.Padding(
+                              padding: const pw.EdgeInsets.all(4),
+                              child: pw.Text(_formatNumber(lote.quantidade))),
+                          pw.Padding(
+                              padding: const pw.EdgeInsets.all(4),
+                              child: pw.Text(DateFormat('dd/MM/yyyy')
+                                  .format(lote.validade))),
+                          pw.Padding(
+                              padding: const pw.EdgeInsets.all(4),
+                              child: pw.Text(status)),
+                          pw.Padding(
+                              padding: const pw.EdgeInsets.all(4),
+                              child: pw.Text(analiseGiro)),
+                        ],
+                      );
+                    }).toList(),
                   ],
-                  data: entry.value.asMap().entries.map((item) {
-                    final index = item.key;
-                    final lote = item.value;
-                    bool isVencido = lote.validade.isBefore(DateTime.now());
-                    String status = isVencido ? 'VENCIDO' : 'Válido';
-
-                    String analiseGiro = '';
-                    double consumoDiario =
-                        consumoDiarioPorProduto[entry.key] ?? 0;
-
-                    if (consumoDiario > 0 && !isVencido) {
-                      // Calcular saldo até este lote
-                      double saldoAteLote = 0;
-                      for (int i = 0; i <= index; i++) {
-                        saldoAteLote += entry.value[i].quantidade;
-                      }
-                      int diasDeEstoque = (saldoAteLote / consumoDiario).ceil();
-                      int diasAteVencer =
-                          lote.validade.difference(DateTime.now()).inDays;
-
-                      if (diasAteVencer < diasDeEstoque) {
-                        analiseGiro =
-                            'ALERTA: Vence em $diasAteVencer dias, mas estoque para $diasDeEstoque dias';
-                      } else {
-                        analiseGiro =
-                            'OK: Estoque para $diasDeEstoque dias, vence em $diasAteVencer dias';
-                      }
-                    } else if (isVencido) {
-                      analiseGiro = 'Produto vencido';
-                    } else if (consumoDiario == 0) {
-                      analiseGiro = 'Sem dados de consumo';
-                    }
-
-                    return [
-                      _formatNumber(lote.quantidade),
-                      DateFormat('dd/MM/yyyy').format(lote.validade),
-                      status,
-                      analiseGiro,
-                    ];
-                  }).toList(),
-                  cellAlignment: pw.Alignment.centerLeft,
                 ),
 
                 // Total do produto
@@ -4463,9 +4503,9 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
                               },
                             ),
                     ),
-                    SizedBox(height: 12),
+                    SizedBox(height: 0),
                     Padding(
-                      padding: EdgeInsets.only(top: 12),
+                      padding: EdgeInsets.only(top: 0),
                       child: SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
