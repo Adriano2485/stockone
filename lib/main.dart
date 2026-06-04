@@ -4249,304 +4249,260 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
   }
 
   void _showValidadesDialog(String produto) {
-    double totalAtual = double.tryParse(controllers[produto]!.text) ?? 0;
-    List<Lote> lotes = lotesPorProduto[produto] ?? [];
-    double consumoDiario = consumoDiarioPorProduto[produto] ?? 0;
+  double totalAtual = double.tryParse(controllers[produto]!.text) ?? 0;
+  List<Lote> lotes = lotesPorProduto[produto] ?? [];
+  double consumoDiario = consumoDiarioPorProduto[produto] ?? 0;
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            double somaAtual =
-                lotes.fold(0, (sum, lote) => sum + lote.quantidade);
-            double diferenca = totalAtual - somaAtual;
+  showDialog(
+    context: context,
+    builder: (context) {
+      return StatefulBuilder(
+        builder: (context, setDialogState) {
+          double somaAtual = lotes.fold(0, (sum, lote) => sum + lote.quantidade);
+          double diferenca = totalAtual - somaAtual;
 
-            return AlertDialog(
-              title: Text(
-                'Validades - $produto',
-                style: TextStyle(fontSize: 18),
-              ),
-              content: Container(
-                width: double.maxFinite,
-                height: 520,
-                child: Column(
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            'Total: ${_formatNumber(totalAtual)} pacotes',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                          Text(
-                            'Equivalente: ${_calcularConversao(produto)}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                          if (consumoDiario > 0)
-                            Text(
-                              'Consumo diário: ${_formatNumber(consumoDiario)} pacotes/dia',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.blueGrey[600],
-                              ),
-                            ),
-                          if (diferenca.abs() > 0.01)
-                            Padding(
-                              padding: EdgeInsets.only(top: 6),
-                              child: Text(
-                                diferenca > 0
-                                    ? '⚠️ Faltam ${_formatNumber(diferenca)} pacotes'
-                                    : '⚠️ Excedente de ${_formatNumber(diferenca.abs())} pacotes',
-                                style: TextStyle(
-                                  color: Colors.orange,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
+          return AlertDialog(
+            title: Text(
+              'Validades - $produto',
+              style: TextStyle(fontSize: 18),
+            ),
+            content: Container(
+              width: double.maxFinite,
+              height: 520,
+              child: Column(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    SizedBox(height: 12),
-                    Expanded(
-                      child: lotes.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.inventory,
-                                    size: 48,
-                                    color: Colors.grey[400],
-                                  ),
-                                  SizedBox(height: 12),
-                                  Text(
-                                    'Nenhum lote cadastrado',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                  SizedBox(height: 6),
-                                  Text(
-                                    'Toque no card para adicionar',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.grey[500],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : ListView.builder(
-                              itemCount: lotes.length,
-                              itemBuilder: (ctx, index) {
-                                final lote = lotes[index];
-                                bool isVencido =
-                                    lote.validade.isBefore(DateTime.now());
-
-                                bool dentroDoGiro = true;
-                                String infoGiro = '';
-
-                                if (consumoDiario > 0 && !isVencido) {
-                                  double saldoAteLote = 0;
-                                  for (int i = 0; i <= index; i++) {
-                                    saldoAteLote += lotes[i].quantidade;
-                                  }
-                                  int diasDeEstoque =
-                                      (saldoAteLote / consumoDiario).ceil();
-                                  int diasAteVencer = lote.validade
-                                      .difference(DateTime.now())
-                                      .inDays;
-
-                                  dentroDoGiro = diasAteVencer >= diasDeEstoque;
-                                  if (!dentroDoGiro) {
-                                    infoGiro =
-                                        '⚠️ Vence em $diasAteVencer dias, mas tem $diasDeEstoque dias de estoque';
-                                  } else {
-                                    infoGiro =
-                                        '✅ Dentro do giro - $diasDeEstoque dias de estoque';
-                                  }
-                                } else if (isVencido) {
-                                  infoGiro = '❌ LOTE VENCIDO!';
-                                }
-
-                                return Card(
-                                  margin: EdgeInsets.only(bottom: 6),
-                                  color: dentroDoGiro && !isVencido
-                                      ? Colors.green[50]
-                                      : (isVencido
-                                          ? Colors.red[50]
-                                          : Colors.orange[50]),
-                                  child: InkWell(
-                                    onTap: () => _editarLote(
-                                        produto, lotes, index, setDialogState),
-                                    child: Padding(
-                                      padding: EdgeInsets.all(10),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                      '${_formatNumber(lote.quantidade)} pacotes',
-                                                      style: TextStyle(
-                                                        fontSize: 14,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                      ),
-                                                    ),
-                                                    SizedBox(height: 3),
-                                                    Text(
-                                                      'Validade: ${DateFormat('dd/MM/yyyy').format(lote.validade)}',
-                                                      style: TextStyle(
-                                                        fontSize: 12,
-                                                        color: isVencido
-                                                            ? Colors.red[700]
-                                                            : Colors.grey[700],
-                                                      ),
-                                                    ),
-                                                    if (infoGiro.isNotEmpty)
-                                                      Padding(
-                                                        padding:
-                                                            EdgeInsets.only(
-                                                                top: 3),
-                                                        child: Text(
-                                                          infoGiro,
-                                                          style: TextStyle(
-                                                            fontSize: 10,
-                                                            color: dentroDoGiro &&
-                                                                    !isVencido
-                                                                ? Colors
-                                                                    .green[700]
-                                                                : Colors.orange[
-                                                                    700],
-                                                            fontWeight:
-                                                                FontWeight.w500,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                  ],
-                                                ),
-                                              ),
-                                              Icon(
-                                                dentroDoGiro && !isVencido
-                                                    ? Icons.check_circle
-                                                    : Icons.warning_amber,
-                                                color:
-                                                    dentroDoGiro && !isVencido
-                                                        ? Colors.green
-                                                        : Colors.orange,
-                                                size: 24,
-                                              ),
-                                            ],
-                                          ),
-                                          SizedBox(height: 8),
-                                          Divider(),
-                                          SizedBox(height: 6),
-                                          Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.end,
-                                            children: [
-                                              TextButton.icon(
-                                                onPressed: () {
-                                                  setDialogState(() {
-                                                    lotes.removeAt(index);
-                                                  });
-                                                  _saveData(produto);
-                                                  setState(() {});
-                                                },
-                                                icon: Icon(
-                                                  Icons.delete,
-                                                  color: Colors.red,
-                                                  size: 16,
-                                                ),
-                                                label: Text(
-                                                  'Remover',
-                                                  style: TextStyle(
-                                                    color: Colors.red,
-                                                    fontSize: 12,
-                                                  ),
-                                                ),
-                                                style: TextButton.styleFrom(
-                                                  padding: EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 4,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                    ),
-                    SizedBox(height: 0),
-                    Padding(
-                      padding: EdgeInsets.only(top: 0),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () =>
-                              _adicionarLote(produto, lotes, setDialogState),
-                          icon: Icon(Icons.add, size: 18),
-                          label: Text(
-                            'Adicionar Lote',
-                            style: TextStyle(fontSize: 13),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.purple,
-                            foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(vertical: 8),
-                            minimumSize: Size(double.infinity, 32),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Total: ${_formatNumber(totalAtual)} pacotes',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
                           ),
                         ),
-                      ),
+                        Text(
+                          'Equivalente: ${_calcularConversao(produto)}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        if (consumoDiario > 0)
+                          Text(
+                            'Consumo diário: ${_formatNumber(consumoDiario)} pacotes/dia',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.blueGrey[600],
+                            ),
+                          ),
+                        if (diferenca.abs() > 0.01)
+                          Padding(
+                            padding: EdgeInsets.only(top: 6),
+                            child: Text(
+                              diferenca > 0
+                                  ? '⚠️ Faltam ${_formatNumber(diferenca)} pacotes'
+                                  : '⚠️ Excedente de ${_formatNumber(diferenca.abs())} pacotes',
+                              style: TextStyle(
+                                color: Colors.orange,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                  ],
+                  ),
+                  SizedBox(height: 12),
+                  Expanded(
+                    child: lotes.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.inventory,
+                                  size: 48,
+                                  color: Colors.grey[400],
+                                ),
+                                SizedBox(height: 12),
+                                Text(
+                                  'Nenhum lote cadastrado',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                SizedBox(height: 6),
+                                Text(
+                                  'Toque no card para adicionar',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey[500],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: lotes.length,
+                            itemBuilder: (ctx, index) {
+                              final lote = lotes[index];
+                              bool isVencido = lote.validade.isBefore(DateTime.now());
+
+                              bool dentroDoGiro = true;
+                              String infoGiro = '';
+
+                              if (consumoDiario > 0 && !isVencido) {
+                                double saldoAteLote = 0;
+                                for (int i = 0; i <= index; i++) {
+                                  saldoAteLote += lotes[i].quantidade;
+                                }
+                                int diasDeEstoque = (saldoAteLote / consumoDiario).ceil();
+                                int diasAteVencer = lote.validade.difference(DateTime.now()).inDays;
+
+                                dentroDoGiro = diasAteVencer >= diasDeEstoque;
+                                if (!dentroDoGiro) {
+                                  infoGiro = '⚠️ Vence em $diasAteVencer dias, mas tem $diasDeEstoque dias de estoque';
+                                } else {
+                                  infoGiro = '✅ Dentro do giro - $diasDeEstoque dias de estoque';
+                                }
+                              } else if (isVencido) {
+                                infoGiro = '❌ LOTE VENCIDO!';
+                              }
+
+                              return Card(
+                                margin: EdgeInsets.only(bottom: 6),
+                                color: dentroDoGiro && !isVencido
+                                    ? Colors.green[50]
+                                    : (isVencido ? Colors.red[50] : Colors.orange[50]),
+                                child: InkWell(
+                                  onTap: () => _editarLote(produto, lotes, index, setDialogState),
+                                  child: Padding(
+                                    padding: EdgeInsets.all(10),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    '${_formatNumber(lote.quantidade)} pacotes',
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                  SizedBox(height: 3),
+                                                  Text(
+                                                    'Validade: ${DateFormat('dd/MM/yyyy').format(lote.validade)}',
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: isVencido ? Colors.red[700] : Colors.grey[700],
+                                                    ),
+                                                  ),
+                                                  if (infoGiro.isNotEmpty)
+                                                    Padding(
+                                                      padding: EdgeInsets.only(top: 3),
+                                                      child: Text(
+                                                        infoGiro,
+                                                        style: TextStyle(
+                                                          fontSize: 10,
+                                                          color: dentroDoGiro && !isVencido
+                                                              ? Colors.green[700]
+                                                              : Colors.orange[700],
+                                                          fontWeight: FontWeight.w500,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                            ),
+                                            Icon(
+                                              dentroDoGiro && !isVencido
+                                                  ? Icons.check_circle
+                                                  : Icons.warning_amber,
+                                              color: dentroDoGiro && !isVencido
+                                                  ? Colors.green
+                                                  : Colors.orange,
+                                              size: 24,
+                                            ),
+                                          ],
+                                        ),
+                                        SizedBox(height: 8),
+                                        Divider(),
+                                        SizedBox(height: 6),
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.end,
+                                          children: [
+                                            TextButton.icon(
+                                              onPressed: () {
+                                                setDialogState(() {
+                                                  lotes.removeAt(index);
+                                                });
+                                                _saveData(produto);
+                                                setState(() {});
+                                              },
+                                              icon: Icon(Icons.delete, color: Colors.red, size: 16),
+                                              label: Text(
+                                                'Remover',
+                                                style: TextStyle(color: Colors.red, fontSize: 12),
+                                              ),
+                                              style: TextButton.styleFrom(
+                                                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              ElevatedButton.icon(
+                onPressed: () => _adicionarLote(produto, lotes, setDialogState),
+                icon: Icon(Icons.add, size: 18),
+                label: Text(
+                  'Adicionar Lote',
+                  style: TextStyle(fontSize: 13),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purple,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  minimumSize: Size(120, 32),
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    _saveData(produto);
-                    setState(() {});
-                    Navigator.pop(context);
-                  },
-                  child: Text(
-                    'Fechar',
-                    style: TextStyle(fontSize: 13),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
+              TextButton(
+                onPressed: () {
+                  _saveData(produto);
+                  setState(() {});
+                  Navigator.pop(context);
+                },
+                child: Text('Fechar', style: TextStyle(fontSize: 13)),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
 
   void _editarLote(
       String produto, List<Lote> lotes, int index, StateSetter setDialogState) {
