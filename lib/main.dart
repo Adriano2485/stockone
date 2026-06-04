@@ -2,15 +2,15 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:convert';
+import 'dart:html' as html;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
 import 'package:flutter_localizations/flutter_localizations.dart';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:csv/csv.dart';
 import 'package:dio/dio.dart';
@@ -175,7 +175,8 @@ class RedeScreen extends StatefulWidget {
 class _RedeScreenState extends State<RedeScreen> {
   bool _checking = false;
 
-  // ===== NOVO: Função para abrir vídeo =====
+  Timer? _pressTimer;
+
   void _mostrarAjuda() async {
     final resposta = await showDialog<bool>(
       context: context,
@@ -206,44 +207,24 @@ class _RedeScreenState extends State<RedeScreen> {
       }
     }
   }
-  // =========================================
 
   Future<void> _onCardTap(String rede, Widget destino) async {
     if (_checking) return;
     setState(() => _checking = true);
+
     try {
-      print("DEBUG: clique em '$rede' recebido");
-
-      try {
-        final apps = Firebase.apps;
-        print("DEBUG: Firebase.apps.length = ${apps.length}");
-        if (apps.isEmpty) {
-          _showError("Firebase não inicializado. Verifique main.dart.");
-          return;
-        }
-      } catch (e) {
-        _showError("Firebase inacessível: $e");
-        return;
-      }
-
       final doc =
           await FirebaseFirestore.instance.collection('redes').doc(rede).get();
 
       if (!doc.exists) {
-        _showError("Rede '$rede' não encontrada no Firestore.");
+        _showError("Rede '$rede' não encontrada.");
         return;
       }
 
       final senhaFirebase = doc.data()?['senha'];
-      if (senhaFirebase == null) {
-        _showError("Campo 'senha' ausente em '$rede'.");
-        return;
-      }
 
       final prefs = await SharedPreferences.getInstance();
-      final chave = "senha_$rede";
-      final senhaLocal = prefs.getString(chave);
-      print("DEBUG: senhaLocal='$senhaLocal' | senhaFirebase='$senhaFirebase'");
+      final senhaLocal = prefs.getString("senha_$rede");
 
       if (senhaLocal == senhaFirebase) {
         if (!mounted) return;
@@ -252,16 +233,14 @@ class _RedeScreenState extends State<RedeScreen> {
       }
 
       final aceita = await _mostrarDialogSenha(rede, senhaFirebase);
+
       if (aceita == true) {
-        await prefs.setString(chave, senhaFirebase);
+        await prefs.setString("senha_$rede", senhaFirebase);
         if (!mounted) return;
         Navigator.push(context, MaterialPageRoute(builder: (_) => destino));
-      } else {
-        print("DEBUG: usuário cancelou ou falhou na senha para '$rede'");
       }
-    } catch (e, st) {
-      print("DEBUG: erro inesperado em _onCardTap -> $e\n$st");
-      _showError("Erro inesperado: ${e.toString()}");
+    } catch (e) {
+      _showError("Erro: $e");
     } finally {
       if (mounted) setState(() => _checking = false);
     }
@@ -276,18 +255,13 @@ class _RedeScreenState extends State<RedeScreen> {
       builder: (ctx) {
         return AlertDialog(
           title: Text("Senha $rede"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: controller,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: "Digite a senha",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
+          content: TextField(
+            controller: controller,
+            obscureText: true,
+            decoration: const InputDecoration(
+              labelText: "Digite a senha",
+              border: OutlineInputBorder(),
+            ),
           ),
           actions: [
             TextButton(
@@ -297,6 +271,7 @@ class _RedeScreenState extends State<RedeScreen> {
             ElevatedButton(
               onPressed: () {
                 final digitada = controller.text.trim();
+
                 if (digitada == senhaCorreta) {
                   Navigator.pop(ctx, true);
                 } else {
@@ -316,12 +291,10 @@ class _RedeScreenState extends State<RedeScreen> {
     );
   }
 
-  void _showError(String mensagem) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(mensagem), backgroundColor: Colors.red),
-      );
-    }
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: Colors.red),
+    );
   }
 
   Widget _card(String imgPath, String rede, Widget destino) {
@@ -329,6 +302,24 @@ class _RedeScreenState extends State<RedeScreen> {
       color: Colors.transparent,
       child: InkWell(
         onTap: () => _onCardTap(rede, destino),
+        onLongPress: () {
+          if (rede == "bahamas") {
+            _pressTimer = Timer(const Duration(seconds: 5), () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const HoleriteScreen(),
+                ),
+              );
+            });
+          }
+        },
+        onTapUp: (_) {
+          _pressTimer?.cancel();
+        },
+        onTapCancel: () {
+          _pressTimer?.cancel();
+        },
         borderRadius: BorderRadius.circular(16),
         child: Ink(
           height: double.infinity,
@@ -340,6 +331,12 @@ class _RedeScreenState extends State<RedeScreen> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _pressTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -357,10 +354,12 @@ class _RedeScreenState extends State<RedeScreen> {
             const SizedBox(width: 12),
           ],
         ),
-
-        // ======== ÍCONE DE AJUDA AQUI ========
-
-        // =====================================
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            onPressed: _mostrarAjuda,
+          )
+        ],
       ),
       body: Stack(
         children: [
@@ -370,8 +369,8 @@ class _RedeScreenState extends State<RedeScreen> {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Color(0xff4dcd7e), // Verde bandeira
-                  Color(0xff094e0b), // Verde mais claro
+                  Color(0xff4dcd7e),
+                  Color(0xff094e0b),
                 ],
               ),
             ),
@@ -1998,7 +1997,8 @@ class _SecondScreenState extends State<SecondScreen> {
                         );
                       }),
                       _padariaCard(
-                          Icons.gps_fixed, "Meta", Colors.teal.shade300, () {
+                          Icons.track_changes, "Meta", Colors.teal.shade300,
+                          () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -2064,6 +2064,40 @@ class _SecondScreenState extends State<SecondScreen> {
       ),
     );
   }
+}
+
+Widget _padariaCard(
+    IconData icon, String label, Color color, VoidCallback onPressed) {
+  return Material(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(16),
+    elevation: 4,
+    child: InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(16),
+      splashColor: color.withOpacity(0.3),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 36, color: color),
+            const SizedBox(height: 12),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'Roboto',
+                color: Color(0xFF5D4037),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class ThirdScreen extends StatefulWidget {
@@ -3471,8 +3505,26 @@ class StockAdjustmentScreen extends StatefulWidget {
   State<StockAdjustmentScreen> createState() => _StockAdjustmentScreenState();
 }
 
+class Lote {
+  final double quantidade;
+  final DateTime validade;
+
+  Lote({required this.quantidade, required this.validade});
+
+  Map<String, dynamic> toMap() => {
+        'quantidade': quantidade,
+        'validade': validade.toIso8601String(),
+      };
+
+  factory Lote.fromMap(Map<String, dynamic> map) => Lote(
+        quantidade: map['quantidade'].toDouble(),
+        validade: DateTime.parse(map['validade']),
+      );
+}
+
 class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
   final Map<String, TextEditingController> controllers = {};
+  final Map<String, List<Lote>> lotesPorProduto = {};
   String storeName = '';
   String userName = '';
   DateTime selectedDate = DateTime.now();
@@ -3514,6 +3566,7 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
   void initState() {
     super.initState();
     _inicializarControllers();
+    _inicializarLotes();
     _loadData();
     _loadUserData();
     dateController.text = DateFormat('dd/MM/yy').format(selectedDate);
@@ -3523,6 +3576,12 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
   void _inicializarControllers() {
     for (var produto in [...produtosKg.keys, ...produtosUnidade.keys]) {
       controllers[produto] = TextEditingController();
+    }
+  }
+
+  void _inicializarLotes() {
+    for (var produto in [...produtosKg.keys, ...produtosUnidade.keys]) {
+      lotesPorProduto[produto] = [];
     }
   }
 
@@ -3563,6 +3622,19 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
             }
           }
         }
+
+        // Carregar validades para TODOS os produtos (kg e unidades)
+        final validadesData = data['validades'] ?? {};
+        for (var produto in controllers.keys) {
+          if (validadesData[produto] != null) {
+            lotesPorProduto[produto] = (validadesData[produto] as List)
+                .map((lote) => Lote.fromMap(lote))
+                .toList();
+          } else {
+            lotesPorProduto[produto] = [];
+          }
+        }
+
         setState(() {});
       }
     } catch (e) {
@@ -3579,8 +3651,16 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
         }
       }
 
+      final validadesMap = {};
+      for (var entry in lotesPorProduto.entries) {
+        if (entry.value.isNotEmpty) {
+          validadesMap[entry.key] = entry.value.map((l) => l.toMap()).toList();
+        }
+      }
+
       await _firestore.collection('stores').doc(widget.storeName).set({
         'acerto': acertoData,
+        'validades': validadesMap,
         'lastUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (e) {
@@ -3626,26 +3706,43 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                double atual = double.tryParse(controllers[produto]!.text) ?? 0;
                 double adicionar = double.tryParse(addController.text) ?? 0;
 
-                double novoValor;
-
                 if (isKg) {
+                  // Produto em KG: trabalhar em KG diretamente
+                  double atualPacotes =
+                      double.tryParse(controllers[produto]!.text) ?? 0;
                   double peso = produtosKg[produto] ?? 3.3;
-                  double pacoteAdicional = adicionar / peso;
-                  novoValor = atual + pacoteAdicional;
-                } else {
-                  int unidPorPacote = produtosUnidade[produto] ?? 10;
-                  double pacoteAdicional = adicionar / unidPorPacote;
-                  novoValor = atual + pacoteAdicional;
-                }
 
-                setState(() {
-                  controllers[produto]!.text = (novoValor % 1 == 0)
-                      ? novoValor.toInt().toString()
-                      : novoValor.toStringAsFixed(1);
-                });
+                  // Converter atual de PACOTES para KG
+                  double atualKg = atualPacotes * peso;
+                  // Somar os kg adicionados
+                  double novoKg = atualKg + adicionar;
+                  // Converter de volta para PACOTES
+                  double novoValorPacotes = novoKg / peso;
+
+                  setState(() {
+                    controllers[produto]!.text =
+                        _formatNumber(novoValorPacotes);
+                  });
+                } else {
+                  // Produto em UNIDADES: trabalhar em UNIDADES diretamente
+                  double atualPacotes =
+                      double.tryParse(controllers[produto]!.text) ?? 0;
+                  int unidPorPacote = produtosUnidade[produto] ?? 10;
+
+                  // Converter atual de PACOTES para UNIDADES
+                  double atualUnidades = atualPacotes * unidPorPacote;
+                  // Somar as unidades adicionadas
+                  double novaUnidades = atualUnidades + adicionar;
+                  // Converter de volta para PACOTES
+                  double novoValorPacotes = novaUnidades / unidPorPacote;
+
+                  setState(() {
+                    controllers[produto]!.text =
+                        _formatNumber(novoValorPacotes);
+                  });
+                }
 
                 _saveData(produto);
                 Navigator.pop(context);
@@ -3667,65 +3764,192 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
     double quantidade = double.tryParse(controllers[produto]!.text) ?? 0;
 
     if (produtosUnidade.containsKey(produto)) {
+      // Para unidades: calcular exato
       double unidades = quantidade * produtosUnidade[produto]!;
-      return unidades % 1 == 0
-          ? "${unidades.toInt()} unid"
-          : "${unidades.toStringAsFixed(1)} unid";
+      // Arredondar para mostrar apenas uma casa decimal
+      double diff = (unidades - unidades.round()).abs();
+      if (diff < 0.01) {
+        return "${unidades.round()} unid";
+      }
+      return "${unidades.toStringAsFixed(1)} unid";
     } else {
+      // Para KG: calcular exato
       double multiplicador = produtosKg[produto] ?? 3.3;
       double resultado = quantidade * multiplicador;
-      return resultado % 1 == 0
-          ? "${resultado.toInt()} kg"
-          : "${resultado.toStringAsFixed(1)} kg";
+      double diff = (resultado - resultado.roundToDouble()).abs();
+      if (diff < 0.01) {
+        return "${resultado.roundToDouble().toInt()} kg";
+      } else {
+        return "${resultado.toStringAsFixed(1)} kg";
+      }
     }
   }
 
   Future<void> _sharePdf() async {
-    final pdf = pw.Document();
+  final pdf = pw.Document();
 
-    pdf.addPage(
-      pw.MultiPage(
-        build: (context) => [
+  pdf.addPage(
+    pw.MultiPage(
+      build: (context) {
+        // Lista para armazenar todas as linhas da tabela principal
+        List<List<String>> tabelaPrincipal = [];
+        
+        // Para cada produto, adiciona linha principal
+        for (var entry in controllers.entries) {
+          final produto = entry.key;
+          final pacotes = entry.value.text.isEmpty ? '0' : entry.value.text;
+          final convertido = _calcularConversao(produto);
+          tabelaPrincipal.add([produto, pacotes, convertido]);
+        }
+        
+        return [
           pw.Header(level: 0, child: pw.Text('Acerto Estoque')),
-          pw.Paragraph(text: "${widget.storeName}"),
+          pw.Paragraph(text: widget.storeName),
           pw.Paragraph(text: 'Responsável: $userName'),
           pw.Paragraph(
               text: 'Data: ${DateFormat('dd/MM/yyyy').format(selectedDate)}'),
           pw.SizedBox(height: 20),
+          
+          // Tabela principal
           pw.Table.fromTextArray(
             headers: ['Produto', 'Pacotes', 'Valor Kg/Unid'],
-            data: controllers.entries.map((entry) {
-              final produto = entry.key;
-              final pacotes = entry.value.text.isEmpty ? '0' : entry.value.text;
-              final convertido = _calcularConversao(produto);
-              return [produto, pacotes, convertido];
-            }).toList(),
+            data: tabelaPrincipal,
+            cellAlignment: pw.Alignment.centerLeft,
           ),
-        ],
-      ),
-    );
+          
+          pw.SizedBox(height: 30),
+          
+          // Seção de Validades
+          pw.Header(level: 1, child: pw.Text('Controle de Validades')),
+          pw.SizedBox(height: 10),
+          
+          // Para cada produto que tem lotes, criar uma subseção
+          for (var entry in lotesPorProduto.entries)
+            if (entry.value.isNotEmpty) ...[
+              pw.Header(level: 2, child: pw.Text(entry.key)),
+              pw.SizedBox(height: 5),
+              pw.Table.fromTextArray(
+                headers: ['Quantidade (pacotes)', 'Data de Validade', 'Status'],
+                data: entry.value.map((lote) {
+                  bool isVencido = lote.validade.isBefore(DateTime.now());
+                  String status = isVencido ? 'VENCIDO' : 'Válido';
+                  return [
+                    _formatNumber(lote.quantidade),
+                    DateFormat('dd/MM/yyyy').format(lote.validade),
+                    status,
+                  ];
+                }).toList(),
+                cellAlignment: pw.Alignment.centerLeft,
+              ),
+              // Calcular e mostrar total do produto
+              pw.Padding(
+                padding: pw.EdgeInsets.only(top: 5),
+                child: pw.Text(
+                  'Total: ${_formatNumber(entry.value.fold(0, (sum, lote) => sum + lote.quantidade))} pacotes',
+                  style: pw.TextStyle(
+                    fontStyle: pw.FontStyle.italic,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 15),
+            ],
+          
+          // Se não houver nenhum lote cadastrado
+          if (lotesPorProduto.values.every((lotes) => lotes.isEmpty))
+            pw.Paragraph(
+              text: 'Nenhum lote com validade cadastrado.',
+              style: pw.TextStyle(fontStyle: pw.FontStyle.italic),
+            ),
+          
+          pw.SizedBox(height: 20),
+          
+          // Rodapé com data de geração
+          pw.Paragraph(
+            text: 'Documento gerado em ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}',
+            style: pw.TextStyle(fontSize: 8, fontStyle: pw.FontStyle.italic),
+          ),
+        ];
+      },
+    ),
+  );
 
-    try {
+  // Mostrar loading
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return const Center(child: CircularProgressIndicator());
+    },
+  );
+
+  try {
+    final bytes = await pdf.save();
+
+    // Verifica se é Web
+    if (kIsWeb) {
+      // WEB: Faz download
+      final base64 = base64Encode(bytes);
+      final anchor = html.AnchorElement(
+          href:
+              'data:application/octet-stream;charset=utf-16le;base64,$base64')
+        ..setAttribute('download',
+            'acerto_estoque_${widget.storeName}_${DateFormat('ddMMyyyy').format(selectedDate)}.pdf')
+        ..click();
+
+      if (context.mounted) Navigator.of(context).pop();
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('PDF baixado com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } else {
+      // MOBILE: Compartilha
       final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/acerto_estoque.pdf');
-      await file.writeAsBytes(await pdf.save());
+      final file = File(
+          '${dir.path}/acerto_estoque_${widget.storeName}_${DateFormat('ddMMyyyy').format(selectedDate)}.pdf');
+      await file.writeAsBytes(bytes);
 
-      await Share.shareXFiles([XFile(file.path)], text: 'Acerto Estoque PDF');
-    } catch (e) {
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text:
+            'Acerto Estoque - ${widget.storeName} - ${DateFormat('dd/MM/yyyy').format(selectedDate)}',
+      );
+
+      if (context.mounted) Navigator.of(context).pop();
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('PDF gerado e compartilhado com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    }
+  } catch (e) {
+    if (context.mounted) Navigator.of(context).pop();
+    if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao gerar ou compartilhar PDF: $e')),
+        SnackBar(
+          content: Text('Erro ao gerar PDF: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
+}
 
   void _incrementValue(String produto) {
     double atual = double.tryParse(controllers[produto]!.text) ?? 0;
     double novoValor = atual + 1;
 
     setState(() {
-      controllers[produto]!.text = (novoValor % 1 == 0)
-          ? novoValor.toInt().toString()
-          : novoValor.toStringAsFixed(1);
+      controllers[produto]!.text = _formatNumber(novoValor);
     });
     _saveData(produto);
   }
@@ -3735,9 +3959,7 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
     if (atual > 0) {
       double novoValor = atual - 1;
       setState(() {
-        controllers[produto]!.text = (novoValor % 1 == 0)
-            ? novoValor.toInt().toString()
-            : novoValor.toStringAsFixed(1);
+        controllers[produto]!.text = _formatNumber(novoValor);
       });
       _saveData(produto);
     }
@@ -3766,28 +3988,45 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                double atual = double.tryParse(controllers[produto]!.text) ?? 0;
                 double remover = double.tryParse(removeController.text) ?? 0;
 
-                double novoValor;
-
                 if (isKg) {
+                  // Produto em KG: trabalhar em KG diretamente
+                  double atualPacotes =
+                      double.tryParse(controllers[produto]!.text) ?? 0;
                   double peso = produtosKg[produto] ?? 3.3;
-                  double pacoteRemovido = remover / peso;
-                  novoValor = atual - pacoteRemovido;
+
+                  // Converter atual de PACOTES para KG
+                  double atualKg = atualPacotes * peso;
+                  // Remover os kg
+                  double novoKg = atualKg - remover;
+                  novoKg = novoKg < 0 ? 0 : novoKg;
+                  // Converter de volta para PACOTES
+                  double novoValorPacotes = novoKg / peso;
+
+                  setState(() {
+                    controllers[produto]!.text =
+                        _formatNumber(novoValorPacotes);
+                  });
                 } else {
+                  // Produto em UNIDADES: trabalhar em UNIDADES diretamente
+                  double atualPacotes =
+                      double.tryParse(controllers[produto]!.text) ?? 0;
                   int unidPorPacote = produtosUnidade[produto] ?? 10;
-                  double pacoteRemovido = remover / unidPorPacote;
-                  novoValor = atual - pacoteRemovido;
+
+                  // Converter atual de PACOTES para UNIDADES
+                  double atualUnidades = atualPacotes * unidPorPacote;
+                  // Remover as unidades
+                  double novaUnidades = atualUnidades - remover;
+                  novaUnidades = novaUnidades < 0 ? 0 : novaUnidades;
+                  // Converter de volta para PACOTES
+                  double novoValorPacotes = novaUnidades / unidPorPacote;
+
+                  setState(() {
+                    controllers[produto]!.text =
+                        _formatNumber(novoValorPacotes);
+                  });
                 }
-
-                novoValor = novoValor < 0 ? 0 : novoValor;
-
-                setState(() {
-                  controllers[produto]!.text = (novoValor % 1 == 0)
-                      ? novoValor.toInt().toString()
-                      : novoValor.toStringAsFixed(1);
-                });
 
                 _saveData(produto);
                 Navigator.pop(context);
@@ -3803,15 +4042,206 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
     );
   }
 
+  void _showValidadesDialog(String produto) {
+    double totalAtual = double.tryParse(controllers[produto]!.text) ?? 0;
+    List<Lote> lotes = lotesPorProduto[produto] ?? [];
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            double somaAtual =
+                lotes.fold(0, (sum, lote) => sum + lote.quantidade);
+            double diferenca = totalAtual - somaAtual;
+
+            return AlertDialog(
+              title: Text('Validades - $produto'),
+              content: Container(
+                width: double.maxFinite,
+                height: 400,
+                child: Column(
+                  children: [
+                    Text(
+                      'Total: ${_formatNumber(totalAtual)} pacotes',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    Text(
+                      'Equivalente: ${_calcularConversao(produto)}',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    ),
+                    if (diferenca.abs() > 0.01)
+                      Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Text(
+                          diferenca > 0
+                              ? '⚠️ Faltam ${_formatNumber(diferenca)} pacotes'
+                              : '⚠️ Excedente de ${_formatNumber(diferenca.abs())} pacotes',
+                          style: TextStyle(
+                              color: Colors.orange,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    SizedBox(height: 10),
+                    Expanded(
+                      child: lotes.isEmpty
+                          ? Center(child: Text('Nenhum lote cadastrado'))
+                          : ListView.builder(
+                              itemCount: lotes.length,
+                              itemBuilder: (ctx, index) {
+                                final lote = lotes[index];
+                                bool isVencido =
+                                    lote.validade.isBefore(DateTime.now());
+                                return Card(
+                                  child: ListTile(
+                                    leading: Icon(
+                                      isVencido
+                                          ? Icons.warning
+                                          : Icons.check_circle,
+                                      color:
+                                          isVencido ? Colors.red : Colors.green,
+                                    ),
+                                    title: Text(
+                                        '${_formatNumber(lote.quantidade)} pacotes'),
+                                    subtitle: Text(
+                                        'Validade: ${DateFormat('dd/MM/yyyy').format(lote.validade)}'),
+                                    trailing: IconButton(
+                                      icon:
+                                          Icon(Icons.delete, color: Colors.red),
+                                      onPressed: () {
+                                        setDialogState(() {
+                                          lotes.removeAt(index);
+                                        });
+                                        _saveData(produto);
+                                        setState(() {});
+                                      },
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                    SizedBox(height: 10),
+                    ElevatedButton.icon(
+                      onPressed: () =>
+                          _adicionarLote(produto, lotes, setDialogState),
+                      icon: Icon(Icons.add),
+                      label: Text('Adicionar Lote'),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    _saveData(produto);
+                    setState(() {});
+                    Navigator.pop(context);
+                  },
+                  child: Text('Fechar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _adicionarLote(
+      String produto, List<Lote> lotes, StateSetter setDialogState) {
+    TextEditingController qtdController = TextEditingController();
+    DateTime selectedValidade = DateTime.now();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Adicionar Lote'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: qtdController,
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: 'Quantidade de pacotes',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              SizedBox(height: 16),
+              ListTile(
+                title: Text('Data de Validade'),
+                subtitle:
+                    Text(DateFormat('dd/MM/yyyy').format(selectedValidade)),
+                trailing: Icon(Icons.calendar_today),
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: selectedValidade,
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime(2100),
+                  );
+                  if (picked != null) {
+                    selectedValidade = picked;
+                    setDialogState(() {});
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                double qtd = double.tryParse(qtdController.text) ?? 0;
+                if (qtd > 0) {
+                  setDialogState(() {
+                    lotes
+                        .add(Lote(quantidade: qtd, validade: selectedValidade));
+                  });
+                  _saveData(produto);
+                  setState(() {});
+                  Navigator.pop(context);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Quantidade inválida')),
+                  );
+                }
+              },
+              child: Text('Adicionar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _formatNumber(double value) {
+    if (value % 1 == 0) {
+      return value.toInt().toString();
+    } else {
+      return value.toStringAsFixed(1);
+    }
+  }
+
   Future<void> _resetAllData() async {
     try {
       await _firestore.collection('stores').doc(widget.storeName).set({
         'acerto': {},
+        'validades': {},
         'lastUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
       for (var controller in controllers.values) {
         controller.clear();
+      }
+      for (var produto in lotesPorProduto.keys) {
+        lotesPorProduto[produto] = [];
       }
       setState(() {});
 
@@ -3938,6 +4368,12 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
                   String produto = entry.key;
                   TextEditingController controller = entry.value;
                   bool isKg = produtosKg.containsKey(produto);
+                  List<Lote> lotes = lotesPorProduto[produto] ?? [];
+                  double totalAtual = double.tryParse(controller.text) ?? 0;
+                  double somaLotes =
+                      lotes.fold(0, (sum, lote) => sum + lote.quantidade);
+                  bool validadesOk =
+                      totalAtual > 0 ? (somaLotes == totalAtual) : true;
 
                   return Card(
                     elevation: 2,
@@ -3947,13 +4383,21 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            produto,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.brown,
-                            ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                produto,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.brown,
+                                ),
+                              ),
+                              if (totalAtual > 0 && !validadesOk)
+                                Icon(Icons.warning,
+                                    color: Colors.orange, size: 18),
+                            ],
                           ),
                           const SizedBox(height: 8),
                           Row(
@@ -4077,6 +4521,72 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
                               ),
                             ],
                           ),
+                          const SizedBox(height: 8),
+                          // Botão de validades abaixo
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: totalAtual > 0
+                                  ? () => _showValidadesDialog(produto)
+                                  : null,
+                              icon: Icon(Icons.date_range, size: 18),
+                              label: Text('Gerenciar Validades'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.purple,
+                                foregroundColor: Colors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                              ),
+                            ),
+                          ),
+                          // Resumo dos lotes
+                          if (totalAtual > 0 && lotes.isNotEmpty)
+                            Padding(
+                              padding: EdgeInsets.only(top: 8),
+                              child: Container(
+                                padding: EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[100],
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Wrap(
+                                  spacing: 4,
+                                  runSpacing: 2,
+                                  children: lotes.map((lote) {
+                                    bool isVencido =
+                                        lote.validade.isBefore(DateTime.now());
+                                    return Container(
+                                      padding: EdgeInsets.symmetric(
+                                          horizontal: 4, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: isVencido
+                                            ? Colors.red[50]
+                                            : Colors.green[50],
+                                        borderRadius: BorderRadius.circular(3),
+                                        border: Border.all(
+                                          color: isVencido
+                                              ? Colors.red[200]!
+                                              : Colors.green[200]!,
+                                          width: 0.5,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        '${_formatNumber(lote.quantidade)}pct até ${DateFormat('dd/MM').format(lote.validade)}',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: isVencido
+                                              ? Colors.red[800]
+                                              : Colors.green[800],
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -5703,16 +6213,72 @@ class DetalhesPedidoScreen extends StatelessWidget {
       ),
     );
 
-    try {
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/pedido.pdf');
-      await file.writeAsBytes(await pdf.save());
+    // Mostrar loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
 
-      await Share.shareXFiles([XFile(file.path)], text: 'Pedido em PDF');
+    try {
+      final bytes = await pdf.save();
+
+      // Verifica se é Web
+      if (kIsWeb) {
+        // WEB: Faz download
+        final base64 = base64Encode(bytes);
+        final anchor = html.AnchorElement(
+            href:
+                'data:application/octet-stream;charset=utf-16le;base64,$base64')
+          ..setAttribute('download',
+              'pedido_${pedido['loja']}_${pedido['data']?.replaceAll('/', '') ?? DateTime.now().toString()}.pdf')
+          ..click();
+
+        if (context.mounted) Navigator.of(context).pop();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF baixado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        // MOBILE: Compartilha
+        final dir = await getTemporaryDirectory();
+        final file = File(
+            '${dir.path}/pedido_${pedido['loja']}_${DateTime.now().millisecondsSinceEpoch}.pdf');
+        await file.writeAsBytes(bytes);
+
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text: 'Pedido - ${pedido['loja']} - ${pedido['data']}',
+        );
+
+        if (context.mounted) Navigator.of(context).pop();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF gerado e compartilhado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao gerar ou compartilhar PDF: $e')),
-      );
+      if (context.mounted) Navigator.of(context).pop();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao gerar PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -6034,31 +6600,15 @@ class _ManutencaoEquipamentosScreenState
     }
   }
 
-  // ✅ COMPARTILHAR
   Future<void> _compartilharRelatorio() async {
-    String texto = _gerarTextoRelatorio();
-    await Share.share(texto);
-  }
-
-  // ✅ COPIAR (novo)
-  Future<void> _copiarRelatorio() async {
-    String texto = _gerarTextoRelatorio();
-
-    await Clipboard.setData(ClipboardData(text: texto));
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Texto copiado!')),
-    );
-  }
-
-  // ✅ FUNÇÃO CENTRAL (melhor prática)
-  String _gerarTextoRelatorio() {
     StringBuffer relatorio = StringBuffer();
 
-    relatorio.writeln("ORDEM DE SERVIÇO\n");
+    relatorio.writeln("ORDEM DE SERVIÇO");
+    relatorio.writeln("");
     relatorio.writeln("${widget.storeName}");
     relatorio.writeln("Data: $dataFormatada");
-    relatorio.writeln("Gerência: ${gerenteController.text}\n");
+    relatorio.writeln("Gerência: ${gerenteController.text}");
+    relatorio.writeln("");
     relatorio.writeln("Equipamentos:");
 
     equipamentosSelecionados.entries
@@ -6073,19 +6623,21 @@ class _ManutencaoEquipamentosScreenState
 
       relatorio.writeln("- ${_tituloEquipamento(tipo, index, equipamento)}");
 
+      // REMOVE photoUrl do PDF
       equipamento.forEach((campo, valor) {
         if (campo != 'photoUrl') {
           relatorio.writeln("   $campo: $valor");
         }
       });
 
-      relatorio.writeln("   Defeito(s): $defeito\n");
+      relatorio.writeln("   Defeito(s): $defeito");
+      relatorio.writeln("");
     });
 
     relatorio.writeln("Observações:");
     relatorio.writeln(observacoesController.text);
 
-    return relatorio.toString();
+    await Share.share(relatorio.toString());
   }
 
   String _tituloEquipamento(String tipo, int index, Map<String, dynamic> eq) {
@@ -6142,7 +6694,9 @@ class _ManutencaoEquipamentosScreenState
         ),
       ),
       body: dadosResumo.isEmpty
-          ? const Center(child: Text("Nenhum equipamento cadastrado."))
+          ? const Center(
+              child: Text("Nenhum equipamento cadastrado."),
+            )
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: DefaultTextStyle(
@@ -6156,7 +6710,6 @@ class _ManutencaoEquipamentosScreenState
                             fontSize: 19,
                             color: verdeEscuro)),
                     const SizedBox(height: 16),
-
                     TextField(
                       decoration: InputDecoration(
                         labelText: "Gerência:",
@@ -6165,15 +6718,12 @@ class _ManutencaoEquipamentosScreenState
                       controller: gerenteController,
                       onChanged: (_) => _salvarGerente(),
                     ),
-
                     const SizedBox(height: 24),
-
                     ...dadosResumo.keys.expand((tipo) {
                       var lista = dadosResumo[tipo];
                       return List.generate(lista.length, (index) {
                         String key = "$tipo-$index";
                         final equipamento = lista[index];
-
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -6218,9 +6768,7 @@ class _ManutencaoEquipamentosScreenState
                         );
                       });
                     }),
-
                     const SizedBox(height: 16),
-
                     TextField(
                       maxLines: null,
                       minLines: 3,
@@ -6230,37 +6778,19 @@ class _ManutencaoEquipamentosScreenState
                       ),
                       controller: observacoesController,
                     ),
-
                     const SizedBox(height: 32),
-
-                    // 🔥 BOTÕES
                     Center(
-                      child: Column(
-                        children: [
-                          ElevatedButton.icon(
-                            icon: const Icon(Icons.share),
-                            label: const Text('Compartilhar'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.grey,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 14),
-                              textStyle: const TextStyle(fontSize: 20),
-                            ),
-                            onPressed: _compartilharRelatorio,
-                          ),
-                          const SizedBox(height: 12),
-                          ElevatedButton.icon(
-                            icon: const Icon(Icons.copy),
-                            label: const Text('Copiar texto'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.black,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 14),
-                              textStyle: const TextStyle(fontSize: 20),
-                            ),
-                            onPressed: _copiarRelatorio,
-                          ),
-                        ],
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: _compartilharRelatorio,
+                        icon: const Icon(Icons.share),
+                        label: const Text(
+                          'Compartilhar',
+                          style: TextStyle(fontSize: 19),
+                        ),
                       ),
                     ),
                   ],
@@ -6274,7 +6804,6 @@ class _ManutencaoEquipamentosScreenState
 class ReportAberturaScreen extends StatefulWidget {
   final String storeName;
   const ReportAberturaScreen({super.key, required this.storeName});
-
   @override
   State<ReportAberturaScreen> createState() => _ReportAberturaScreenState();
 }
@@ -6283,25 +6812,19 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
   late TextEditingController crachaController;
   late TextEditingController gerenteController;
   late TextEditingController encarregadoController;
-
   int colaboradoresAtivos = 0;
   int sobrasGeladeira = 0;
-
   late String userName;
   late String dataFormatada;
-
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
     super.initState();
-
     crachaController = TextEditingController();
     gerenteController = TextEditingController();
     encarregadoController = TextEditingController();
-
     _carregarPreferencias();
-
     final dataHoje = DateTime.now();
     dataFormatada =
         "${dataHoje.day.toString().padLeft(2, '0')}/${dataHoje.month.toString().padLeft(2, '0')}/${dataHoje.year}";
@@ -6311,10 +6834,8 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     try {
       final doc =
           await _firestore.collection('stores').doc(widget.storeName).get();
-
       if (doc.exists) {
         final data = doc.data() ?? {};
-
         setState(() {
           crachaController.text = data['cracha'] ?? '';
           gerenteController.text = data['gerente'] ?? '';
@@ -6349,7 +6870,7 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
 
 *Posicionamento: ${widget.storeName}
 *Data: $dataFormatada
-*Promotor: $userName
+*Técnico: $userName
 *Crachá: ${crachaController.text}
 *Gerência: ${gerenteController.text}
 *Encarregado: ${encarregadoController.text}
@@ -6358,26 +6879,6 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
 """;
 
     await Share.share(texto.trim(), subject: 'Relatório Abertura');
-  }
-
-  Future<void> _copiarRelatorioAbertura() async {
-    String texto = """ BOM DIA A TODOS!
-
-*Posicionamento: ${widget.storeName}
-*Data: $dataFormatada
-*Promotor: $userName
-*Crachá: ${crachaController.text}
-*Gerência: ${gerenteController.text}
-*Encarregado: ${encarregadoController.text}
-*Colaboradores ativos: $colaboradoresAtivos
-*Sobras Pão Francês: $sobrasGeladeira telas
-""";
-
-    await Clipboard.setData(ClipboardData(text: texto.trim()));
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Texto copiado!')),
-    );
   }
 
   @override
@@ -6392,7 +6893,6 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
   Widget build(BuildContext context) {
     const verdeEscuro = Color(0xFF006400);
     const preto = Color(0xff0e0101);
-
     return Scaffold(
       appBar: AppBar(
         backgroundColor: verdeEscuro,
@@ -6491,32 +6991,17 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
               ),
               const SizedBox(height: 32),
               Center(
-                child: Column(
-                  children: [
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.share),
-                      label: const Text('Compartilhar'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: verdeEscuro,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 14),
-                        textStyle: const TextStyle(fontSize: 20),
-                      ),
-                      onPressed: _compartilharRelatorioComImagens,
-                    ),
-                    const SizedBox(height: 12),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.copy),
-                      label: const Text('Copiar texto'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xff920b0b),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 14),
-                        textStyle: const TextStyle(fontSize: 20),
-                      ),
-                      onPressed: _copiarRelatorioAbertura,
-                    ),
-                  ],
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: verdeEscuro,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: _compartilharRelatorioComImagens,
+                  icon: const Icon(Icons.share),
+                  label: const Text(
+                    'Compartilhar',
+                    style: TextStyle(fontSize: 19),
+                  ),
                 ),
               ),
             ],
@@ -7672,7 +8157,7 @@ class _DocumentosState extends State<Documentos> {
     {
       'label': 'Baixas Motivo (8,9,49)',
       'url':
-          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/requisi%C3%A7%C3%A3o%20padaria%20motivos%2008%20.%2009.%2049.pdf?alt=media&token=b65fff64-4cb8-4996-9a01-8ed8fff64d91'
+          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/requisi%C3%A7%C3%A3o%20motivos%208%2C9%2C49.pdf?alt=media&token=3b549708-5853-4831-af61-432ee5717b79'
     },
     {
       'label': 'Baixas Motivo (23,71)',
@@ -10085,6 +10570,7 @@ class Codigos extends StatelessWidget {
     );
   }
 }
+
 class Equipamentos extends StatelessWidget {
   final String storeName;
   const Equipamentos({super.key, required this.storeName});
@@ -19287,7 +19773,6 @@ class _RequisicaoState extends State<Requisicao>
 
   // Função para compartilhar em PDF
   // Função para compartilhar em PDF
-
   Future<void> _compartilharPlanilhaPDF() async {
     final motivo49 = _calcularMotivo49();
     final motivo8 = _calcularMotivo8();
@@ -19342,32 +19827,69 @@ class _RequisicaoState extends State<Requisicao>
       ),
     );
 
+    // Mostrar loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
+
     try {
-      final dir = await getTemporaryDirectory();
-      final fileName =
-          'requisicao_padaria_${widget.storeName}_${DateFormat('ddMMyyyy').format(_dataSelecionada)}.pdf';
-      final file = File('${dir.path}/$fileName');
-      await file.writeAsBytes(await pdf.save());
+      final bytes = await pdf.save();
 
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text:
-            'Requisição Padaria - ${widget.storeName} - ${DateFormat('dd/MM/yyyy').format(_dataSelecionada)}',
-      );
+      // Para Web - faz download
+      if (kIsWeb) {
+        final base64 = base64Encode(bytes);
+        final anchor = html.AnchorElement(
+            href:
+                'data:application/octet-stream;charset=utf-16le;base64,$base64')
+          ..setAttribute('download',
+              'requisicao_padaria_${widget.storeName}_${DateFormat('ddMMyyyy').format(_dataSelecionada)}.pdf')
+          ..click();
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('PDF gerado e compartilhado com sucesso!'),
-            backgroundColor: Colors.green,
-          ),
+        if (context.mounted) Navigator.of(context).pop();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF baixado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        // Para Mobile - compartilha
+        final dir = await getTemporaryDirectory();
+        final fileName =
+            'requisicao_padaria_${widget.storeName}_${DateFormat('ddMMyyyy').format(_dataSelecionada)}.pdf';
+        final file = File('${dir.path}/$fileName');
+        await file.writeAsBytes(bytes);
+
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text:
+              'Requisição Padaria - ${widget.storeName} - ${DateFormat('dd/MM/yyyy').format(_dataSelecionada)}',
         );
+
+        if (context.mounted) Navigator.of(context).pop();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF gerado e compartilhado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
     } catch (e) {
+      if (context.mounted) Navigator.of(context).pop();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao gerar ou compartilhar PDF: $e'),
+            content: Text('Erro ao gerar PDF: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -20508,6 +21030,235 @@ class _RequisicaoState extends State<Requisicao>
           _buildLista(produtosPerdas, controllersPerdas, "perdas", "Perdas"),
           _buildPlanilha(),
         ],
+      ),
+    );
+  }
+}
+
+class HoleriteScreen extends StatefulWidget {
+  const HoleriteScreen({super.key});
+
+  @override
+  State<HoleriteScreen> createState() => _HoleriteScreenState();
+}
+
+class _HoleriteScreenState extends State<HoleriteScreen> {
+  final salarioController = TextEditingController();
+  final extra60Controller = TextEditingController();
+  final extra100Controller = TextEditingController();
+  final atrasoController = TextEditingController();
+  final faltaController = TextEditingController();
+  final descontosExtrasController = TextEditingController();
+
+  Map<String, double> vencimentos = {};
+  Map<String, double> descontos = {};
+
+  double bruto = 0;
+  double liquido = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+
+    // salva automaticamente ao digitar
+    salarioController.addListener(_saveData);
+    extra60Controller.addListener(_saveData);
+    extra100Controller.addListener(_saveData);
+    atrasoController.addListener(_saveData);
+    faltaController.addListener(_saveData);
+    descontosExtrasController.addListener(_saveData);
+  }
+
+  Future<void> _saveData() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.setString('salario', salarioController.text);
+    await prefs.setString('extra60', extra60Controller.text);
+    await prefs.setString('extra100', extra100Controller.text);
+    await prefs.setString('atraso', atrasoController.text);
+    await prefs.setString('falta', faltaController.text);
+    await prefs.setString('descontosExtras', descontosExtrasController.text);
+  }
+
+  Future<void> _loadData() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    setState(() {
+      salarioController.text = prefs.getString('salario') ?? '';
+      extra60Controller.text = prefs.getString('extra60') ?? '';
+      extra100Controller.text = prefs.getString('extra100') ?? '';
+      atrasoController.text = prefs.getString('atraso') ?? '';
+      faltaController.text = prefs.getString('falta') ?? '';
+      descontosExtrasController.text = prefs.getString('descontosExtras') ?? '';
+    });
+  }
+
+  double parse(String v) {
+    return double.tryParse(v.replaceAll(',', '.')) ?? 0;
+  }
+
+  double calcularINSS(double salario) {
+    double total = 0;
+
+    double f1 = salario > 1412 ? 1412 : salario;
+    total += f1 * 0.08;
+
+    if (salario > 1412) {
+      double f2 = salario > 2666.68 ? 1254.68 : salario - 1412;
+      total += f2 * 0.09;
+    }
+
+    if (salario > 2666.68) {
+      double f3 = salario > 4000.03 ? 1333.35 : salario - 2666.68;
+      total += f3 * 0.12;
+    }
+
+    if (salario > 4000.03) {
+      total += (salario - 4000.03) * 0.14;
+    }
+
+    return total;
+  }
+
+  double calcularDSR(double totalExtras) {
+    return (totalExtras / 24) * 6;
+  }
+
+  void calcular() {
+    double salario = parse(salarioController.text);
+    double he60h = parse(extra60Controller.text);
+    double he100h = parse(extra100Controller.text);
+    double atraso = parse(atrasoController.text);
+    double falta = parse(faltaController.text);
+    double descontosExtras = parse(descontosExtrasController.text);
+
+    double valorHora = salario / 220;
+
+    double he60 = he60h * valorHora * 1.6;
+    double he100 = he100h * valorHora * 2;
+
+    double totalExtras = he60 + he100;
+    double dsr = calcularDSR(totalExtras);
+
+    double baseINSS = salario + he60 + he100 + dsr;
+
+    double premio = 175;
+    if (falta > 0 || atraso >= 8) {
+      premio = 0;
+    } else if (atraso >= 2) {
+      premio = 87.5;
+    }
+
+    vencimentos = {
+      "Salário Base": salario,
+      "Horas Extra 60%": he60,
+      "Horas Extra 100%": he100,
+      "DSR Extras": dsr,
+      "Prêmio Assiduidade": premio,
+      "Auxílio Refeição": 400,
+      "Cesta Básica": 175,
+      "Vale Transporte": 345,
+    };
+
+    bruto = vencimentos.values.fold(0, (a, b) => a + b);
+
+    descontos = {
+      "INSS": calcularINSS(baseINSS),
+      "Atraso": atraso * valorHora,
+      "Adiantamento (40%)": salario * 0.4,
+      "Plano Saúde": 1,
+      "Plano Odonto": 1,
+      "Outros Descontos": descontosExtras,
+    };
+
+    double totalDesc = descontos.values.fold(0, (a, b) => a + b);
+
+    liquido = bruto - totalDesc;
+
+    setState(() {});
+  }
+
+  Widget linha(String nome, double valor) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(nome),
+        Text("R\$ ${valor.toStringAsFixed(2)}"),
+      ],
+    );
+  }
+
+  Widget bloco(String titulo, Map<String, double> dados) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(titulo, style: const TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 5),
+        ...dados.entries.map((e) => linha(e.key, e.value)),
+        const Divider(),
+      ],
+    );
+  }
+
+  Widget campo(String label, TextEditingController c) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: TextField(
+        controller: c,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    salarioController.dispose();
+    extra60Controller.dispose();
+    extra100Controller.dispose();
+    atrasoController.dispose();
+    faltaController.dispose();
+    descontosExtrasController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Holerite Teste")),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: ListView(
+          children: [
+            campo("Salário Base", salarioController),
+            campo("Horas Extra 60%", extra60Controller),
+            campo("Horas Extra 100%", extra100Controller),
+            campo("Horas de Atraso", atrasoController),
+            campo("Descontos adicionais (R\$)", descontosExtrasController),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: calcular,
+              child: const Text("Calcular Holerite"),
+            ),
+            const SizedBox(height: 20),
+            bloco("VENCIMENTOS", vencimentos),
+            bloco("DESCONTOS", descontos),
+            linha("TOTAL BRUTO", bruto),
+            linha(
+              "TOTAL DESCONTOS",
+              descontos.values.fold(0, (a, b) => a + b),
+            ),
+            const Divider(),
+            Text(
+              "LÍQUIDO: R\$ ${liquido.toStringAsFixed(2)}",
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
       ),
     );
   }
