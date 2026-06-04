@@ -3531,6 +3531,87 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
   TextEditingController dateController = TextEditingController();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // Variáveis para consumo diário
+  Map<String, double> consumoDiarioPorProduto = {};
+
+  // Mapeamento de categorias (subprodutos -> massa correspondente) - SEM TETO MÍNIMO
+  final Map<String, Map<String, List<String>>> mapeamentoMassas = {
+    'Massa Pão Francês': {
+      'subprodutos': ['Pão Francês', 'Pão Samaritano'],
+    },
+    'Massa Pão Fofinho': {
+      'subprodutos': [
+        'Pão Fofinho',
+        'Sanduíche Fofinho',
+        'Rosca Fofinha Temperada',
+        'Caseirinho'
+      ],
+    },
+    'Massa Pão Francês Fibras': {
+      'subprodutos': ['Pão Francês Fibras'],
+    },
+    'Massa Mini Baguete 90g': {
+      'subprodutos': [
+        'Pão de Alho da Casa',
+        'Pão de Alho da Casa Picante',
+        'Sanduíche Bahamas',
+        'Pão Baguete Francesa Queijo',
+        'Pão Baguete Francesa',
+        'Pão Baguete Francesa Gergelim'
+      ],
+    },
+    'Massa Mini Baguete 40g': {
+      'subprodutos': ['Pão Francês com Queijo'],
+    },
+    'Massa Baguete 330g': {
+      'subprodutos': ['Baguete Francesa Queijo', 'Baguete Francesa'],
+    },
+    'Massa Pão Doce Comprido': {
+      'subprodutos': ['Pão Milho'],
+    },
+    'Massa Rosca Doce': {
+      'subprodutos': [
+        'Rosca Caseira',
+        'Rosca Caseira Côco',
+        'Rosca Caseira Leite em Pó'
+      ],
+    },
+    'Massa Pão Doce Caracol': {
+      'subprodutos': ['Pão Doce Caracol'],
+    },
+    'Massa Pão Doce Ferradura': {
+      'subprodutos': ['Pão Doce Ferradura'],
+    },
+    'Massa Bambino': {
+      'subprodutos': [
+        'Mini Pão Sonho',
+        'Mini Pão Sonho Chocolate',
+        'Pão Bambino'
+      ],
+    },
+    'Massa Mini Pão Marta Rocha': {
+      'subprodutos': ['Mini Marta Rocha', 'Pão Pizza'],
+    },
+    'Massa Pão Tatu': {
+      'subprodutos': ['Pão Tatu'],
+    },
+    'Massa Biscoito Polvilho': {
+      'subprodutos': ['Biscoito Polvilho'],
+    },
+    'Massa Pão De Queijo Coq': {
+      'subprodutos': ['Pão Queijo Coquetel'],
+    },
+    'Massa Pão De Queijo Trad.': {
+      'subprodutos': ['Pão Queijo Tradicional'],
+    },
+    'Massa Pão Biscoito Queijo': {
+      'subprodutos': ['Biscoito Queijo'],
+    },
+    'Massa Pão Cervejinha': {
+      'subprodutos': ['Pão Francês Panhoca'],
+    },
+  };
+
   // Produtos por kg com pesos padrão
   final Map<String, double> produtosKg = {
     'Massa Pão Francês': 10.5,
@@ -3627,7 +3708,6 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
           }
         }
 
-        // Carregar validades para TODOS os produtos (kg e unidades)
         final validadesData = data['validades'] ?? {};
         for (var produto in controllers.keys) {
           if (validadesData[produto] != null) {
@@ -3640,9 +3720,76 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
         }
 
         setState(() {});
+
+        // Calcular consumo diário após carregar dados
+        _calcularConsumoDiario();
       }
     } catch (e) {
       print('Erro ao carregar dados de acerto: $e');
+    }
+  }
+
+  // Função para calcular consumo diário por massa (SEM TETO MÍNIMO)
+  Future<void> _calcularConsumoDiario() async {
+    try {
+      final doc =
+          await _firestore.collection('stores').doc(widget.storeName).get();
+      if (!doc.exists) return;
+
+      final data = doc.data() ?? {};
+      final estoqueData = data['estoque'] ?? {};
+      int deliveriesValue = data['deliveriesValue'] ?? 7;
+
+      // Se não tem deliveriesValue, tenta buscar pelo deliveriesOption
+      if (deliveriesValue == 7 && data['deliveriesOption'] != null) {
+        int option = data['deliveriesOption'];
+        if (option == 1)
+          deliveriesValue = 7;
+        else if (option == 2)
+          deliveriesValue = 4;
+        else if (option == 3) deliveriesValue = 3;
+      }
+
+      Map<String, double> consumoDiarioPorMassa = {};
+
+      for (var entry in mapeamentoMassas.entries) {
+        String nomeMassa = entry.key;
+        List<String> subprodutos = entry.value['subprodutos'] as List<String>;
+
+        // Soma o estoque de todos os subprodutos da categoria (VALOR BRUTO, SEM TETO MÍNIMO)
+        int somaEstoque = 0;
+        for (String subproduto in subprodutos) {
+          final estoqueMax = estoqueData[subproduto];
+          if (estoqueMax != null) {
+            int valorEstoque = 0;
+            if (estoqueMax is int) {
+              valorEstoque = estoqueMax;
+            } else if (estoqueMax is double) {
+              valorEstoque = estoqueMax.floor();
+            } else if (estoqueMax is String) {
+              valorEstoque = int.tryParse(estoqueMax) ?? 0;
+            }
+            somaEstoque += valorEstoque;
+          }
+        }
+
+        // USA O VALOR BRUTO DA SOMA (SEM TETO MÍNIMO)
+        int totalPacotesCategoria = somaEstoque;
+
+        // Calcula consumo diário da categoria
+        double consumoDiario = totalPacotesCategoria / deliveriesValue;
+
+        // Associa ao nome da massa na tela ACERTO
+        if (controllers.containsKey(nomeMassa)) {
+          consumoDiarioPorMassa[nomeMassa] = consumoDiario;
+        }
+      }
+
+      setState(() {
+        consumoDiarioPorProduto = consumoDiarioPorMassa;
+      });
+    } catch (e) {
+      print('Erro ao calcular consumo diário: $e');
     }
   }
 
@@ -3777,148 +3924,197 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
   }
 
   Future<void> _sharePdf() async {
-    final pdf = pw.Document();
+  final pdf = pw.Document();
 
-    pdf.addPage(
-      pw.MultiPage(
-        build: (context) {
-          List<List<String>> tabelaPrincipal = [];
+  pdf.addPage(
+    pw.MultiPage(
+      build: (context) {
+        List<List<String>> tabelaPrincipal = [];
 
-          for (var entry in controllers.entries) {
-            final produto = entry.key;
-            final pacotes = entry.value.text.isEmpty ? '0' : entry.value.text;
-            final convertido = _calcularConversao(produto);
-            tabelaPrincipal.add([produto, pacotes, convertido]);
-          }
+        for (var entry in controllers.entries) {
+          final produto = entry.key;
+          final pacotes = entry.value.text.isEmpty ? '0' : entry.value.text;
+          final convertido = _calcularConversao(produto);
+          final consumoDiario = consumoDiarioPorProduto[produto] ?? 0;
+          
+          tabelaPrincipal.add([
+            produto, 
+            pacotes, 
+            convertido,
+            consumoDiario > 0 ? _formatNumber(consumoDiario) : '-'
+          ]);
+        }
 
-          return [
-            pw.Header(level: 0, child: pw.Text('Acerto Estoque')),
-            pw.Paragraph(text: widget.storeName),
-            pw.Paragraph(text: 'Responsável: $userName'),
-            pw.Paragraph(
-                text: 'Data: ${DateFormat('dd/MM/yyyy').format(selectedDate)}'),
-            pw.SizedBox(height: 20),
-            pw.Table.fromTextArray(
-              headers: ['Produto', 'Pacotes', 'Valor Kg/Unid'],
-              data: tabelaPrincipal,
-              cellAlignment: pw.Alignment.centerLeft,
-            ),
-            pw.SizedBox(height: 30),
-            pw.Header(level: 1, child: pw.Text('Controle de Validades')),
-            pw.SizedBox(height: 10),
-            for (var entry in lotesPorProduto.entries)
-              if (entry.value.isNotEmpty) ...[
-                pw.Header(level: 2, child: pw.Text(entry.key)),
-                pw.SizedBox(height: 5),
-                pw.Table.fromTextArray(
-                  headers: [
-                    'Quantidade (pacotes)',
-                    'Data de Validade',
-                    'Status'
-                  ],
-                  data: entry.value.map((lote) {
-                    bool isVencido = lote.validade.isBefore(DateTime.now());
-                    String status = isVencido ? 'VENCIDO' : 'Válido';
-                    return [
-                      _formatNumber(lote.quantidade),
-                      DateFormat('dd/MM/yyyy').format(lote.validade),
-                      status,
-                    ];
-                  }).toList(),
-                  cellAlignment: pw.Alignment.centerLeft,
-                ),
-                pw.Padding(
-                  padding: pw.EdgeInsets.only(top: 5),
-                  child: pw.Text(
-                    'Total: ${_formatNumber(entry.value.fold(0, (sum, lote) => sum + lote.quantidade))} pacotes',
-                    style: pw.TextStyle(
-                      fontStyle: pw.FontStyle.italic,
-                      fontSize: 10,
-                    ),
+        return [
+          pw.Header(level: 0, child: pw.Text('Acerto Estoque')),
+          pw.Paragraph(text: widget.storeName),
+          pw.Paragraph(text: 'Responsável: $userName'),
+          pw.Paragraph(
+              text: 'Data: ${DateFormat('dd/MM/yyyy').format(selectedDate)}'),
+          pw.SizedBox(height: 20),
+          
+          // Tabela principal
+          pw.Table.fromTextArray(
+            headers: ['Produto', 'Pacotes', 'Valor Kg/Unid', 'Consumo/Dia'],
+            data: tabelaPrincipal,
+            cellAlignment: pw.Alignment.centerLeft,
+          ),
+          
+          pw.SizedBox(height: 30),
+          
+          // Seção de Validades
+          pw.Header(level: 1, child: pw.Text('Controle de Validades e Giro')),
+          pw.SizedBox(height: 10),
+          
+          for (var entry in lotesPorProduto.entries)
+            if (entry.value.isNotEmpty) ...[
+              pw.Header(level: 2, child: pw.Text(entry.key)),
+              pw.SizedBox(height: 5),
+              
+              // Tabela de lotes
+              pw.Table.fromTextArray(
+                headers: [
+                  'Quantidade',
+                  'Data Validade',
+                  'Status',
+                  'Análise de Giro'
+                ],
+                data: entry.value.asMap().entries.map((item) {
+                  final index = item.key;
+                  final lote = item.value;
+                  bool isVencido = lote.validade.isBefore(DateTime.now());
+                  String status = isVencido ? 'VENCIDO' : 'Válido';
+                  
+                  String analiseGiro = '';
+                  double consumoDiario = consumoDiarioPorProduto[entry.key] ?? 0;
+                  
+                  if (consumoDiario > 0 && !isVencido) {
+                    // Calcular saldo até este lote
+                    double saldoAteLote = 0;
+                    for (int i = 0; i <= index; i++) {
+                      saldoAteLote += entry.value[i].quantidade;
+                    }
+                    int diasDeEstoque = (saldoAteLote / consumoDiario).ceil();
+                    int diasAteVencer = lote.validade.difference(DateTime.now()).inDays;
+                    
+                    if (diasAteVencer < diasDeEstoque) {
+                      analiseGiro = '⚠️ ALERTA: Vence em $diasAteVencer dias, mas estoque para $diasDeEstoque dias';
+                    } else {
+                      analiseGiro = '✅ OK: Estoque para $diasDeEstoque dias, vence em $diasAteVencer dias';
+                    }
+                  } else if (isVencido) {
+                    analiseGiro = '❌ Produto vencido';
+                  } else if (consumoDiario == 0) {
+                    analiseGiro = '⚠️ Sem dados de consumo';
+                  }
+                  
+                  return [
+                    _formatNumber(lote.quantidade),
+                    DateFormat('dd/MM/yyyy').format(lote.validade),
+                    status,
+                    analiseGiro,
+                  ];
+                }).toList(),
+                cellAlignment: pw.Alignment.centerLeft,
+              ),
+              
+              // Total do produto
+              pw.Padding(
+                padding: pw.EdgeInsets.only(top: 5),
+                child: pw.Text(
+                  'Total: ${_formatNumber(entry.value.fold(0, (sum, lote) => sum + lote.quantidade))} pacotes | Consumo diário: ${consumoDiarioPorProduto[entry.key] != null ? _formatNumber(consumoDiarioPorProduto[entry.key]!) : 'N/A'} pacotes/dia',
+                  style: pw.TextStyle(
+                    fontStyle: pw.FontStyle.italic,
+                    fontSize: 10,
                   ),
                 ),
-                pw.SizedBox(height: 15),
-              ],
-            if (lotesPorProduto.values.every((lotes) => lotes.isEmpty))
-              pw.Paragraph(
-                text: 'Nenhum lote com validade cadastrado.',
-                style: pw.TextStyle(fontStyle: pw.FontStyle.italic),
               ),
-            pw.SizedBox(height: 20),
+              pw.SizedBox(height: 15),
+            ],
+          
+          // Se não houver nenhum lote cadastrado
+          if (lotesPorProduto.values.every((lotes) => lotes.isEmpty))
             pw.Paragraph(
-              text:
-                  'Documento gerado em ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}',
-              style: pw.TextStyle(fontSize: 8, fontStyle: pw.FontStyle.italic),
+              text: 'Nenhum lote com validade cadastrado.',
+              style: pw.TextStyle(fontStyle: pw.FontStyle.italic),
             ),
-          ];
-        },
-      ),
-    );
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return const Center(child: CircularProgressIndicator());
+          
+          pw.SizedBox(height: 20),
+          
+          // Rodapé
+          pw.Paragraph(
+            text:
+                'Documento gerado em ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}',
+            style: pw.TextStyle(fontSize: 8, fontStyle: pw.FontStyle.italic),
+          ),
+        ];
       },
-    );
+    ),
+  );
 
-    try {
-      final bytes = await pdf.save();
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return const Center(child: CircularProgressIndicator());
+    },
+  );
 
-      if (kIsWeb) {
-        final base64 = base64Encode(bytes);
-        final anchor = html.AnchorElement(
-            href:
-                'data:application/octet-stream;charset=utf-16le;base64,$base64')
-          ..setAttribute('download',
-              'acerto_estoque_${widget.storeName}_${DateFormat('ddMMyyyy').format(selectedDate)}.pdf')
-          ..click();
+  try {
+    final bytes = await pdf.save();
 
-        if (context.mounted) Navigator.of(context).pop();
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('PDF baixado com sucesso!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else {
-        final dir = await getTemporaryDirectory();
-        final file = File(
-            '${dir.path}/acerto_estoque_${widget.storeName}_${DateFormat('ddMMyyyy').format(selectedDate)}.pdf');
-        await file.writeAsBytes(bytes);
+    if (kIsWeb) {
+      final base64 = base64Encode(bytes);
+      final anchor = html.AnchorElement(
+          href:
+              'data:application/octet-stream;charset=utf-16le;base64,$base64')
+        ..setAttribute('download',
+            'acerto_estoque_${widget.storeName}_${DateFormat('ddMMyyyy').format(selectedDate)}.pdf')
+        ..click();
 
-        await Share.shareXFiles(
-          [XFile(file.path)],
-          text:
-              'Acerto Estoque - ${widget.storeName} - ${DateFormat('dd/MM/yyyy').format(selectedDate)}',
-        );
-
-        if (context.mounted) Navigator.of(context).pop();
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('PDF gerado e compartilhado com sucesso!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      }
-    } catch (e) {
       if (context.mounted) Navigator.of(context).pop();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao gerar PDF: $e'),
-            backgroundColor: Colors.red,
+          const SnackBar(
+            content: Text('PDF baixado com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } else {
+      final dir = await getTemporaryDirectory();
+      final file = File(
+          '${dir.path}/acerto_estoque_${widget.storeName}_${DateFormat('ddMMyyyy').format(selectedDate)}.pdf');
+      await file.writeAsBytes(bytes);
+
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text:
+            'Acerto Estoque - ${widget.storeName} - ${DateFormat('dd/MM/yyyy').format(selectedDate)}',
+      );
+
+      if (context.mounted) Navigator.of(context).pop();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('PDF gerado e compartilhado com sucesso!'),
+            backgroundColor: Colors.green,
           ),
         );
       }
     }
+  } catch (e) {
+    if (context.mounted) Navigator.of(context).pop();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao gerar PDF: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
-
+}
   void _incrementValue(String produto) {
     double atual = double.tryParse(controllers[produto]!.text) ?? 0;
     double novoValor = atual + 1;
@@ -4010,6 +4206,7 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
   void _showValidadesDialog(String produto) {
     double totalAtual = double.tryParse(controllers[produto]!.text) ?? 0;
     List<Lote> lotes = lotesPorProduto[produto] ?? [];
+    double consumoDiario = consumoDiarioPorProduto[produto] ?? 0;
 
     showDialog(
       context: context,
@@ -4045,6 +4242,12 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
                             style: TextStyle(
                                 fontSize: 12, color: Colors.grey[600]),
                           ),
+                          if (consumoDiario > 0)
+                            Text(
+                              'Consumo diário: ${_formatNumber(consumoDiario)} pacotes/dia',
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.blueGrey[600]),
+                            ),
                           if (diferenca.abs() > 0.01)
                             Padding(
                               padding: EdgeInsets.only(top: 8),
@@ -4089,8 +4292,42 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
                                 final lote = lotes[index];
                                 bool isVencido =
                                     lote.validade.isBefore(DateTime.now());
+
+                                // Verificar se o lote está dentro do giro
+                                bool dentroDoGiro = true;
+                                String infoGiro = '';
+
+                                if (consumoDiario > 0 && !isVencido) {
+                                  // Calcular quantos dias este lote representa
+                                  double saldoAteLote = 0;
+                                  for (int i = 0; i <= index; i++) {
+                                    saldoAteLote += lotes[i].quantidade;
+                                  }
+                                  int diasDeEstoque =
+                                      (saldoAteLote / consumoDiario).ceil();
+                                  int diasAteVencer = lote.validade
+                                      .difference(DateTime.now())
+                                      .inDays;
+
+                                  dentroDoGiro = diasAteVencer >= diasDeEstoque;
+                                  if (!dentroDoGiro) {
+                                    infoGiro =
+                                        '⚠️ Vence em $diasAteVencer dias, mas tem $diasDeEstoque dias de estoque';
+                                  } else {
+                                    infoGiro =
+                                        '✅ Dentro do giro - $diasDeEstoque dias de estoque';
+                                  }
+                                } else if (isVencido) {
+                                  infoGiro = '❌ LOTE VENCIDO!';
+                                }
+
                                 return Card(
                                   margin: EdgeInsets.only(bottom: 8),
+                                  color: dentroDoGiro && !isVencido
+                                      ? Colors.green[50]
+                                      : (isVencido
+                                          ? Colors.red[50]
+                                          : Colors.orange[50]),
                                   child: InkWell(
                                     onTap: () => _editarLote(
                                         produto, lotes, index, setDialogState),
@@ -4125,16 +4362,37 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
                                                             : Colors.grey[700],
                                                       ),
                                                     ),
+                                                    if (infoGiro.isNotEmpty)
+                                                      Padding(
+                                                        padding:
+                                                            EdgeInsets.only(
+                                                                top: 4),
+                                                        child: Text(
+                                                          infoGiro,
+                                                          style: TextStyle(
+                                                            fontSize: 11,
+                                                            color: dentroDoGiro &&
+                                                                    !isVencido
+                                                                ? Colors
+                                                                    .green[700]
+                                                                : Colors.orange[
+                                                                    700],
+                                                            fontWeight:
+                                                                FontWeight.w500,
+                                                          ),
+                                                        ),
+                                                      ),
                                                   ],
                                                 ),
                                               ),
                                               Icon(
-                                                isVencido
-                                                    ? Icons.warning_amber
-                                                    : Icons.check_circle,
-                                                color: isVencido
-                                                    ? Colors.orange
-                                                    : Colors.green,
+                                                dentroDoGiro && !isVencido
+                                                    ? Icons.check_circle
+                                                    : Icons.warning_amber,
+                                                color:
+                                                    dentroDoGiro && !isVencido
+                                                        ? Colors.green
+                                                        : Colors.orange,
                                                 size: 28,
                                               ),
                                             ],
