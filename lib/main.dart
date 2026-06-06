@@ -4594,10 +4594,10 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
                 ElevatedButton.icon(
                   onPressed: () =>
                       _adicionarLote(produto, lotes, setDialogState),
-                  icon: Icon(Icons.add, size: 18),
+                  icon: Icon(Icons.add, size: 15),
                   label: Text(
                     'Adicionar Lote',
-                    style: TextStyle(fontSize: 13),
+                    style: TextStyle(fontSize: 10),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.purple,
