@@ -4558,7 +4558,7 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
                     setState(() {});
                     Navigator.pop(context);
                   },
-                  child: Text('Fechar', style: TextStyle(fontSize: 13)),
+                  child: Text('Fechar', style: TextStyle(fontSize: 10)),
                 ),
               ],
             );
