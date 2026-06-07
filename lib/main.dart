@@ -2,15 +2,15 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:convert';
-import 'dart:html' as html;
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
 import 'package:flutter_localizations/flutter_localizations.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:csv/csv.dart';
 import 'package:dio/dio.dart';
@@ -175,8 +175,7 @@ class RedeScreen extends StatefulWidget {
 class _RedeScreenState extends State<RedeScreen> {
   bool _checking = false;
 
-  Timer? _pressTimer;
-
+  // ===== NOVO: Função para abrir vídeo =====
   void _mostrarAjuda() async {
     final resposta = await showDialog<bool>(
       context: context,
@@ -207,24 +206,44 @@ class _RedeScreenState extends State<RedeScreen> {
       }
     }
   }
+  // =========================================
 
   Future<void> _onCardTap(String rede, Widget destino) async {
     if (_checking) return;
     setState(() => _checking = true);
-
     try {
+      print("DEBUG: clique em '$rede' recebido");
+
+      try {
+        final apps = Firebase.apps;
+        print("DEBUG: Firebase.apps.length = ${apps.length}");
+        if (apps.isEmpty) {
+          _showError("Firebase não inicializado. Verifique main.dart.");
+          return;
+        }
+      } catch (e) {
+        _showError("Firebase inacessível: $e");
+        return;
+      }
+
       final doc =
           await FirebaseFirestore.instance.collection('redes').doc(rede).get();
 
       if (!doc.exists) {
-        _showError("Rede '$rede' não encontrada.");
+        _showError("Rede '$rede' não encontrada no Firestore.");
         return;
       }
 
       final senhaFirebase = doc.data()?['senha'];
+      if (senhaFirebase == null) {
+        _showError("Campo 'senha' ausente em '$rede'.");
+        return;
+      }
 
       final prefs = await SharedPreferences.getInstance();
-      final senhaLocal = prefs.getString("senha_$rede");
+      final chave = "senha_$rede";
+      final senhaLocal = prefs.getString(chave);
+      print("DEBUG: senhaLocal='$senhaLocal' | senhaFirebase='$senhaFirebase'");
 
       if (senhaLocal == senhaFirebase) {
         if (!mounted) return;
@@ -233,14 +252,16 @@ class _RedeScreenState extends State<RedeScreen> {
       }
 
       final aceita = await _mostrarDialogSenha(rede, senhaFirebase);
-
       if (aceita == true) {
-        await prefs.setString("senha_$rede", senhaFirebase);
+        await prefs.setString(chave, senhaFirebase);
         if (!mounted) return;
         Navigator.push(context, MaterialPageRoute(builder: (_) => destino));
+      } else {
+        print("DEBUG: usuário cancelou ou falhou na senha para '$rede'");
       }
-    } catch (e) {
-      _showError("Erro: $e");
+    } catch (e, st) {
+      print("DEBUG: erro inesperado em _onCardTap -> $e\n$st");
+      _showError("Erro inesperado: ${e.toString()}");
     } finally {
       if (mounted) setState(() => _checking = false);
     }
@@ -255,13 +276,18 @@ class _RedeScreenState extends State<RedeScreen> {
       builder: (ctx) {
         return AlertDialog(
           title: Text("Senha $rede"),
-          content: TextField(
-            controller: controller,
-            obscureText: true,
-            decoration: const InputDecoration(
-              labelText: "Digite a senha",
-              border: OutlineInputBorder(),
-            ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: "Digite a senha",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
           ),
           actions: [
             TextButton(
@@ -271,7 +297,6 @@ class _RedeScreenState extends State<RedeScreen> {
             ElevatedButton(
               onPressed: () {
                 final digitada = controller.text.trim();
-
                 if (digitada == senhaCorreta) {
                   Navigator.pop(ctx, true);
                 } else {
@@ -291,10 +316,12 @@ class _RedeScreenState extends State<RedeScreen> {
     );
   }
 
-  void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: Colors.red),
-    );
+  void _showError(String mensagem) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(mensagem), backgroundColor: Colors.red),
+      );
+    }
   }
 
   Widget _card(String imgPath, String rede, Widget destino) {
@@ -302,24 +329,6 @@ class _RedeScreenState extends State<RedeScreen> {
       color: Colors.transparent,
       child: InkWell(
         onTap: () => _onCardTap(rede, destino),
-        onLongPress: () {
-          if (rede == "bahamas") {
-            _pressTimer = Timer(const Duration(seconds: 5), () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const HoleriteScreen(),
-                ),
-              );
-            });
-          }
-        },
-        onTapUp: (_) {
-          _pressTimer?.cancel();
-        },
-        onTapCancel: () {
-          _pressTimer?.cancel();
-        },
         borderRadius: BorderRadius.circular(16),
         child: Ink(
           height: double.infinity,
@@ -331,12 +340,6 @@ class _RedeScreenState extends State<RedeScreen> {
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _pressTimer?.cancel();
-    super.dispose();
   }
 
   @override
@@ -354,12 +357,10 @@ class _RedeScreenState extends State<RedeScreen> {
             const SizedBox(width: 12),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline),
-            onPressed: _mostrarAjuda,
-          )
-        ],
+
+        // ======== ÍCONE DE AJUDA AQUI ========
+
+        // =====================================
       ),
       body: Stack(
         children: [
@@ -369,8 +370,8 @@ class _RedeScreenState extends State<RedeScreen> {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Color(0xff4dcd7e),
-                  Color(0xff094e0b),
+                  Color(0xff4dcd7e), // Verde bandeira
+                  Color(0xff094e0b), // Verde mais claro
                 ],
               ),
             ),
@@ -1997,8 +1998,7 @@ class _SecondScreenState extends State<SecondScreen> {
                         );
                       }),
                       _padariaCard(
-                          Icons.track_changes, "Meta", Colors.teal.shade300,
-                          () {
+                          Icons.gps_fixed, "Meta", Colors.teal.shade300, () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -2064,40 +2064,6 @@ class _SecondScreenState extends State<SecondScreen> {
       ),
     );
   }
-}
-
-Widget _padariaCard(
-    IconData icon, String label, Color color, VoidCallback onPressed) {
-  return Material(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(16),
-    elevation: 4,
-    child: InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(16),
-      splashColor: color.withOpacity(0.3),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 36, color: color),
-            const SizedBox(height: 12),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                fontFamily: 'Roboto',
-                color: Color(0xFF5D4037),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
 }
 
 class ThirdScreen extends StatefulWidget {
@@ -4211,45 +4177,25 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
     try {
       final bytes = await pdf.save();
 
-      if (kIsWeb) {
-        final base64 = base64Encode(bytes);
-        final anchor = html.AnchorElement(
-            href:
-                'data:application/octet-stream;charset=utf-16le;base64,$base64')
-          ..setAttribute('download',
-              'acerto_estoque_${widget.storeName}_${DateFormat('ddMMyyyy').format(selectedDate)}.pdf')
-          ..click();
+      final dir = await getTemporaryDirectory();
+      final file = File(
+          '${dir.path}/acerto_estoque_${widget.storeName}_${DateFormat('ddMMyyyy').format(selectedDate)}.pdf');
+      await file.writeAsBytes(bytes);
 
-        if (context.mounted) Navigator.of(context).pop();
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('PDF baixado com sucesso!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else {
-        final dir = await getTemporaryDirectory();
-        final file = File(
-            '${dir.path}/acerto_estoque_${widget.storeName}_${DateFormat('ddMMyyyy').format(selectedDate)}.pdf');
-        await file.writeAsBytes(bytes);
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text:
+            'Acerto Estoque - ${widget.storeName} - ${DateFormat('dd/MM/yyyy').format(selectedDate)}',
+      );
 
-        await Share.shareXFiles(
-          [XFile(file.path)],
-          text:
-              'Acerto Estoque - ${widget.storeName} - ${DateFormat('dd/MM/yyyy').format(selectedDate)}',
+      if (context.mounted) Navigator.of(context).pop();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('PDF gerado e compartilhado com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
         );
-
-        if (context.mounted) Navigator.of(context).pop();
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('PDF gerado e compartilhado com sucesso!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
       }
     } catch (e) {
       if (context.mounted) Navigator.of(context).pop();
@@ -6778,72 +6724,16 @@ class DetalhesPedidoScreen extends StatelessWidget {
       ),
     );
 
-    // Mostrar loading
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return const Center(child: CircularProgressIndicator());
-      },
-    );
-
     try {
-      final bytes = await pdf.save();
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/pedido.pdf');
+      await file.writeAsBytes(await pdf.save());
 
-      // Verifica se é Web
-      if (kIsWeb) {
-        // WEB: Faz download
-        final base64 = base64Encode(bytes);
-        final anchor = html.AnchorElement(
-            href:
-                'data:application/octet-stream;charset=utf-16le;base64,$base64')
-          ..setAttribute('download',
-              'pedido_${pedido['loja']}_${pedido['data']?.replaceAll('/', '') ?? DateTime.now().toString()}.pdf')
-          ..click();
-
-        if (context.mounted) Navigator.of(context).pop();
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('PDF baixado com sucesso!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else {
-        // MOBILE: Compartilha
-        final dir = await getTemporaryDirectory();
-        final file = File(
-            '${dir.path}/pedido_${pedido['loja']}_${DateTime.now().millisecondsSinceEpoch}.pdf');
-        await file.writeAsBytes(bytes);
-
-        await Share.shareXFiles(
-          [XFile(file.path)],
-          text: 'Pedido - ${pedido['loja']} - ${pedido['data']}',
-        );
-
-        if (context.mounted) Navigator.of(context).pop();
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('PDF gerado e compartilhado com sucesso!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      }
+      await Share.shareXFiles([XFile(file.path)], text: 'Pedido em PDF');
     } catch (e) {
-      if (context.mounted) Navigator.of(context).pop();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao gerar PDF: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao gerar ou compartilhar PDF: $e')),
+      );
     }
   }
 
@@ -7165,15 +7055,31 @@ class _ManutencaoEquipamentosScreenState
     }
   }
 
+  // ✅ COMPARTILHAR
   Future<void> _compartilharRelatorio() async {
+    String texto = _gerarTextoRelatorio();
+    await Share.share(texto);
+  }
+
+  // ✅ COPIAR (novo)
+  Future<void> _copiarRelatorio() async {
+    String texto = _gerarTextoRelatorio();
+
+    await Clipboard.setData(ClipboardData(text: texto));
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Texto copiado!')),
+    );
+  }
+
+  // ✅ FUNÇÃO CENTRAL (melhor prática)
+  String _gerarTextoRelatorio() {
     StringBuffer relatorio = StringBuffer();
 
-    relatorio.writeln("ORDEM DE SERVIÇO");
-    relatorio.writeln("");
+    relatorio.writeln("ORDEM DE SERVIÇO\n");
     relatorio.writeln("${widget.storeName}");
     relatorio.writeln("Data: $dataFormatada");
-    relatorio.writeln("Gerência: ${gerenteController.text}");
-    relatorio.writeln("");
+    relatorio.writeln("Gerência: ${gerenteController.text}\n");
     relatorio.writeln("Equipamentos:");
 
     equipamentosSelecionados.entries
@@ -7188,21 +7094,19 @@ class _ManutencaoEquipamentosScreenState
 
       relatorio.writeln("- ${_tituloEquipamento(tipo, index, equipamento)}");
 
-      // REMOVE photoUrl do PDF
       equipamento.forEach((campo, valor) {
         if (campo != 'photoUrl') {
           relatorio.writeln("   $campo: $valor");
         }
       });
 
-      relatorio.writeln("   Defeito(s): $defeito");
-      relatorio.writeln("");
+      relatorio.writeln("   Defeito(s): $defeito\n");
     });
 
     relatorio.writeln("Observações:");
     relatorio.writeln(observacoesController.text);
 
-    await Share.share(relatorio.toString());
+    return relatorio.toString();
   }
 
   String _tituloEquipamento(String tipo, int index, Map<String, dynamic> eq) {
@@ -7259,9 +7163,7 @@ class _ManutencaoEquipamentosScreenState
         ),
       ),
       body: dadosResumo.isEmpty
-          ? const Center(
-              child: Text("Nenhum equipamento cadastrado."),
-            )
+          ? const Center(child: Text("Nenhum equipamento cadastrado."))
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: DefaultTextStyle(
@@ -7275,6 +7177,7 @@ class _ManutencaoEquipamentosScreenState
                             fontSize: 19,
                             color: verdeEscuro)),
                     const SizedBox(height: 16),
+
                     TextField(
                       decoration: InputDecoration(
                         labelText: "Gerência:",
@@ -7283,12 +7186,15 @@ class _ManutencaoEquipamentosScreenState
                       controller: gerenteController,
                       onChanged: (_) => _salvarGerente(),
                     ),
+
                     const SizedBox(height: 24),
+
                     ...dadosResumo.keys.expand((tipo) {
                       var lista = dadosResumo[tipo];
                       return List.generate(lista.length, (index) {
                         String key = "$tipo-$index";
                         final equipamento = lista[index];
+
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -7333,7 +7239,9 @@ class _ManutencaoEquipamentosScreenState
                         );
                       });
                     }),
+
                     const SizedBox(height: 16),
+
                     TextField(
                       maxLines: null,
                       minLines: 3,
@@ -7343,19 +7251,37 @@ class _ManutencaoEquipamentosScreenState
                       ),
                       controller: observacoesController,
                     ),
+
                     const SizedBox(height: 32),
+
+                    // 🔥 BOTÕES
                     Center(
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.grey,
-                          foregroundColor: Colors.white,
-                        ),
-                        onPressed: _compartilharRelatorio,
-                        icon: const Icon(Icons.share),
-                        label: const Text(
-                          'Compartilhar',
-                          style: TextStyle(fontSize: 19),
-                        ),
+                      child: Column(
+                        children: [
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.share),
+                            label: const Text('Compartilhar'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.grey,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 14),
+                              textStyle: const TextStyle(fontSize: 20),
+                            ),
+                            onPressed: _compartilharRelatorio,
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.copy),
+                            label: const Text('Copiar texto'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.black,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 14),
+                              textStyle: const TextStyle(fontSize: 20),
+                            ),
+                            onPressed: _copiarRelatorio,
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -7369,6 +7295,7 @@ class _ManutencaoEquipamentosScreenState
 class ReportAberturaScreen extends StatefulWidget {
   final String storeName;
   const ReportAberturaScreen({super.key, required this.storeName});
+
   @override
   State<ReportAberturaScreen> createState() => _ReportAberturaScreenState();
 }
@@ -7377,19 +7304,25 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
   late TextEditingController crachaController;
   late TextEditingController gerenteController;
   late TextEditingController encarregadoController;
+
   int colaboradoresAtivos = 0;
   int sobrasGeladeira = 0;
+
   late String userName;
   late String dataFormatada;
+
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
     super.initState();
+
     crachaController = TextEditingController();
     gerenteController = TextEditingController();
     encarregadoController = TextEditingController();
+
     _carregarPreferencias();
+
     final dataHoje = DateTime.now();
     dataFormatada =
         "${dataHoje.day.toString().padLeft(2, '0')}/${dataHoje.month.toString().padLeft(2, '0')}/${dataHoje.year}";
@@ -7399,8 +7332,10 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     try {
       final doc =
           await _firestore.collection('stores').doc(widget.storeName).get();
+
       if (doc.exists) {
         final data = doc.data() ?? {};
+
         setState(() {
           crachaController.text = data['cracha'] ?? '';
           gerenteController.text = data['gerente'] ?? '';
@@ -7435,7 +7370,7 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
 
 *Posicionamento: ${widget.storeName}
 *Data: $dataFormatada
-*Técnico: $userName
+*Promotor: $userName
 *Crachá: ${crachaController.text}
 *Gerência: ${gerenteController.text}
 *Encarregado: ${encarregadoController.text}
@@ -7444,6 +7379,26 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
 """;
 
     await Share.share(texto.trim(), subject: 'Relatório Abertura');
+  }
+
+  Future<void> _copiarRelatorioAbertura() async {
+    String texto = """ BOM DIA A TODOS!
+
+*Posicionamento: ${widget.storeName}
+*Data: $dataFormatada
+*Promotor: $userName
+*Crachá: ${crachaController.text}
+*Gerência: ${gerenteController.text}
+*Encarregado: ${encarregadoController.text}
+*Colaboradores ativos: $colaboradoresAtivos
+*Sobras Pão Francês: $sobrasGeladeira telas
+""";
+
+    await Clipboard.setData(ClipboardData(text: texto.trim()));
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Texto copiado!')),
+    );
   }
 
   @override
@@ -7458,6 +7413,7 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
   Widget build(BuildContext context) {
     const verdeEscuro = Color(0xFF006400);
     const preto = Color(0xff0e0101);
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: verdeEscuro,
@@ -7556,17 +7512,32 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
               ),
               const SizedBox(height: 32),
               Center(
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: verdeEscuro,
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: _compartilharRelatorioComImagens,
-                  icon: const Icon(Icons.share),
-                  label: const Text(
-                    'Compartilhar',
-                    style: TextStyle(fontSize: 19),
-                  ),
+                child: Column(
+                  children: [
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.share),
+                      label: const Text('Compartilhar'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: verdeEscuro,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 14),
+                        textStyle: const TextStyle(fontSize: 20),
+                      ),
+                      onPressed: _compartilharRelatorioComImagens,
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.copy),
+                      label: const Text('Copiar texto'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xff920b0b),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 14),
+                        textStyle: const TextStyle(fontSize: 20),
+                      ),
+                      onPressed: _copiarRelatorioAbertura,
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -8722,7 +8693,7 @@ class _DocumentosState extends State<Documentos> {
     {
       'label': 'Baixas Motivo (8,9,49)',
       'url':
-          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/requisi%C3%A7%C3%A3o%20motivos%208%2C9%2C49.pdf?alt=media&token=3b549708-5853-4831-af61-432ee5717b79'
+          'https://firebasestorage.googleapis.com/v0/b/stockone-1c804.firebasestorage.app/o/requisi%C3%A7%C3%A3o%20padaria%20motivos%2008%20.%2009.%2049.pdf?alt=media&token=b65fff64-4cb8-4996-9a01-8ed8fff64d91'
     },
     {
       'label': 'Baixas Motivo (23,71)',
@@ -9242,7 +9213,6 @@ class PaoFrancesScreen extends StatelessWidget {
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paofrances.jpg',
                 fit: BoxFit.fitWidth,
@@ -9254,11 +9224,7 @@ class PaoFrancesScreen extends StatelessWidget {
             top: 40,
             left: 20,
             child: IconButton(
-              icon: const Icon(
-                Icons.arrow_back,
-                color: Colors.white,
-                size: 30,
-              ),
+              icon: const Icon(Icons.arrow_back, color: Colors.white, size: 30),
               onPressed: () {
                 Navigator.pop(context);
               },
@@ -9278,19 +9244,21 @@ class integral extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paofrancesfibras.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9319,19 +9287,21 @@ class panhoca extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/panhoca.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9360,19 +9330,21 @@ class paobaguete extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paobaguete.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9400,19 +9372,21 @@ class PaoBagueteFrancesaCGergelimScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paobaguetefrancesagergelim.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9441,19 +9415,21 @@ class PaoBagueteFrancesaCQueijoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paobaguetefrancesaqueijo.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9481,19 +9457,21 @@ class RoscaCaseiraCocoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/roscacaseiracoco.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9521,19 +9499,21 @@ class RoscaCaseiraScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/roscacaseira.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9562,19 +9542,21 @@ class MiniPaoMartaRochaScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/minipaomartarocha.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9602,19 +9584,21 @@ class PaoBambinoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paobambino.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9642,19 +9626,21 @@ class MiniPaoSonhoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/minipaosonho.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9683,19 +9669,21 @@ class MiniPaoSonhoChocolateScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/minipaosonhochocolate.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9724,19 +9712,21 @@ class RoscaFofinhaTemperadaScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/roscafofinhatemperada.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9765,19 +9755,21 @@ class PaoCaseirinhoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paocaseirinho.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9806,19 +9798,21 @@ class PaoTatuScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paotatu.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9846,19 +9840,21 @@ class PaoMilhoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paomilho.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9886,19 +9882,21 @@ class PaoDoceCompridoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paodocecomprido.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9927,19 +9925,21 @@ class PaoDoceFerraduraScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paodoceferradura.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -9967,19 +9967,21 @@ class PaoDoceCaracolScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paodocecaracol.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10007,19 +10009,21 @@ class TorradaIntegralDeAlhoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/torradafibrasdealho.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10047,19 +10051,21 @@ class TorradaIntegralScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/torradafibras.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10088,19 +10094,21 @@ class TorradaDeAlhoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/torradadealho.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10129,19 +10137,21 @@ class TorradaDeAlhoPicanteScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/torradadealhopicante.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10170,19 +10180,21 @@ class TorradaComumScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/torradacomum.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10211,19 +10223,21 @@ class PaoDeAlhoDaCasaPicanteScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paodealhodacasapicante.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10252,19 +10266,21 @@ class PaoDeAlhoDaCasaScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paodealhodacasa.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10293,19 +10309,21 @@ class PaoFrancesCQueijoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paofrancesqueijo.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10334,19 +10352,21 @@ class MiniPaoFrancesCGergelimScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/minipaofrancesgergelim.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10375,19 +10395,21 @@ class BagueteFrancesaCQueijoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/baguetefrancesaqueijo.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10416,19 +10438,21 @@ class BagueteFrancesaScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/baguetefrancesa.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10457,19 +10481,21 @@ class PaoFofinhoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paofofinho.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10498,19 +10524,21 @@ class ProfiterolesDoceDeLeiteScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/profiterolesdocedeleite.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10538,19 +10566,21 @@ class ProfiterolesBrigadeiroBrancoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/profiterolesbrigadeirobranco.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10579,19 +10609,21 @@ class ProfiterolesBrigadeiroScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/profiterolesbrigadeiro.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10619,19 +10651,21 @@ class BiscoitoPolvilhoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/biscoitopolvilho.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10660,19 +10694,21 @@ class BiscoitoQueijoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/biscoitodequeijo.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10700,19 +10736,21 @@ class PaoDeQueijoCoquetelScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paodequeijocoquetel.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10740,19 +10778,21 @@ class PaoDeQueijoTradicionalScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paodequeijotradicional.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10780,19 +10820,21 @@ class SanduicheBahamasScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/sanduichebahamas.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10821,19 +10863,21 @@ class SanduicheFofinhoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/sanduichefofinho.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10861,19 +10905,21 @@ class PaoPizzaScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paopizza.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10901,19 +10947,21 @@ class PaoSamaritanoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paosamaritano.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10941,19 +10989,21 @@ class RabanadaAssadaScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/rabanadaassada.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -10981,19 +11031,21 @@ class PaoParaRabanadaScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/paopararabanada.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -11021,19 +11073,21 @@ class RoscaCocoEQueijoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/roscacocoequeijo.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -11062,19 +11116,21 @@ class RoscaCaseiraLeiteEmPoScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/roscacaseiraleiteempo.jpg',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 40,
             left: 20,
@@ -11103,19 +11159,21 @@ class Codigos extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Conteúdo rolável
           SingleChildScrollView(
             child: InteractiveViewer(
               panEnabled: true,
               minScale: 1.0,
               maxScale: 5.0,
-              scaleFactor: 100.0, // sensibilidade média
               child: Image.asset(
                 'assets/images/codigos.png',
-                fit: BoxFit.fitWidth,
+                fit: BoxFit.fitWidth, // ajusta a largura da imagem à tela
                 width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
+
+          // Botão de voltar sobre a imagem
           Positioned(
             top: 20,
             left: 10,
@@ -20338,6 +20396,7 @@ class _RequisicaoState extends State<Requisicao>
 
   // Função para compartilhar em PDF
   // Função para compartilhar em PDF
+
   Future<void> _compartilharPlanilhaPDF() async {
     final motivo49 = _calcularMotivo49();
     final motivo8 = _calcularMotivo8();
@@ -20392,69 +20451,32 @@ class _RequisicaoState extends State<Requisicao>
       ),
     );
 
-    // Mostrar loading
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return const Center(child: CircularProgressIndicator());
-      },
-    );
-
     try {
-      final bytes = await pdf.save();
+      final dir = await getTemporaryDirectory();
+      final fileName =
+          'requisicao_padaria_${widget.storeName}_${DateFormat('ddMMyyyy').format(_dataSelecionada)}.pdf';
+      final file = File('${dir.path}/$fileName');
+      await file.writeAsBytes(await pdf.save());
 
-      // Para Web - faz download
-      if (kIsWeb) {
-        final base64 = base64Encode(bytes);
-        final anchor = html.AnchorElement(
-            href:
-                'data:application/octet-stream;charset=utf-16le;base64,$base64')
-          ..setAttribute('download',
-              'requisicao_padaria_${widget.storeName}_${DateFormat('ddMMyyyy').format(_dataSelecionada)}.pdf')
-          ..click();
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text:
+            'Requisição Padaria - ${widget.storeName} - ${DateFormat('dd/MM/yyyy').format(_dataSelecionada)}',
+      );
 
-        if (context.mounted) Navigator.of(context).pop();
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('PDF baixado com sucesso!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else {
-        // Para Mobile - compartilha
-        final dir = await getTemporaryDirectory();
-        final fileName =
-            'requisicao_padaria_${widget.storeName}_${DateFormat('ddMMyyyy').format(_dataSelecionada)}.pdf';
-        final file = File('${dir.path}/$fileName');
-        await file.writeAsBytes(bytes);
-
-        await Share.shareXFiles(
-          [XFile(file.path)],
-          text:
-              'Requisição Padaria - ${widget.storeName} - ${DateFormat('dd/MM/yyyy').format(_dataSelecionada)}',
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('PDF gerado e compartilhado com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
         );
-
-        if (context.mounted) Navigator.of(context).pop();
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('PDF gerado e compartilhado com sucesso!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
       }
     } catch (e) {
-      if (context.mounted) Navigator.of(context).pop();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao gerar PDF: $e'),
+            content: Text('Erro ao gerar ou compartilhar PDF: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -21595,235 +21617,6 @@ class _RequisicaoState extends State<Requisicao>
           _buildLista(produtosPerdas, controllersPerdas, "perdas", "Perdas"),
           _buildPlanilha(),
         ],
-      ),
-    );
-  }
-}
-
-class HoleriteScreen extends StatefulWidget {
-  const HoleriteScreen({super.key});
-
-  @override
-  State<HoleriteScreen> createState() => _HoleriteScreenState();
-}
-
-class _HoleriteScreenState extends State<HoleriteScreen> {
-  final salarioController = TextEditingController();
-  final extra60Controller = TextEditingController();
-  final extra100Controller = TextEditingController();
-  final atrasoController = TextEditingController();
-  final faltaController = TextEditingController();
-  final descontosExtrasController = TextEditingController();
-
-  Map<String, double> vencimentos = {};
-  Map<String, double> descontos = {};
-
-  double bruto = 0;
-  double liquido = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-
-    // salva automaticamente ao digitar
-    salarioController.addListener(_saveData);
-    extra60Controller.addListener(_saveData);
-    extra100Controller.addListener(_saveData);
-    atrasoController.addListener(_saveData);
-    faltaController.addListener(_saveData);
-    descontosExtrasController.addListener(_saveData);
-  }
-
-  Future<void> _saveData() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    await prefs.setString('salario', salarioController.text);
-    await prefs.setString('extra60', extra60Controller.text);
-    await prefs.setString('extra100', extra100Controller.text);
-    await prefs.setString('atraso', atrasoController.text);
-    await prefs.setString('falta', faltaController.text);
-    await prefs.setString('descontosExtras', descontosExtrasController.text);
-  }
-
-  Future<void> _loadData() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    setState(() {
-      salarioController.text = prefs.getString('salario') ?? '';
-      extra60Controller.text = prefs.getString('extra60') ?? '';
-      extra100Controller.text = prefs.getString('extra100') ?? '';
-      atrasoController.text = prefs.getString('atraso') ?? '';
-      faltaController.text = prefs.getString('falta') ?? '';
-      descontosExtrasController.text = prefs.getString('descontosExtras') ?? '';
-    });
-  }
-
-  double parse(String v) {
-    return double.tryParse(v.replaceAll(',', '.')) ?? 0;
-  }
-
-  double calcularINSS(double salario) {
-    double total = 0;
-
-    double f1 = salario > 1412 ? 1412 : salario;
-    total += f1 * 0.08;
-
-    if (salario > 1412) {
-      double f2 = salario > 2666.68 ? 1254.68 : salario - 1412;
-      total += f2 * 0.09;
-    }
-
-    if (salario > 2666.68) {
-      double f3 = salario > 4000.03 ? 1333.35 : salario - 2666.68;
-      total += f3 * 0.12;
-    }
-
-    if (salario > 4000.03) {
-      total += (salario - 4000.03) * 0.14;
-    }
-
-    return total;
-  }
-
-  double calcularDSR(double totalExtras) {
-    return (totalExtras / 24) * 6;
-  }
-
-  void calcular() {
-    double salario = parse(salarioController.text);
-    double he60h = parse(extra60Controller.text);
-    double he100h = parse(extra100Controller.text);
-    double atraso = parse(atrasoController.text);
-    double falta = parse(faltaController.text);
-    double descontosExtras = parse(descontosExtrasController.text);
-
-    double valorHora = salario / 220;
-
-    double he60 = he60h * valorHora * 1.6;
-    double he100 = he100h * valorHora * 2;
-
-    double totalExtras = he60 + he100;
-    double dsr = calcularDSR(totalExtras);
-
-    double baseINSS = salario + he60 + he100 + dsr;
-
-    double premio = 175;
-    if (falta > 0 || atraso >= 8) {
-      premio = 0;
-    } else if (atraso >= 2) {
-      premio = 87.5;
-    }
-
-    vencimentos = {
-      "Salário Base": salario,
-      "Horas Extra 60%": he60,
-      "Horas Extra 100%": he100,
-      "DSR Extras": dsr,
-      "Prêmio Assiduidade": premio,
-      "Auxílio Refeição": 400,
-      "Cesta Básica": 175,
-      "Vale Transporte": 345,
-    };
-
-    bruto = vencimentos.values.fold(0, (a, b) => a + b);
-
-    descontos = {
-      "INSS": calcularINSS(baseINSS),
-      "Atraso": atraso * valorHora,
-      "Adiantamento (40%)": salario * 0.4,
-      "Plano Saúde": 1,
-      "Plano Odonto": 1,
-      "Outros Descontos": descontosExtras,
-    };
-
-    double totalDesc = descontos.values.fold(0, (a, b) => a + b);
-
-    liquido = bruto - totalDesc;
-
-    setState(() {});
-  }
-
-  Widget linha(String nome, double valor) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(nome),
-        Text("R\$ ${valor.toStringAsFixed(2)}"),
-      ],
-    );
-  }
-
-  Widget bloco(String titulo, Map<String, double> dados) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(titulo, style: const TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 5),
-        ...dados.entries.map((e) => linha(e.key, e.value)),
-        const Divider(),
-      ],
-    );
-  }
-
-  Widget campo(String label, TextEditingController c) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: TextField(
-        controller: c,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        decoration: InputDecoration(
-          labelText: label,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    salarioController.dispose();
-    extra60Controller.dispose();
-    extra100Controller.dispose();
-    atrasoController.dispose();
-    faltaController.dispose();
-    descontosExtrasController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Holerite Teste")),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: ListView(
-          children: [
-            campo("Salário Base", salarioController),
-            campo("Horas Extra 60%", extra60Controller),
-            campo("Horas Extra 100%", extra100Controller),
-            campo("Horas de Atraso", atrasoController),
-            campo("Descontos adicionais (R\$)", descontosExtrasController),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: calcular,
-              child: const Text("Calcular Holerite"),
-            ),
-            const SizedBox(height: 20),
-            bloco("VENCIMENTOS", vencimentos),
-            bloco("DESCONTOS", descontos),
-            linha("TOTAL BRUTO", bruto),
-            linha(
-              "TOTAL DESCONTOS",
-              descontos.values.fold(0, (a, b) => a + b),
-            ),
-            const Divider(),
-            Text(
-              "LÍQUIDO: R\$ ${liquido.toStringAsFixed(2)}",
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
       ),
     );
   }
