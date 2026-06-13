@@ -7709,6 +7709,47 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     }
   }
 
+  // Função para apagar TODAS as fotos
+  Future<void> _apagarTodasFotos() async {
+    // Mostra um diálogo de confirmação
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Apagar todas as fotos'),
+        content: const Text('Tem certeza que deseja apagar TODAS as fotos? Esta ação não pode ser desfeita.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Apagar todas'),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirm == true) {
+      setState(() {
+        fotos.clear();
+        fotosDescricao.clear();
+      });
+      await _salvarFotosNoSharedPreferences();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Todas as fotos foram removidas!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -7724,7 +7765,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
 
     _atualizarDataAtual();
     _carregarPreferencias();
-    _carregarFotosDoSharedPreferences(); // Carrega as fotos salvas
+    _carregarFotosDoSharedPreferences();
   }
 
   // Função para selecionar MÚLTIPLAS fotos da galeria
@@ -7743,7 +7784,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
             fotosDescricao.add('');
           });
         }
-        await _salvarFotosNoSharedPreferences(); // Salva após adicionar
+        await _salvarFotosNoSharedPreferences();
       }
     } catch (e) {
       print('Erro ao selecionar múltiplas fotos: $e');
@@ -7765,20 +7806,20 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
           fotos.add(bytes);
           fotosDescricao.add('');
         });
-        await _salvarFotosNoSharedPreferences(); // Salva após adicionar
+        await _salvarFotosNoSharedPreferences();
       }
     } catch (e) {
       print('Erro ao tirar foto: $e');
     }
   }
 
-  // Função para remover foto
+  // Função para remover foto individual
   void _removerFoto(int index) async {
     setState(() {
       fotos.removeAt(index);
       fotosDescricao.removeAt(index);
     });
-    await _salvarFotosNoSharedPreferences(); // Salva após remover
+    await _salvarFotosNoSharedPreferences();
   }
 
   // Função para atualizar descrição da foto
@@ -7786,7 +7827,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     setState(() {
       fotosDescricao[index] = descricao;
     });
-    await _salvarFotosNoSharedPreferences(); // Salva após atualizar descrição
+    await _salvarFotosNoSharedPreferences();
   }
 
   Future<void> _carregarPreferencias() async {
@@ -7884,201 +7925,202 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   }
 
   Future<void> _compartilharEArquivarPDF() async {
-    final nomeArquivo = 'Relatorio_${widget.storeName}_$dataParaArquivo.pdf';
+  // Converte a data para o formato dd_mm_aa para o nome do arquivo
+  final dataParts = dataFormatada.split('/');
+  final dia = dataParts[0];
+  final mes = dataParts[1];
+  final ano = dataParts[2].substring(2); // Pega os últimos 2 dígitos do ano
+  final nomeArquivo = 'Relatorio_${widget.storeName}_${dia}_${mes}_$ano.pdf';
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
+  if (mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
               ),
-              SizedBox(width: 12),
-              Text('Gerando PDF e arquivando...'),
-            ],
-          ),
-          duration: Duration(seconds: 2),
+            ),
+            SizedBox(width: 12),
+            Text('Gerando PDF e arquivando...'),
+          ],
         ),
-      );
-    }
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
 
-    try {
-      final pdf = pw.Document();
+  try {
+    final pdf = pw.Document();
 
-      pdf.addPage(
-        pw.MultiPage(
-          pageFormat: PdfPageFormat.a4,
-          build: (context) => [
-            pw.Center(
-              child: pw.Column(
-                children: [
-                  pw.Text(widget.storeName,
-                      style: pw.TextStyle(
-                        fontSize: 48,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.red900,
-                      )),
-                ],
-              ),
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        build: (context) => [
+          pw.Center(
+            child: pw.Column(
+              children: [
+                pw.Text(widget.storeName,
+                    style: pw.TextStyle(
+                      fontSize: 48,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.red900,
+                    )),
+              ],
             ),
-            pw.SizedBox(height: 30),
-            pw.Container(
-              padding: const pw.EdgeInsets.all(10),
-              decoration: pw.BoxDecoration(
-                border: pw.Border(
-                    left: pw.BorderSide(color: PdfColors.green900, width: 4)),
-              ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text('INFORMAÇÕES DA VISITA',
-                      style: pw.TextStyle(
-                        fontSize: 18,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.green900,
-                      )),
-                  pw.SizedBox(height: 10),
-                  pw.Text('Data: $dataFormatada'),
-                  pw.Text('Promotor(a): $userName'),
-                  pw.Text('Crachá: ${crachaController.text}'),
-                  pw.Text('Gerencia: ${gerenteController.text}'),
-                  pw.Text('Encarregado(s): ${encarregadoController.text}'),
-                  pw.Text('Colaboradores no dia: $colaboradoresAtivos'),
-                ],
-              ),
+          ),
+          pw.SizedBox(height: 30),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(10),
+            decoration: pw.BoxDecoration(
+              border: pw.Border(
+                  left: pw.BorderSide(color: PdfColors.green900, width: 4)),
             ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text('INFORMAÇÕES DA VISITA',
+                    style: pw.TextStyle(
+                      fontSize: 18,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.green900,
+                    )),
+                pw.SizedBox(height: 10),
+                pw.Text('Data: $dataFormatada'),
+                pw.Text('Promotor(a): $userName'),
+                pw.Text('Crachá: ${crachaController.text}'),
+                pw.Text('Gerencia: ${gerenteController.text}'),
+                pw.Text('Encarregado(s): ${encarregadoController.text}'),
+                pw.Text('Colaboradores no dia: $colaboradoresAtivos'),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 20),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(10),
+            decoration: pw.BoxDecoration(
+              border: pw.Border(
+                  left: pw.BorderSide(color: PdfColors.green900, width: 4)),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text('RUPTURAS REGISTRADAS',
+                    style: pw.TextStyle(
+                      fontSize: 18,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.green900,
+                    )),
+                pw.SizedBox(height: 10),
+                ..._buildRupturasList(),
+              ],
+            ),
+          ),
+          if (fotos.isNotEmpty) ...[
             pw.SizedBox(height: 20),
             pw.Container(
               padding: const pw.EdgeInsets.all(10),
               decoration: pw.BoxDecoration(
                 border: pw.Border(
-                    left: pw.BorderSide(color: PdfColors.green900, width: 4)),
+                    left: pw.BorderSide(color: PdfColors.blue, width: 4)),
               ),
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text('RUPTURAS REGISTRADAS',
+                  pw.Text('FOTOS REGISTRADAS',
                       style: pw.TextStyle(
                         fontSize: 18,
                         fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.green900,
+                        color: PdfColors.blue,
                       )),
                   pw.SizedBox(height: 10),
-                  ..._buildRupturasList(),
+                  ..._buildFotosListEmGrid(),
                 ],
               ),
             ),
-            // Seção de FOTOS (apenas se houver fotos)
-            if (fotos.isNotEmpty) ...[
-              pw.SizedBox(height: 20),
-              pw.Container(
-                padding: const pw.EdgeInsets.all(10),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border(
-                      left: pw.BorderSide(color: PdfColors.blue, width: 4)),
-                ),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text('FOTOS REGISTRADAS',
-                        style: pw.TextStyle(
-                          fontSize: 18,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.blue,
-                        )),
-                    pw.SizedBox(height: 10),
-                    ..._buildFotosListEmGrid(),
-                  ],
-                ),
-              ),
-            ],
-            pw.SizedBox(height: 40),
-            pw.Center(
-              child: pw.Text(
-                'Relatorio gerado automaticamente em $dataFormatada',
-                style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
-              ),
-            ),
           ],
+          pw.SizedBox(height: 40),
+          pw.Center(
+            child: pw.Text(
+              'Relatorio gerado automaticamente em $dataFormatada',
+              style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final pdfBytes = await pdf.save();
+
+    final textoRelatorio = await _gerarTextoRelatorioParaArquivo();
+
+    await _firestore
+        .collection('relatorios')
+        .doc('lojas')
+        .collection('lojas')
+        .doc(widget.storeName)
+        .collection('datas')
+        .doc(dataParaArquivo)
+        .set({
+      'loja': widget.storeName,
+      'data': dataParaArquivo,
+      'dataFormatada': dataFormatada,
+      'textoCompleto': textoRelatorio,
+      'tecnico': userName,
+      'cracha': crachaController.text,
+      'gerente': gerenteController.text,
+      'encarregado': encarregadoController.text,
+      'colaboradoresAtivos': colaboradoresAtivos,
+      'nomeArquivoPDF': nomeArquivo,
+      'rupturas': _salvarRupturasParaFirestore(),
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    await Share.shareXFiles(
+      [
+        XFile.fromData(pdfBytes,
+            name: nomeArquivo, mimeType: 'application/pdf')
+      ],
+      text: 'Relatorio Final - ${widget.storeName} - $dataFormatada',
+    );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ PDF compartilhado e relatorio arquivado!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 4),
         ),
       );
-
-      final pdfBytes = await pdf.save();
-
-      final textoRelatorio = await _gerarTextoRelatorioParaArquivo();
-
-      await _firestore
-          .collection('relatorios')
-          .doc('lojas')
-          .collection('lojas')
-          .doc(widget.storeName)
-          .collection('datas')
-          .doc(dataParaArquivo)
-          .set({
-        'loja': widget.storeName,
-        'data': dataParaArquivo,
-        'dataFormatada': dataFormatada,
-        'textoCompleto': textoRelatorio,
-        'tecnico': userName,
-        'cracha': crachaController.text,
-        'gerente': gerenteController.text,
-        'encarregado': encarregadoController.text,
-        'colaboradoresAtivos': colaboradoresAtivos,
-        'nomeArquivoPDF': nomeArquivo,
-        'rupturas': _salvarRupturasParaFirestore(),
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      await Share.shareXFiles(
-        [
-          XFile.fromData(pdfBytes,
-              name: nomeArquivo, mimeType: 'application/pdf')
-        ],
-        text: 'Relatorio Final - ${widget.storeName} - $dataFormatada',
+    }
+  } catch (e) {
+    print('Erro: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Erro ao gerar PDF: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).clearSnackBars();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ PDF compartilhado e relatorio arquivado!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 4),
-          ),
-        );
-      }
-    } catch (e) {
-      print('Erro: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).clearSnackBars();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Erro ao gerar PDF: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
     }
   }
+}
 
-  // GRID de fotos no PDF (2 fotos por linha, tamanho reduzido em 10%)
   List<pw.Widget> _buildFotosListEmGrid() {
     final widgets = <pw.Widget>[];
     
-    // Tamanho reduzido em 10% (360x270 em vez de 400x300)
     final double imageWidth = 360;
     final double imageHeight = 270;
     
     for (int i = 0; i < fotos.length; i += 2) {
       final rowChildren = <pw.Widget>[];
       
-      // Primeira foto da linha
       rowChildren.add(
         pw.Expanded(
           child: pw.Container(
@@ -8099,7 +8141,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         ),
       );
       
-      // Segunda foto da linha (se existir)
       if (i + 1 < fotos.length) {
         rowChildren.add(
           pw.Expanded(
@@ -8121,7 +8162,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
           ),
         );
       } else {
-        // Espaço vazio para manter o grid alinhado
         rowChildren.add(pw.Expanded(child: pw.Container()));
       }
       
@@ -8437,6 +8477,13 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                         onPressed: _selecionarMultiplasFotos,
                         tooltip: 'Escolher múltiplas fotos',
                       ),
+                      if (fotos.isNotEmpty)
+                        IconButton(
+                          icon: const Icon(Icons.delete_sweep,
+                              size: 32, color: Colors.red),
+                          onPressed: _apagarTodasFotos,
+                          tooltip: 'Apagar todas as fotos',
+                        ),
                     ],
                   ),
                 ],
