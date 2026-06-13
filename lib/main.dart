@@ -7745,7 +7745,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
 
   Future<void> _compartilharEArquivarPDF() async {
     final nomeArquivo = 'relatorio_${widget.storeName}_$dataParaArquivo.pdf';
-    
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -7770,7 +7770,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
 
     try {
       final pdf = pw.Document();
-      
+
       pdf.addPage(
         pw.MultiPage(
           pageFormat: PdfPageFormat.a4,
@@ -7778,17 +7778,11 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
             pw.Center(
               child: pw.Column(
                 children: [
-                  pw.Text('BOA TARDE A TODOS!',
+                  pw.Text(widget.storeName,
                       style: pw.TextStyle(
                         fontSize: 24,
                         fontWeight: pw.FontWeight.bold,
                         color: PdfColors.red900,
-                      )),
-                  pw.SizedBox(height: 10),
-                  pw.Text(widget.storeName,
-                      style: pw.TextStyle(
-                        fontSize: 16,
-                        color: PdfColors.green900,
                       )),
                 ],
               ),
@@ -7797,12 +7791,13 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
             pw.Container(
               padding: const pw.EdgeInsets.all(10),
               decoration: pw.BoxDecoration(
-                border: pw.Border(left: pw.BorderSide(color: PdfColors.green900, width: 4)),
+                border: pw.Border(
+                    left: pw.BorderSide(color: PdfColors.green900, width: 4)),
               ),
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text('INFORMACOES DA VISITA',
+                  pw.Text('INFORMAÇÕES DA VISITA',
                       style: pw.TextStyle(
                         fontSize: 18,
                         fontWeight: pw.FontWeight.bold,
@@ -7822,7 +7817,8 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
             pw.Container(
               padding: const pw.EdgeInsets.all(10),
               decoration: pw.BoxDecoration(
-                border: pw.Border(left: pw.BorderSide(color: PdfColors.green900, width: 4)),
+                border: pw.Border(
+                    left: pw.BorderSide(color: PdfColors.green900, width: 4)),
               ),
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -7848,11 +7844,11 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
           ],
         ),
       );
-      
+
       final pdfBytes = await pdf.save();
-      
+
       final textoRelatorio = await _gerarTextoRelatorioParaArquivo();
-      
+
       await _firestore
           .collection('relatorios')
           .doc('lojas')
@@ -7874,13 +7870,16 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         'rupturas': _salvarRupturasParaFirestore(),
         'createdAt': FieldValue.serverTimestamp(),
       });
-      
+
       // Apenas compartilha (sem download)
       await Share.shareXFiles(
-        [XFile.fromData(pdfBytes, name: nomeArquivo, mimeType: 'application/pdf')],
+        [
+          XFile.fromData(pdfBytes,
+              name: nomeArquivo, mimeType: 'application/pdf')
+        ],
         text: 'Relatorio Final - ${widget.storeName} - $dataFormatada',
       );
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -7908,7 +7907,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   List<pw.Widget> _buildRupturasList() {
     final widgets = <pw.Widget>[];
     bool hasRuptura = false;
-    
+
     for (var produto in produtos) {
       if (rupturasSelecionadas[produto] == true) {
         hasRuptura = true;
@@ -7931,7 +7930,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         }
       }
     }
-    
+
     if (!hasRuptura) {
       widgets.add(pw.Padding(
         padding: const pw.EdgeInsets.only(left: 20),
@@ -7939,7 +7938,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
             style: pw.TextStyle(color: PdfColors.green)),
       ));
     }
-    
+
     return widgets;
   }
 
@@ -8031,7 +8030,8 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.picture_as_pdf, color: Colors.white, size: 28),
+            icon:
+                const Icon(Icons.picture_as_pdf, color: Colors.white, size: 28),
             onPressed: _compartilharEArquivarPDF,
             tooltip: 'Gerar PDF e Arquivar',
           ),
@@ -8194,7 +8194,8 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                       child: Text(
                         'Clique no ícone PDF no topo para gerar o relatório em PDF. '
                         'O arquivo será compartilhado automaticamente!',
-                        style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                        style: TextStyle(
+                            fontSize: 14, color: Colors.grey.shade700),
                       ),
                     ),
                   ],
@@ -8207,6 +8208,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     );
   }
 }
+
 class FoldedCornerPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
