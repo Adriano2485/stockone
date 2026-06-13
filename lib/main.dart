@@ -7591,6 +7591,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   late TextEditingController crachaController;
   late TextEditingController gerenteController;
   late TextEditingController encarregadoController;
+  late TextEditingController dataController;
 
   String userName = '';
   int colaboradoresAtivos = 0;
@@ -7652,6 +7653,14 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   late Map<String, String> outrosMotivos;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // Função para obter a data atual do sistema
+  void _atualizarDataAtual() {
+    final dataHoje = DateTime.now();
+    dataFormatada = "${dataHoje.day.toString().padLeft(2, '0')}/${dataHoje.month.toString().padLeft(2, '0')}/${dataHoje.year}";
+    dataParaArquivo = "${dataHoje.year}-${dataHoje.month.toString().padLeft(2, '0')}-${dataHoje.day.toString().padLeft(2, '0')}";
+    dataController.text = dataFormatada;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -7659,16 +7668,14 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     crachaController = TextEditingController();
     gerenteController = TextEditingController();
     encarregadoController = TextEditingController();
+    dataController = TextEditingController();
 
     rupturasSelecionadas = {for (var p in produtos) p: false};
     motivosSelecionados = {for (var p in produtos) p: motivos[0]};
     outrosMotivos = {for (var p in produtos) p: ''};
 
-    final dataHoje = DateTime.now();
-    dataFormatada =
-        "${dataHoje.day.toString().padLeft(2, '0')}/${dataHoje.month.toString().padLeft(2, '0')}/${dataHoje.year}";
-    dataParaArquivo =
-        "${dataHoje.year}-${dataHoje.month.toString().padLeft(2, '0')}-${dataHoje.day.toString().padLeft(2, '0')}";
+    // Sempre usa a data atual do sistema ao entrar
+    _atualizarDataAtual();
 
     _carregarPreferencias();
   }
@@ -7694,6 +7701,9 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
           crachaController.text = fetchedCracha;
           gerenteController.text = fetchedGerente;
           encarregadoController.text = fetchedEncarregado;
+          
+          // A data NÃO é carregada do Firestore, mantém a data atual do sistema
+          // dataFormatada e dataParaArquivo já foram definidas no initState
 
           colaboradoresAtivos = fetchedColaboradores;
           userName = fetchedUserName;
@@ -7708,6 +7718,28 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
       }
     } catch (e) {
       print('Erro ao carregar preferências: $e');
+    }
+  }
+
+  // Função para validar e atualizar a data (quando o usuário edita manualmente)
+  void _atualizarDataManual(String texto) {
+    // Verifica se o formato é dd/MM/yyyy
+    final regex = RegExp(r'^(\d{2})/(\d{2})/(\d{4})$');
+    final match = regex.firstMatch(texto);
+    
+    if (match != null) {
+      final dia = int.parse(match.group(1)!);
+      final mes = int.parse(match.group(2)!);
+      final ano = int.parse(match.group(3)!);
+      
+      // Valida se a data é válida
+      if (ano >= 2000 && ano <= 2100 && mes >= 1 && mes <= 12 && dia >= 1 && dia <= 31) {
+        setState(() {
+          dataFormatada = texto;
+          dataParaArquivo = "$ano-${mes.toString().padLeft(2, '0')}-${dia.toString().padLeft(2, '0')}";
+        });
+        // NÃO salva a data no Firestore, pois queremos que ela resete ao reabrir
+      }
     }
   }
 
@@ -7732,6 +7764,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
       final relatorioData = {
         'colaboradoresAtivos': colaboradoresAtivos,
         'rupturas': rupturasData,
+        // NÃO salva a data no Firestore
       };
 
       await _firestore.collection('stores').doc(widget.storeName).set({
@@ -8003,6 +8036,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     crachaController.dispose();
     gerenteController.dispose();
     encarregadoController.dispose();
+    dataController.dispose();
     super.dispose();
   }
 
@@ -8030,10 +8064,9 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         ),
         actions: [
           IconButton(
-            icon:
-                const Icon(Icons.picture_as_pdf, color: Colors.white, size: 28),
+            icon: const Icon(Icons.share, color: Colors.white, size: 28),
             onPressed: _compartilharEArquivarPDF,
-            tooltip: 'Gerar PDF e Arquivar',
+            tooltip: 'Compartilhar PDF e Arquivar',
           ),
           const SizedBox(width: 8),
         ],
@@ -8045,12 +8078,14 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Data: $dataFormatada',
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 19,
-                    color: verdeEscuro),
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Data:',
+                  labelStyle: TextStyle(fontSize: 23, color: verdeEscuro),
+                  hintText: 'dd/MM/yyyy',
+                ),
+                controller: dataController,
+                onChanged: _atualizarDataManual,
               ),
               const SizedBox(height: 32),
               TextField(
@@ -8188,11 +8223,11 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.picture_as_pdf, color: vermelhoEscuro),
+                    Icon(Icons.share, color: vermelhoEscuro),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Clique no ícone PDF no topo para gerar o relatório em PDF. '
+                        'Clique no ícone Compartilhar no topo para gerar o relatório em PDF. '
                         'O arquivo será compartilhado automaticamente!',
                         style: TextStyle(
                             fontSize: 14, color: Colors.grey.shade700),
@@ -8208,7 +8243,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     );
   }
 }
-
 class FoldedCornerPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
