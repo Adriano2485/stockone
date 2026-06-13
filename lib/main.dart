@@ -7685,6 +7685,28 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     _carregarPreferencias();
   }
 
+  // Função para selecionar MÚLTIPLAS fotos da galeria
+  Future<void> _selecionarMultiplasFotos() async {
+    try {
+      final List<XFile>? fotosSelecionadas = await _picker.pickMultiImage(
+        imageQuality: 80,
+        maxWidth: 1024,
+      );
+
+      if (fotosSelecionadas != null && fotosSelecionadas.isNotEmpty) {
+        for (var foto in fotosSelecionadas) {
+          final bytes = await foto.readAsBytes();
+          setState(() {
+            fotos.add(bytes);
+            fotosDescricao.add('');
+          });
+        }
+      }
+    } catch (e) {
+      print('Erro ao selecionar múltiplas fotos: $e');
+    }
+  }
+
   // Função para adicionar foto da câmera
   Future<void> _adicionarFotoCamera() async {
     try {
@@ -7703,27 +7725,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
       }
     } catch (e) {
       print('Erro ao tirar foto: $e');
-    }
-  }
-
-  // Função para adicionar foto da galeria
-  Future<void> _adicionarFotoGaleria() async {
-    try {
-      final XFile? foto = await _picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 80,
-        maxWidth: 1024,
-      );
-
-      if (foto != null) {
-        final bytes = await foto.readAsBytes();
-        setState(() {
-          fotos.add(bytes);
-          fotosDescricao.add('');
-        });
-      }
-    } catch (e) {
-      print('Erro ao selecionar foto: $e');
     }
   }
 
@@ -7946,7 +7947,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                           color: PdfColors.blue,
                         )),
                     pw.SizedBox(height: 10),
-                    ..._buildFotosList(),
+                    ..._buildFotosListEmGrid(),
                   ],
                 ),
               ),
@@ -8020,31 +8021,68 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     }
   }
 
-  List<pw.Widget> _buildFotosList() {
+  // GRID de fotos no PDF (2 fotos por linha, tamanho reduzido em 10%)
+  List<pw.Widget> _buildFotosListEmGrid() {
     final widgets = <pw.Widget>[];
-
-    for (int i = 0; i < fotos.length; i++) {
-      widgets.add(pw.SizedBox(height: 10));
-      widgets.add(
-        pw.Container(
-          padding: const pw.EdgeInsets.all(8),
-          decoration: pw.BoxDecoration(
-            border: pw.Border.all(color: PdfColors.grey),
-            borderRadius: pw.BorderRadius.circular(8),
-          ),
-          child: pw.Column(
-            children: [
-              pw.Image(pw.MemoryImage(fotos[i]), width: 400, height: 300),
-              pw.SizedBox(height: 8),
-              if (fotosDescricao[i].isNotEmpty)
-                pw.Text('Descrição: ${fotosDescricao[i]}',
-                    style: pw.TextStyle(fontSize: 12, color: PdfColors.grey)),
-            ],
+    
+    // Tamanho reduzido em 10% (360x270 em vez de 400x300)
+    final double imageWidth = 360;
+    final double imageHeight = 270;
+    
+    for (int i = 0; i < fotos.length; i += 2) {
+      final rowChildren = <pw.Widget>[];
+      
+      // Primeira foto da linha
+      rowChildren.add(
+        pw.Expanded(
+          child: pw.Container(
+            padding: const pw.EdgeInsets.all(5),
+            child: pw.Column(
+              children: [
+                pw.Image(pw.MemoryImage(fotos[i]), 
+                    width: imageWidth, 
+                    height: imageHeight,
+                    fit: pw.BoxFit.contain),
+                pw.SizedBox(height: 8),
+                if (fotosDescricao[i].isNotEmpty)
+                  pw.Text(fotosDescricao[i],
+                      style: pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
+              ],
+            ),
           ),
         ),
       );
+      
+      // Segunda foto da linha (se existir)
+      if (i + 1 < fotos.length) {
+        rowChildren.add(
+          pw.Expanded(
+            child: pw.Container(
+              padding: const pw.EdgeInsets.all(5),
+              child: pw.Column(
+                children: [
+                  pw.Image(pw.MemoryImage(fotos[i + 1]), 
+                      width: imageWidth, 
+                      height: imageHeight,
+                      fit: pw.BoxFit.contain),
+                  pw.SizedBox(height: 8),
+                  if (fotosDescricao[i + 1].isNotEmpty)
+                    pw.Text(fotosDescricao[i + 1],
+                        style: pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
+                ],
+              ),
+            ),
+          ),
+        );
+      } else {
+        // Espaço vazio para manter o grid alinhado
+        rowChildren.add(pw.Expanded(child: pw.Container()));
+      }
+      
+      widgets.add(pw.Row(children: rowChildren));
+      widgets.add(pw.SizedBox(height: 10));
     }
-
+    
     return widgets;
   }
 
@@ -8350,8 +8388,8 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                       IconButton(
                         icon: const Icon(Icons.photo_library,
                             size: 32, color: verdeEscuro),
-                        onPressed: _adicionarFotoGaleria,
-                        tooltip: 'Escolher da galeria',
+                        onPressed: _selecionarMultiplasFotos,
+                        tooltip: 'Escolher múltiplas fotos',
                       ),
                     ],
                   ),
@@ -8437,6 +8475,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                   color: Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(8),
                 ),
+                
               ),
             ],
           ),
