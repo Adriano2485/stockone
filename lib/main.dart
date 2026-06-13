@@ -7576,7 +7576,6 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
   }
 }
 
-
 class ReportFinalScreen extends StatefulWidget {
   final String storeName;
   const ReportFinalScreen({super.key, required this.storeName});
@@ -7746,7 +7745,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
 
   Future<void> _compartilharEArquivarPDF() async {
     final nomeArquivo = 'relatorio_${widget.storeName}_$dataParaArquivo.pdf';
-    
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -7770,9 +7769,8 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     }
 
     try {
-      // 1. Gera o PDF usando a biblioteca 'pdf'
       final pdf = pw.Document();
-      
+
       pdf.addPage(
         pw.MultiPage(
           pageFormat: PdfPageFormat.a4,
@@ -7799,12 +7797,13 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
             pw.Container(
               padding: const pw.EdgeInsets.all(10),
               decoration: pw.BoxDecoration(
-                border: pw.Border(left: pw.BorderSide(color: PdfColors.green900, width: 4)),
+                border: pw.Border(
+                    left: pw.BorderSide(color: PdfColors.green900, width: 4)),
               ),
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text('INFORMAÇÕES DA VISITA',
+                  pw.Text('INFORMACOES DA VISITA',
                       style: pw.TextStyle(
                         fontSize: 18,
                         fontWeight: pw.FontWeight.bold,
@@ -7814,7 +7813,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                   pw.Text('Data: $dataFormatada'),
                   pw.Text('Promotor(a): $userName'),
                   pw.Text('Crachá: ${crachaController.text}'),
-                  pw.Text('Gerência: ${gerenteController.text}'),
+                  pw.Text('Gerencia: ${gerenteController.text}'),
                   pw.Text('Encarregado(s): ${encarregadoController.text}'),
                   pw.Text('Colaboradores no dia: $colaboradoresAtivos'),
                 ],
@@ -7824,7 +7823,8 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
             pw.Container(
               padding: const pw.EdgeInsets.all(10),
               decoration: pw.BoxDecoration(
-                border: pw.Border(left: pw.BorderSide(color: PdfColors.green900, width: 4)),
+                border: pw.Border(
+                    left: pw.BorderSide(color: PdfColors.green900, width: 4)),
               ),
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -7843,19 +7843,18 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
             pw.SizedBox(height: 40),
             pw.Center(
               child: pw.Text(
-                'Relatório gerado automaticamente em $dataFormatada',
+                'Relatorio gerado automaticamente em $dataFormatada',
                 style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
               ),
             ),
           ],
         ),
       );
-      
+
       final pdfBytes = await pdf.save();
-      
-      // 2. Arquiva no Firestore
+
       final textoRelatorio = await _gerarTextoRelatorioParaArquivo();
-      
+
       await _firestore
           .collection('relatorios')
           .doc('lojas')
@@ -7877,22 +7876,42 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         'rupturas': _salvarRupturasParaFirestore(),
         'createdAt': FieldValue.serverTimestamp(),
       });
-      
-      // 3. Salva e compartilha o PDF
-      final tempDir = await getTemporaryDirectory();
-      final file = File('${tempDir.path}/$nomeArquivo');
-      await file.writeAsBytes(pdfBytes);
-      
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text: 'Relatório Final - ${widget.storeName} - $dataFormatada',
-      );
-      
+
+      if (kIsWeb) {
+        final blob = html.Blob([pdfBytes], 'application/pdf');
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        final anchor = html.AnchorElement(href: url)
+          ..setAttribute('download', nomeArquivo)
+          ..click();
+        html.Url.revokeObjectUrl(url);
+
+        try {
+          await Share.shareXFiles(
+            [
+              XFile.fromData(pdfBytes,
+                  name: nomeArquivo, mimeType: 'application/pdf')
+            ],
+            text: 'Relatorio Final - ${widget.storeName} - $dataFormatada',
+          );
+        } catch (e) {
+          print('Web Share nao disponivel: $e');
+        }
+      } else {
+        final tempDir = await getTemporaryDirectory();
+        final file = File('${tempDir.path}/$nomeArquivo');
+        await file.writeAsBytes(pdfBytes);
+
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text: 'Relatorio Final - ${widget.storeName} - $dataFormatada',
+        );
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ PDF compartilhado e relatório arquivado!'),
+            content: Text('✅ PDF gerado, baixado e relatorio arquivado!'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 4),
           ),
@@ -7915,7 +7934,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   List<pw.Widget> _buildRupturasList() {
     final widgets = <pw.Widget>[];
     bool hasRuptura = false;
-    
+
     for (var produto in produtos) {
       if (rupturasSelecionadas[produto] == true) {
         hasRuptura = true;
@@ -7926,27 +7945,27 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
               : 'outros';
           widgets.add(pw.Padding(
             padding: const pw.EdgeInsets.only(left: 20),
-            child: pw.Text('• $produto (Motivo: $outroMotivo)',
+            child: pw.Text('- $produto (Motivo: $outroMotivo)',
                 style: pw.TextStyle(color: PdfColors.red900)),
           ));
         } else {
           widgets.add(pw.Padding(
             padding: const pw.EdgeInsets.only(left: 20),
-            child: pw.Text('• $produto (Motivo: $motivo)',
+            child: pw.Text('- $produto (Motivo: $motivo)',
                 style: pw.TextStyle(color: PdfColors.red900)),
           ));
         }
       }
     }
-    
+
     if (!hasRuptura) {
       widgets.add(pw.Padding(
         padding: const pw.EdgeInsets.only(left: 20),
-        child: pw.Text('✓ Nenhuma ruptura registrada',
+        child: pw.Text('Nenhuma ruptura registrada',
             style: pw.TextStyle(color: PdfColors.green)),
       ));
     }
-    
+
     return widgets;
   }
 
@@ -8038,7 +8057,8 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.picture_as_pdf, color: Colors.white, size: 28),
+            icon:
+                const Icon(Icons.picture_as_pdf, color: Colors.white, size: 28),
             onPressed: _compartilharEArquivarPDF,
             tooltip: 'Gerar PDF e Arquivar',
           ),
@@ -8200,8 +8220,9 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                     Expanded(
                       child: Text(
                         'Clique no ícone PDF no topo para gerar o relatório em PDF. '
-                        'O arquivo será compartilhado automaticamente!',
-                        style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                        'O arquivo será baixado e compartilhado automaticamente!',
+                        style: TextStyle(
+                            fontSize: 14, color: Colors.grey.shade700),
                       ),
                     ),
                   ],
@@ -8214,6 +8235,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     );
   }
 }
+
 class FoldedCornerPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
