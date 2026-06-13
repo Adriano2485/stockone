@@ -7600,13 +7600,12 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
 
   final List<String> produtos = [
     'Pão Francês',
-    'Pão Francês integral',
+    'Pão Francês Fibras',
     'Pão Francês Panhoca',
     'Pão Francês com Queijo',
     'Pão Baguete Francesa Queijo',
     'Pão Baguete Francesa',
     'Pão Baguete Francesa Gergelim',
-    'Mini Pão Francês Gergelim',
     'Baguete Francesa Queijo',
     'Baguete Francesa',
     'Pão Queijo Tradicional',
@@ -7616,24 +7615,25 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     'Pão Samaritano',
     'Pão Pizza',
     'Pão Tatu',
+    'Pão Tatu com açúcar',
     'Mini Pão Sonho',
     'Mini Pão Sonho Chocolate',
     'Pão Bambino',
     'Mini Marta Rocha',
     'Pão Doce Ferradura',
     'Pão Doce Caracol',
+    'Pão Doce Comprido',
     'Rosca Caseira',
     'Rosca Caseira Côco',
     'Rosca Caseira Leite em Pó',
     'Rosca Côco/Queijo',
-    'Sanduíche Bahamas',
+    'Sanduíche Bahamas 120 g',
     'Rabanada Assada',
     'Pão Fofinho',
     'Sanduíche Fofinho',
     'Rosca Fofinha Temperada',
     'Caseirinho',
     'Pão P/ Rabanada',
-    'Pão Doce Comprido',
     'Pão Milho',
     'Pão de Alho da Casa',
     'Pão de Alho da Casa Picante',
@@ -7646,6 +7646,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     'ruptura em estoque',
     'aguardando forneamento',
     'outros',
+    'Colaborador não quis fazer',
   ];
 
   late Map<String, bool> rupturasSelecionadas;
@@ -7656,8 +7657,10 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   // Função para obter a data atual do sistema
   void _atualizarDataAtual() {
     final dataHoje = DateTime.now();
-    dataFormatada = "${dataHoje.day.toString().padLeft(2, '0')}/${dataHoje.month.toString().padLeft(2, '0')}/${dataHoje.year}";
-    dataParaArquivo = "${dataHoje.year}-${dataHoje.month.toString().padLeft(2, '0')}-${dataHoje.day.toString().padLeft(2, '0')}";
+    dataFormatada =
+        "${dataHoje.day.toString().padLeft(2, '0')}/${dataHoje.month.toString().padLeft(2, '0')}/${dataHoje.year}";
+    dataParaArquivo =
+        "${dataHoje.year}-${dataHoje.month.toString().padLeft(2, '0')}-${dataHoje.day.toString().padLeft(2, '0')}";
     dataController.text = dataFormatada;
   }
 
@@ -7701,7 +7704,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
           crachaController.text = fetchedCracha;
           gerenteController.text = fetchedGerente;
           encarregadoController.text = fetchedEncarregado;
-          
+
           // A data NÃO é carregada do Firestore, mantém a data atual do sistema
           // dataFormatada e dataParaArquivo já foram definidas no initState
 
@@ -7726,17 +7729,23 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     // Verifica se o formato é dd/MM/yyyy
     final regex = RegExp(r'^(\d{2})/(\d{2})/(\d{4})$');
     final match = regex.firstMatch(texto);
-    
+
     if (match != null) {
       final dia = int.parse(match.group(1)!);
       final mes = int.parse(match.group(2)!);
       final ano = int.parse(match.group(3)!);
-      
+
       // Valida se a data é válida
-      if (ano >= 2000 && ano <= 2100 && mes >= 1 && mes <= 12 && dia >= 1 && dia <= 31) {
+      if (ano >= 2000 &&
+          ano <= 2100 &&
+          mes >= 1 &&
+          mes <= 12 &&
+          dia >= 1 &&
+          dia <= 31) {
         setState(() {
           dataFormatada = texto;
-          dataParaArquivo = "$ano-${mes.toString().padLeft(2, '0')}-${dia.toString().padLeft(2, '0')}";
+          dataParaArquivo =
+              "$ano-${mes.toString().padLeft(2, '0')}-${dia.toString().padLeft(2, '0')}";
         });
         // NÃO salva a data no Firestore, pois queremos que ela resete ao reabrir
       }
@@ -8243,6 +8252,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     );
   }
 }
+
 class FoldedCornerPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
