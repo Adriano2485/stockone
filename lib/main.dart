@@ -7598,14 +7598,21 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   late String dataFormatada;
   late String dataParaArquivo;
 
+  // Lista para armazenar as fotos (apenas em memória, não salva no Firebase)
+  List<Uint8List> fotos = [];
+  List<String> fotosDescricao = [];
+
+  final ImagePicker _picker = ImagePicker();
+
   final List<String> produtos = [
     'Pão Francês',
-    'Pão Francês Fibras',
+    'Pão Francês integral',
     'Pão Francês Panhoca',
     'Pão Francês com Queijo',
     'Pão Baguete Francesa Queijo',
     'Pão Baguete Francesa',
     'Pão Baguete Francesa Gergelim',
+    'Mini Pão Francês Gergelim',
     'Baguete Francesa Queijo',
     'Baguete Francesa',
     'Pão Queijo Tradicional',
@@ -7615,25 +7622,24 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     'Pão Samaritano',
     'Pão Pizza',
     'Pão Tatu',
-    'Pão Tatu com açúcar',
     'Mini Pão Sonho',
     'Mini Pão Sonho Chocolate',
     'Pão Bambino',
     'Mini Marta Rocha',
     'Pão Doce Ferradura',
     'Pão Doce Caracol',
-    'Pão Doce Comprido',
     'Rosca Caseira',
     'Rosca Caseira Côco',
     'Rosca Caseira Leite em Pó',
     'Rosca Côco/Queijo',
-    'Sanduíche Bahamas 120 g',
+    'Sanduíche Bahamas',
     'Rabanada Assada',
     'Pão Fofinho',
     'Sanduíche Fofinho',
     'Rosca Fofinha Temperada',
     'Caseirinho',
     'Pão P/ Rabanada',
+    'Pão Doce Comprido',
     'Pão Milho',
     'Pão de Alho da Casa',
     'Pão de Alho da Casa Picante',
@@ -7646,7 +7652,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     'ruptura em estoque',
     'aguardando forneamento',
     'outros',
-    'Colaborador não quis fazer',
   ];
 
   late Map<String, bool> rupturasSelecionadas;
@@ -7654,7 +7659,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   late Map<String, String> outrosMotivos;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Função para obter a data atual do sistema
   void _atualizarDataAtual() {
     final dataHoje = DateTime.now();
     dataFormatada =
@@ -7677,10 +7681,65 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     motivosSelecionados = {for (var p in produtos) p: motivos[0]};
     outrosMotivos = {for (var p in produtos) p: ''};
 
-    // Sempre usa a data atual do sistema ao entrar
     _atualizarDataAtual();
-
     _carregarPreferencias();
+  }
+
+  // Função para adicionar foto da câmera
+  Future<void> _adicionarFotoCamera() async {
+    try {
+      final XFile? foto = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 80,
+        maxWidth: 1024,
+      );
+
+      if (foto != null) {
+        final bytes = await foto.readAsBytes();
+        setState(() {
+          fotos.add(bytes);
+          fotosDescricao.add('');
+        });
+      }
+    } catch (e) {
+      print('Erro ao tirar foto: $e');
+    }
+  }
+
+  // Função para adicionar foto da galeria
+  Future<void> _adicionarFotoGaleria() async {
+    try {
+      final XFile? foto = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+        maxWidth: 1024,
+      );
+
+      if (foto != null) {
+        final bytes = await foto.readAsBytes();
+        setState(() {
+          fotos.add(bytes);
+          fotosDescricao.add('');
+        });
+      }
+    } catch (e) {
+      print('Erro ao selecionar foto: $e');
+    }
+  }
+
+  // Função para remover foto
+  void _removerFoto(int index) {
+    setState(() {
+      fotos.removeAt(index);
+      fotosDescricao.removeAt(index);
+    });
+  }
+
+  // Função para atualizar descrição da foto
+  void _atualizarDescricaoFoto(int index, String descricao) {
+    setState(() {
+      fotosDescricao[index] = descricao;
+    });
   }
 
   Future<void> _carregarPreferencias() async {
@@ -7705,9 +7764,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
           gerenteController.text = fetchedGerente;
           encarregadoController.text = fetchedEncarregado;
 
-          // A data NÃO é carregada do Firestore, mantém a data atual do sistema
-          // dataFormatada e dataParaArquivo já foram definidas no initState
-
           colaboradoresAtivos = fetchedColaboradores;
           userName = fetchedUserName;
 
@@ -7724,9 +7780,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     }
   }
 
-  // Função para validar e atualizar a data (quando o usuário edita manualmente)
   void _atualizarDataManual(String texto) {
-    // Verifica se o formato é dd/MM/yyyy
     final regex = RegExp(r'^(\d{2})/(\d{2})/(\d{4})$');
     final match = regex.firstMatch(texto);
 
@@ -7735,7 +7789,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
       final mes = int.parse(match.group(2)!);
       final ano = int.parse(match.group(3)!);
 
-      // Valida se a data é válida
       if (ano >= 2000 &&
           ano <= 2100 &&
           mes >= 1 &&
@@ -7747,7 +7800,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
           dataParaArquivo =
               "$ano-${mes.toString().padLeft(2, '0')}-${dia.toString().padLeft(2, '0')}";
         });
-        // NÃO salva a data no Firestore, pois queremos que ela resete ao reabrir
       }
     }
   }
@@ -7773,7 +7825,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
       final relatorioData = {
         'colaboradoresAtivos': colaboradoresAtivos,
         'rupturas': rupturasData,
-        // NÃO salva a data no Firestore
       };
 
       await _firestore.collection('stores').doc(widget.storeName).set({
@@ -7876,6 +7927,30 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                 ],
               ),
             ),
+            // Seção de FOTOS (apenas se houver fotos)
+            if (fotos.isNotEmpty) ...[
+              pw.SizedBox(height: 20),
+              pw.Container(
+                padding: const pw.EdgeInsets.all(10),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border(
+                      left: pw.BorderSide(color: PdfColors.blue, width: 4)),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text('FOTOS REGISTRADAS',
+                        style: pw.TextStyle(
+                          fontSize: 18,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.blue,
+                        )),
+                    pw.SizedBox(height: 10),
+                    ..._buildFotosList(),
+                  ],
+                ),
+              ),
+            ],
             pw.SizedBox(height: 40),
             pw.Center(
               child: pw.Text(
@@ -7913,7 +7988,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // Apenas compartilha (sem download)
       await Share.shareXFiles(
         [
           XFile.fromData(pdfBytes,
@@ -7944,6 +8018,34 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         );
       }
     }
+  }
+
+  List<pw.Widget> _buildFotosList() {
+    final widgets = <pw.Widget>[];
+
+    for (int i = 0; i < fotos.length; i++) {
+      widgets.add(pw.SizedBox(height: 10));
+      widgets.add(
+        pw.Container(
+          padding: const pw.EdgeInsets.all(8),
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColors.grey),
+            borderRadius: pw.BorderRadius.circular(8),
+          ),
+          child: pw.Column(
+            children: [
+              pw.Image(pw.MemoryImage(fotos[i]), width: 400, height: 300),
+              pw.SizedBox(height: 8),
+              if (fotosDescricao[i].isNotEmpty)
+                pw.Text('Descrição: ${fotosDescricao[i]}',
+                    style: pw.TextStyle(fontSize: 12, color: PdfColors.grey)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return widgets;
   }
 
   List<pw.Widget> _buildRupturasList() {
@@ -7999,6 +8101,8 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     buffer.writeln('*Rupturas:');
     buffer.writeln();
     buffer.write(_formatarRupturasTexto());
+    buffer.writeln();
+    buffer.writeln('*Fotos: ${fotos.length} foto(s) incluída(s) no PDF');
 
     return buffer.toString().trim();
   }
@@ -8223,6 +8327,109 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                   );
                 }).toList(),
               ),
+              const SizedBox(height: 20),
+              // Seção de Fotos
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Fotos:',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 23,
+                        color: verdeEscuro),
+                  ),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.camera_alt,
+                            size: 32, color: verdeEscuro),
+                        onPressed: _adicionarFotoCamera,
+                        tooltip: 'Tirar foto',
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.photo_library,
+                            size: 32, color: verdeEscuro),
+                        onPressed: _adicionarFotoGaleria,
+                        tooltip: 'Escolher da galeria',
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              // Lista de fotos adicionadas
+              if (fotos.isNotEmpty)
+                Column(
+                  children: [
+                    ...fotos.asMap().entries.map((entry) {
+                      int index = entry.key;
+                      Uint8List foto = entry.value;
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                height: 200,
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  border:
+                                      Border.all(color: Colors.grey.shade300),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child:
+                                      Image.memory(foto, fit: BoxFit.contain),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              TextField(
+                                decoration: const InputDecoration(
+                                  labelText: 'Descrição da foto (opcional)',
+                                  border: OutlineInputBorder(),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 8),
+                                ),
+                                onChanged: (descricao) =>
+                                    _atualizarDescricaoFoto(index, descricao),
+                              ),
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton.icon(
+                                  icon: const Icon(Icons.delete,
+                                      color: Colors.red),
+                                  label: const Text('Remover',
+                                      style: TextStyle(color: Colors.red)),
+                                  onPressed: () => _removerFoto(index),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ],
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'Nenhuma foto adicionada.\nClique nos ícones da câmera ou galeria para adicionar fotos.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  ),
+                ),
               const SizedBox(height: 40),
               Container(
                 padding: const EdgeInsets.all(12),
@@ -8237,7 +8444,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                     Expanded(
                       child: Text(
                         'Clique no ícone Compartilhar no topo para gerar o relatório em PDF. '
-                        'O arquivo será compartilhado automaticamente!',
+                        'As fotos serão incluídas no PDF!',
                         style: TextStyle(
                             fontSize: 14, color: Colors.grey.shade700),
                       ),
