@@ -7598,7 +7598,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   late String dataFormatada;
   late String dataParaArquivo;
 
-  // Lista para armazenar as fotos (apenas em memória, não salva no Firebase)
+  // Lista para armazenar as fotos
   List<Uint8List> fotos = [];
   List<String> fotosDescricao = [];
 
@@ -7668,6 +7668,47 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     dataController.text = dataFormatada;
   }
 
+  // Funções para salvar e carregar fotos no SharedPreferences
+  Future<void> _salvarFotosNoSharedPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Converte as fotos (Uint8List) para String (Base64)
+      final List<String> fotosBase64 = fotos.map((foto) => base64Encode(foto)).toList();
+      await prefs.setStringList('fotos_${widget.storeName}', fotosBase64);
+      await prefs.setStringList('fotos_desc_${widget.storeName}', fotosDescricao);
+      
+      print('Fotos salvas: ${fotos.length}');
+    } catch (e) {
+      print('Erro ao salvar fotos: $e');
+    }
+  }
+
+  Future<void> _carregarFotosDoSharedPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      final List<String>? fotosBase64 = prefs.getStringList('fotos_${widget.storeName}');
+      final List<String>? descricoes = prefs.getStringList('fotos_desc_${widget.storeName}');
+      
+      if (fotosBase64 != null && fotosBase64.isNotEmpty) {
+        final List<Uint8List> fotosCarregadas = [];
+        for (String fotoBase64 in fotosBase64) {
+          fotosCarregadas.add(base64Decode(fotoBase64));
+        }
+        
+        setState(() {
+          fotos = fotosCarregadas;
+          fotosDescricao = descricoes ?? List.filled(fotosCarregadas.length, '');
+        });
+        
+        print('Fotos carregadas: ${fotos.length}');
+      }
+    } catch (e) {
+      print('Erro ao carregar fotos: $e');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -7683,6 +7724,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
 
     _atualizarDataAtual();
     _carregarPreferencias();
+    _carregarFotosDoSharedPreferences(); // Carrega as fotos salvas
   }
 
   // Função para selecionar MÚLTIPLAS fotos da galeria
@@ -7701,6 +7743,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
             fotosDescricao.add('');
           });
         }
+        await _salvarFotosNoSharedPreferences(); // Salva após adicionar
       }
     } catch (e) {
       print('Erro ao selecionar múltiplas fotos: $e');
@@ -7722,6 +7765,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
           fotos.add(bytes);
           fotosDescricao.add('');
         });
+        await _salvarFotosNoSharedPreferences(); // Salva após adicionar
       }
     } catch (e) {
       print('Erro ao tirar foto: $e');
@@ -7729,18 +7773,20 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   }
 
   // Função para remover foto
-  void _removerFoto(int index) {
+  void _removerFoto(int index) async {
     setState(() {
       fotos.removeAt(index);
       fotosDescricao.removeAt(index);
     });
+    await _salvarFotosNoSharedPreferences(); // Salva após remover
   }
 
   // Função para atualizar descrição da foto
-  void _atualizarDescricaoFoto(int index, String descricao) {
+  void _atualizarDescricaoFoto(int index, String descricao) async {
     setState(() {
       fotosDescricao[index] = descricao;
     });
+    await _salvarFotosNoSharedPreferences(); // Salva após atualizar descrição
   }
 
   Future<void> _carregarPreferencias() async {
