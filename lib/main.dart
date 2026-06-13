@@ -7606,13 +7606,12 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
 
   final List<String> produtos = [
     'Pão Francês',
-    'Pão Francês integral',
+    'Pão Francês Fibras',
     'Pão Francês Panhoca',
     'Pão Francês com Queijo',
     'Pão Baguete Francesa Queijo',
     'Pão Baguete Francesa',
     'Pão Baguete Francesa Gergelim',
-    'Mini Pão Francês Gergelim',
     'Baguete Francesa Queijo',
     'Baguete Francesa',
     'Pão Queijo Tradicional',
@@ -7622,6 +7621,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     'Pão Samaritano',
     'Pão Pizza',
     'Pão Tatu',
+    'Pão Tatu Com Açúcar',
     'Mini Pão Sonho',
     'Mini Pão Sonho Chocolate',
     'Pão Bambino',
@@ -7632,7 +7632,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     'Rosca Caseira Côco',
     'Rosca Caseira Leite em Pó',
     'Rosca Côco/Queijo',
-    'Sanduíche Bahamas',
+    'Sanduíche Bahamas 120',
     'Rabanada Assada',
     'Pão Fofinho',
     'Sanduíche Fofinho',
@@ -7837,7 +7837,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   }
 
   Future<void> _compartilharEArquivarPDF() async {
-    final nomeArquivo = 'relatorio_${widget.storeName}_$dataParaArquivo.pdf';
+    final nomeArquivo = 'Relatorio_${widget.storeName}_$dataParaArquivo.pdf';
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -7873,7 +7873,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                 children: [
                   pw.Text(widget.storeName,
                       style: pw.TextStyle(
-                        fontSize: 24,
+                        fontSize: 48,
                         fontWeight: pw.FontWeight.bold,
                         color: PdfColors.red900,
                       )),
@@ -8157,7 +8157,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: vermelhoEscuro,
+        backgroundColor: Color(0xff075fa8),
         centerTitle: true,
         title: Row(
           mainAxisSize: MainAxisSize.min,
@@ -8337,7 +8337,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                     style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 23,
-                        color: verdeEscuro),
+                        color: Color(0xff075fa8)),
                   ),
                   Row(
                     children: [
@@ -8436,20 +8436,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                 decoration: BoxDecoration(
                   color: Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.share, color: vermelhoEscuro),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Clique no ícone Compartilhar no topo para gerar o relatório em PDF. '
-                        'As fotos serão incluídas no PDF!',
-                        style: TextStyle(
-                            fontSize: 14, color: Colors.grey.shade700),
-                      ),
-                    ),
-                  ],
                 ),
               ),
             ],
