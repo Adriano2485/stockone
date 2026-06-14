@@ -8638,7 +8638,6 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     );
   }
 }
-
 class ReportFinalScreen extends StatefulWidget {
   final String storeName;
   const ReportFinalScreen({super.key, required this.storeName});
