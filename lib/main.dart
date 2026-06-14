@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:html' as html;
 import 'dart:io';
+import 'package:quick_actions/quick_actions.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -173,9 +174,27 @@ class RedeScreen extends StatefulWidget {
 
 class _RedeScreenState extends State<RedeScreen> {
   bool _checking = false;
+  List<String> favoriteStores = []; // Lista de lojas favoritadas
+  final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  Timer? _pressTimer;
+  @override
+  void initState() {
+    super.initState();
+    _loadFavoriteStores();
+  }
 
+  // Carrega as lojas favoritadas do SharedPreferences
+  Future<void> _loadFavoriteStores() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        favoriteStores = prefs.getStringList('favoriteStores') ?? [];
+      });
+    }
+  }
+
+  // ===== Função para abrir vídeo =====
   void _mostrarAjuda() async {
     final resposta = await showDialog<bool>(
       context: context,
@@ -207,23 +226,125 @@ class _RedeScreenState extends State<RedeScreen> {
     }
   }
 
-  Future<void> _onCardTap(String rede, Widget destino) async {
+  // ===== MÉTODO PARA LOJAS FAVORITAS (da StoreSelectionScreen) =====
+  Future<void> _onFavoriteStoreTap(String storeName) async {
     if (_checking) return;
     setState(() => _checking = true);
 
+    try {
+      // Verificar se este dispositivo já está autorizado para esta loja
+      bool isDeviceAuthorized = await _checkDeviceAuthorization(storeName);
+
+      if (isDeviceAuthorized) {
+        // Dispositivo autorizado - acesso direto
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('selectedStore', storeName);
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => SecondScreen(storeName: storeName),
+            ),
+          );
+        }
+      } else {
+        // Verificar se já existe cadastro para esta loja
+        bool hasExistingPassword = await _checkExistingPassword(storeName);
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('selectedStore', storeName);
+
+        if (hasExistingPassword) {
+          // Loja já tem senha cadastrada - pedir senha
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PasswordScreen(
+                  storeName: storeName,
+                  isFirstTime: false,
+                ),
+              ),
+            );
+          }
+        } else {
+          // Primeiro cadastro - criar senha
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => FirstTimeScreen(storeName: storeName),
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      _showError("Erro ao acessar loja: $e");
+    } finally {
+      if (mounted) setState(() => _checking = false);
+    }
+  }
+
+  Future<bool> _checkDeviceAuthorization(String storeName) async {
+    try {
+      // 1) Ler token salvo no dispositivo
+      String? savedToken =
+          await _secureStorage.read(key: '${storeName}_auth_token');
+
+      if (savedToken == null) return false;
+
+      // 2) Buscar senha atual do Firestore
+      final doc = await _firestore.collection('stores').doc(storeName).get();
+
+      if (!doc.exists) return false;
+
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      String? currentPassword = data['password'];
+
+      if (currentPassword == null) return false;
+
+      // 3) Se a senha mudou -> FORÇA novo login
+      return savedToken == currentPassword;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> _checkExistingPassword(String storeName) async {
+    try {
+      final doc = await _firestore.collection('stores').doc(storeName).get();
+      if (!doc.exists) return false;
+
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      return data['password'] != null;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // ===== MÉTODO PARA REDES FIXAS =====
+  Future<void> _onCardTap(String rede, Widget destino) async {
+    if (_checking) return;
+    setState(() => _checking = true);
     try {
       final doc =
           await FirebaseFirestore.instance.collection('redes').doc(rede).get();
 
       if (!doc.exists) {
-        _showError("Rede '$rede' não encontrada.");
+        _showError("Rede '$rede' não encontrada no Firestore.");
         return;
       }
 
       final senhaFirebase = doc.data()?['senha'];
+      if (senhaFirebase == null) {
+        _showError("Campo 'senha' ausente em '$rede'.");
+        return;
+      }
 
       final prefs = await SharedPreferences.getInstance();
-      final senhaLocal = prefs.getString("senha_$rede");
+      final chave = "senha_$rede";
+      final senhaLocal = prefs.getString(chave);
 
       if (senhaLocal == senhaFirebase) {
         if (!mounted) return;
@@ -232,14 +353,13 @@ class _RedeScreenState extends State<RedeScreen> {
       }
 
       final aceita = await _mostrarDialogSenha(rede, senhaFirebase);
-
       if (aceita == true) {
-        await prefs.setString("senha_$rede", senhaFirebase);
+        await prefs.setString(chave, senhaFirebase);
         if (!mounted) return;
         Navigator.push(context, MaterialPageRoute(builder: (_) => destino));
       }
-    } catch (e) {
-      _showError("Erro: $e");
+    } catch (e, st) {
+      _showError("Erro inesperado: ${e.toString()}");
     } finally {
       if (mounted) setState(() => _checking = false);
     }
@@ -254,13 +374,18 @@ class _RedeScreenState extends State<RedeScreen> {
       builder: (ctx) {
         return AlertDialog(
           title: Text("Senha $rede"),
-          content: TextField(
-            controller: controller,
-            obscureText: true,
-            decoration: const InputDecoration(
-              labelText: "Digite a senha",
-              border: OutlineInputBorder(),
-            ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: "Digite a senha",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
           ),
           actions: [
             TextButton(
@@ -270,7 +395,6 @@ class _RedeScreenState extends State<RedeScreen> {
             ElevatedButton(
               onPressed: () {
                 final digitada = controller.text.trim();
-
                 if (digitada == senhaCorreta) {
                   Navigator.pop(ctx, true);
                 } else {
@@ -290,35 +414,102 @@ class _RedeScreenState extends State<RedeScreen> {
     );
   }
 
-  void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: Colors.red),
+  void _showError(String mensagem) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(mensagem), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  // ===== CARD PARA LOJA FAVORITA (mesmo estilo da StoreSelectionScreen) =====
+  Widget _favoriteStoreCard(String storeName) {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: Colors.amber.shade300, width: 1.5),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.amber.shade50,
+              Colors.orange.shade50,
+            ],
+          ),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => _onFavoriteStoreTap(storeName),
+          child: Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 4,
+                  vertical: 12,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 20),
+                    Text(
+                      storeName,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.brown.shade800,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Loja favorita',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.brown.shade600,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                top: 4,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: const Icon(
+                      Icons.star,
+                      color: Colors.amber,
+                      size: 28,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
+  // ===== CARD PARA REDE FIXA =====
   Widget _card(String imgPath, String rede, Widget destino) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () => _onCardTap(rede, destino),
-        onLongPress: () {
-          if (rede == "bahamas") {
-            _pressTimer = Timer(const Duration(seconds: 5), () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const HoleriteScreen(),
-                ),
-              );
-            });
-          }
-        },
-        onTapUp: (_) {
-          _pressTimer?.cancel();
-        },
-        onTapCancel: () {
-          _pressTimer?.cancel();
-        },
         borderRadius: BorderRadius.circular(16),
         child: Ink(
           height: double.infinity,
@@ -333,13 +524,28 @@ class _RedeScreenState extends State<RedeScreen> {
   }
 
   @override
-  void dispose() {
-    _pressTimer?.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    // Lista de cards fixos (redes)
+    final List<Widget> fixedCards = [
+      _card("assets/images/bahamas.jpg", "bahamas", const Bahamas()),
+      _card(
+          "assets/images/paisefilhos.jpg", "paisefilhos", const PaiseFilhos()),
+      _card("assets/images/bh.jpg", "bh", const BH()),
+      _card("assets/images/Mart-Minas.jpg", "martminas", const Martminas()),
+    ];
+
+    // Lista de cards das lojas favoritadas (da StoreSelectionScreen)
+    final List<Widget> favoriteStoreCards = [];
+    for (String store in favoriteStores) {
+      favoriteStoreCards.add(_favoriteStoreCard(store));
+    }
+
+    // Combinar todos os cards: primeiros os fixos, depois os favoritos
+    final List<Widget> allCards = [
+      ...fixedCards,
+      if (favoriteStoreCards.isNotEmpty) ...favoriteStoreCards,
+    ];
+
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8F0),
       appBar: AppBar(
@@ -393,15 +599,7 @@ class _RedeScreenState extends State<RedeScreen> {
                     crossAxisSpacing: 16,
                     mainAxisSpacing: 16,
                     childAspectRatio: 1.2,
-                    children: [
-                      _card("assets/images/bahamas.jpg", "bahamas",
-                          const Bahamas()),
-                      _card("assets/images/paisefilhos.jpg", "paisefilhos",
-                          const PaiseFilhos()),
-                      _card("assets/images/bh.jpg", "bh", const BH()),
-                      _card("assets/images/Mart-Minas.jpg", "martminas",
-                          const Martminas()),
-                    ],
+                    children: allCards,
                   ),
                 ),
               ],
@@ -923,6 +1121,13 @@ class PaiseFilhos extends StatelessWidget {
 }
 
 class StoreSelectionScreen extends StatefulWidget {
+  final bool showOnlyFavorites;
+
+  const StoreSelectionScreen({
+    Key? key,
+    this.showOnlyFavorites = false,
+  }) : super(key: key);
+
   @override
   _StoreSelectionScreenState createState() => _StoreSelectionScreenState();
 }
@@ -1143,8 +1348,12 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
     // Separar lojas favoritas das normais
     final favoriteList =
         stores.where((store) => favoriteStores.contains(store)).toList();
+
     final normalList =
         stores.where((store) => !favoriteStores.contains(store)).toList();
+
+    final visibleNormalList =
+        widget.showOnlyFavorites ? <String>[] : normalList;
 
     return WillPopScope(
       onWillPop: () async {
@@ -1177,9 +1386,9 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
             children: [
               Image.asset('assets/images/Logo StockOne.png', height: 32),
               const SizedBox(width: 8),
-              const Text(
-                "ATENDIMENTO",
-                style: TextStyle(
+              Text(
+                widget.showOnlyFavorites ? "FAVORITOS" : "ATENDIMENTO",
+                style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                   fontFamily: 'Lora',
@@ -1200,9 +1409,11 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
             padding: const EdgeInsets.all(12.0),
             child: Column(
               children: [
-                const Text(
-                  "SELECIONE A LOJA:",
-                  style: TextStyle(
+                Text(
+                  widget.showOnlyFavorites
+                      ? "SELECIONE UMA LOJA FAVORITA:"
+                      : "SELECIONE A LOJA:",
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                     color: Colors.brown,
@@ -1218,130 +1429,172 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
                                 AlwaysStoppedAnimation<Color>(Colors.brown),
                           ),
                         )
-                      : ListView(
-                          children: [
-                            // Seção de Favoritos
-                            if (favoriteList.isNotEmpty) ...[
-                              Container(
-                                margin: const EdgeInsets.only(bottom: 8),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.star,
-                                      color: Colors.amber.shade600,
-                                      size: 18,
+                      : (widget.showOnlyFavorites && favoriteList.isEmpty)
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.star_border,
+                                    size: 64,
+                                    color: Colors.grey.shade400,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    "Nenhuma loja favorita",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey.shade600,
+                                      fontWeight: FontWeight.w500,
                                     ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      "FAVORITOS",
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.amber.shade800,
-                                        letterSpacing: 0.5,
-                                      ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    "Adicione lojas aos favoritos na tela principal",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade500,
                                     ),
-                                    const Spacer(),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.amber.shade100,
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        "${favoriteList.length}",
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.amber.shade800,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView(
+                              children: [
+                                // Seção de Favoritos (sempre mostrar se houver favoritos)
+                                if (favoriteList.isNotEmpty) ...[
+                                  Container(
+                                    margin: const EdgeInsets.only(bottom: 8),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.star,
+                                          color: Colors.amber.shade600,
+                                          size: 18,
                                         ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              GridView.builder(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                gridDelegate:
-                                    SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: crossAxisCount,
-                                  crossAxisSpacing: 8,
-                                  mainAxisSpacing: 8,
-                                  childAspectRatio: 0.8,
-                                ),
-                                itemCount: favoriteList.length,
-                                itemBuilder: (context, index) {
-                                  final store = favoriteList[index];
-                                  return _buildStoreTile(
-                                    store,
-                                    true,
-                                    isFavoriteSection: true,
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 16),
-                              // Divisor
-                              Container(
-                                margin: const EdgeInsets.only(bottom: 12),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Divider(
-                                        color: Colors.grey.shade300,
-                                        thickness: 1,
-                                      ),
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8),
-                                      child: Text(
-                                        "TODAS AS LOJAS",
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500,
-                                          color: Colors.grey.shade600,
-                                          letterSpacing: 0.5,
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          "FAVORITOS",
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.amber.shade800,
+                                            letterSpacing: 0.5,
+                                          ),
                                         ),
-                                      ),
+                                        const Spacer(),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.amber.shade100,
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          child: Text(
+                                            "${favoriteList.length}",
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.amber.shade800,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    Expanded(
-                                      child: Divider(
-                                        color: Colors.grey.shade300,
-                                        thickness: 1,
-                                      ),
+                                  ),
+                                  GridView.builder(
+                                    shrinkWrap: true,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    gridDelegate:
+                                        SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: crossAxisCount,
+                                      crossAxisSpacing: 8,
+                                      mainAxisSpacing: 8,
+                                      childAspectRatio: 0.8,
                                     ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                                    itemCount: favoriteList.length,
+                                    itemBuilder: (context, index) {
+                                      final store = favoriteList[index];
+                                      return _buildStoreTile(
+                                        store,
+                                        true,
+                                        isFavoriteSection: true,
+                                      );
+                                    },
+                                  ),
 
-                            // Seção de Todas as Lojas
-                            GridView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: crossAxisCount,
-                                crossAxisSpacing: 8,
-                                mainAxisSpacing: 8,
-                                childAspectRatio: 0.8,
-                              ),
-                              itemCount: normalList.length,
-                              itemBuilder: (context, index) {
-                                final store = normalList[index];
-                                return _buildStoreTile(
-                                  store,
-                                  false,
-                                  isFavoriteSection: false,
-                                );
-                              },
+                                  // Divisor (só mostrar se tiver lojas normais visíveis)
+                                  if (visibleNormalList.isNotEmpty) ...[
+                                    if (!widget.showOnlyFavorites) ...[
+                                      const SizedBox(height: 16),
+                                      Container(
+                                        margin:
+                                            const EdgeInsets.only(bottom: 12),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              child: Divider(
+                                                color: Colors.grey.shade300,
+                                                thickness: 1,
+                                              ),
+                                            ),
+                                            Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8),
+                                              child: Text(
+                                                "TODAS AS LOJAS",
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: Colors.grey.shade600,
+                                                  letterSpacing: 0.5,
+                                                ),
+                                              ),
+                                            ),
+                                            Expanded(
+                                              child: Divider(
+                                                color: Colors.grey.shade300,
+                                                thickness: 1,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ],
+
+                                // Seção de Todas as Lojas (usando visibleNormalList)
+                                if (visibleNormalList.isNotEmpty)
+                                  GridView.builder(
+                                    shrinkWrap: true,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    gridDelegate:
+                                        SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: crossAxisCount,
+                                      crossAxisSpacing: 8,
+                                      mainAxisSpacing: 8,
+                                      childAspectRatio: 0.8,
+                                    ),
+                                    itemCount: visibleNormalList.length,
+                                    itemBuilder: (context, index) {
+                                      final store = visibleNormalList[index];
+                                      return _buildStoreTile(
+                                        store,
+                                        favoriteStores.contains(store),
+                                        isFavoriteSection: false,
+                                      );
+                                    },
+                                  ),
+                              ],
                             ),
-                          ],
-                        ),
                 ),
               ],
             ),
@@ -7672,12 +7925,14 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   Future<void> _salvarFotosNoSharedPreferences() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+
       // Converte as fotos (Uint8List) para String (Base64)
-      final List<String> fotosBase64 = fotos.map((foto) => base64Encode(foto)).toList();
+      final List<String> fotosBase64 =
+          fotos.map((foto) => base64Encode(foto)).toList();
       await prefs.setStringList('fotos_${widget.storeName}', fotosBase64);
-      await prefs.setStringList('fotos_desc_${widget.storeName}', fotosDescricao);
-      
+      await prefs.setStringList(
+          'fotos_desc_${widget.storeName}', fotosDescricao);
+
       print('Fotos salvas: ${fotos.length}');
     } catch (e) {
       print('Erro ao salvar fotos: $e');
@@ -7687,21 +7942,24 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   Future<void> _carregarFotosDoSharedPreferences() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
-      final List<String>? fotosBase64 = prefs.getStringList('fotos_${widget.storeName}');
-      final List<String>? descricoes = prefs.getStringList('fotos_desc_${widget.storeName}');
-      
+
+      final List<String>? fotosBase64 =
+          prefs.getStringList('fotos_${widget.storeName}');
+      final List<String>? descricoes =
+          prefs.getStringList('fotos_desc_${widget.storeName}');
+
       if (fotosBase64 != null && fotosBase64.isNotEmpty) {
         final List<Uint8List> fotosCarregadas = [];
         for (String fotoBase64 in fotosBase64) {
           fotosCarregadas.add(base64Decode(fotoBase64));
         }
-        
+
         setState(() {
           fotos = fotosCarregadas;
-          fotosDescricao = descricoes ?? List.filled(fotosCarregadas.length, '');
+          fotosDescricao =
+              descricoes ?? List.filled(fotosCarregadas.length, '');
         });
-        
+
         print('Fotos carregadas: ${fotos.length}');
       }
     } catch (e) {
@@ -7716,7 +7974,8 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Apagar todas as fotos'),
-        content: const Text('Tem certeza que deseja apagar TODAS as fotos? Esta ação não pode ser desfeita.'),
+        content: const Text(
+            'Tem certeza que deseja apagar TODAS as fotos? Esta ação não pode ser desfeita.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -7730,14 +7989,14 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         ],
       ),
     );
-    
+
     if (confirm == true) {
       setState(() {
         fotos.clear();
         fotosDescricao.clear();
       });
       await _salvarFotosNoSharedPreferences();
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -7925,210 +8184,210 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   }
 
   Future<void> _compartilharEArquivarPDF() async {
-  // Converte a data para o formato dd_mm_aa para o nome do arquivo
-  final dataParts = dataFormatada.split('/');
-  final dia = dataParts[0];
-  final mes = dataParts[1];
-  final ano = dataParts[2].substring(2); // Pega os últimos 2 dígitos do ano
-  final nomeArquivo = 'Relatorio_${widget.storeName}_${dia}_${mes}_$ano.pdf';
+    // Converte a data para o formato dd_mm_aa para o nome do arquivo
+    final dataParts = dataFormatada.split('/');
+    final dia = dataParts[0];
+    final mes = dataParts[1];
+    final ano = dataParts[2].substring(2); // Pega os últimos 2 dígitos do ano
+    final nomeArquivo = 'Relatorio_${widget.storeName}_${dia}_${mes}_$ano.pdf';
 
-  if (mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Row(
-          children: [
-            SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white,
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(width: 12),
+              Text('Gerando PDF e arquivando...'),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+
+    try {
+      final pdf = pw.Document();
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          build: (context) => [
+            pw.Center(
+              child: pw.Column(
+                children: [
+                  pw.Text(widget.storeName,
+                      style: pw.TextStyle(
+                        fontSize: 48,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.red900,
+                      )),
+                ],
               ),
             ),
-            SizedBox(width: 12),
-            Text('Gerando PDF e arquivando...'),
-          ],
-        ),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
-
-  try {
-    final pdf = pw.Document();
-
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        build: (context) => [
-          pw.Center(
-            child: pw.Column(
-              children: [
-                pw.Text(widget.storeName,
-                    style: pw.TextStyle(
-                      fontSize: 48,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.red900,
-                    )),
-              ],
+            pw.SizedBox(height: 30),
+            pw.Container(
+              padding: const pw.EdgeInsets.all(10),
+              decoration: pw.BoxDecoration(
+                border: pw.Border(
+                    left: pw.BorderSide(color: PdfColors.green900, width: 4)),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text('INFORMAÇÕES DA VISITA',
+                      style: pw.TextStyle(
+                        fontSize: 18,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.green900,
+                      )),
+                  pw.SizedBox(height: 10),
+                  pw.Text('Data: $dataFormatada'),
+                  pw.Text('Promotor(a): $userName'),
+                  pw.Text('Crachá: ${crachaController.text}'),
+                  pw.Text('Gerencia: ${gerenteController.text}'),
+                  pw.Text('Encarregado(s): ${encarregadoController.text}'),
+                  pw.Text('Colaboradores no dia: $colaboradoresAtivos'),
+                ],
+              ),
             ),
-          ),
-          pw.SizedBox(height: 30),
-          pw.Container(
-            padding: const pw.EdgeInsets.all(10),
-            decoration: pw.BoxDecoration(
-              border: pw.Border(
-                  left: pw.BorderSide(color: PdfColors.green900, width: 4)),
-            ),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text('INFORMAÇÕES DA VISITA',
-                    style: pw.TextStyle(
-                      fontSize: 18,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.green900,
-                    )),
-                pw.SizedBox(height: 10),
-                pw.Text('Data: $dataFormatada'),
-                pw.Text('Promotor(a): $userName'),
-                pw.Text('Crachá: ${crachaController.text}'),
-                pw.Text('Gerencia: ${gerenteController.text}'),
-                pw.Text('Encarregado(s): ${encarregadoController.text}'),
-                pw.Text('Colaboradores no dia: $colaboradoresAtivos'),
-              ],
-            ),
-          ),
-          pw.SizedBox(height: 20),
-          pw.Container(
-            padding: const pw.EdgeInsets.all(10),
-            decoration: pw.BoxDecoration(
-              border: pw.Border(
-                  left: pw.BorderSide(color: PdfColors.green900, width: 4)),
-            ),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text('RUPTURAS REGISTRADAS',
-                    style: pw.TextStyle(
-                      fontSize: 18,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.green900,
-                    )),
-                pw.SizedBox(height: 10),
-                ..._buildRupturasList(),
-              ],
-            ),
-          ),
-          if (fotos.isNotEmpty) ...[
             pw.SizedBox(height: 20),
             pw.Container(
               padding: const pw.EdgeInsets.all(10),
               decoration: pw.BoxDecoration(
                 border: pw.Border(
-                    left: pw.BorderSide(color: PdfColors.blue, width: 4)),
+                    left: pw.BorderSide(color: PdfColors.green900, width: 4)),
               ),
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text('FOTOS REGISTRADAS',
+                  pw.Text('RUPTURAS REGISTRADAS',
                       style: pw.TextStyle(
                         fontSize: 18,
                         fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.blue,
+                        color: PdfColors.green900,
                       )),
                   pw.SizedBox(height: 10),
-                  ..._buildFotosListEmGrid(),
+                  ..._buildRupturasList(),
                 ],
               ),
             ),
-          ],
-          pw.SizedBox(height: 40),
-          pw.Center(
-            child: pw.Text(
-              'Relatorio gerado automaticamente em $dataFormatada',
-              style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
+            if (fotos.isNotEmpty) ...[
+              pw.SizedBox(height: 20),
+              pw.Container(
+                padding: const pw.EdgeInsets.all(10),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border(
+                      left: pw.BorderSide(color: PdfColors.blue, width: 4)),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text('FOTOS REGISTRADAS',
+                        style: pw.TextStyle(
+                          fontSize: 18,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.blue,
+                        )),
+                    pw.SizedBox(height: 10),
+                    ..._buildFotosListEmGrid(),
+                  ],
+                ),
+              ),
+            ],
+            pw.SizedBox(height: 40),
+            pw.Center(
+              child: pw.Text(
+                'Relatorio gerado automaticamente em $dataFormatada',
+                style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
+              ),
             ),
-          ),
+          ],
+        ),
+      );
+
+      final pdfBytes = await pdf.save();
+
+      final textoRelatorio = await _gerarTextoRelatorioParaArquivo();
+
+      await _firestore
+          .collection('relatorios')
+          .doc('lojas')
+          .collection('lojas')
+          .doc(widget.storeName)
+          .collection('datas')
+          .doc(dataParaArquivo)
+          .set({
+        'loja': widget.storeName,
+        'data': dataParaArquivo,
+        'dataFormatada': dataFormatada,
+        'textoCompleto': textoRelatorio,
+        'tecnico': userName,
+        'cracha': crachaController.text,
+        'gerente': gerenteController.text,
+        'encarregado': encarregadoController.text,
+        'colaboradoresAtivos': colaboradoresAtivos,
+        'nomeArquivoPDF': nomeArquivo,
+        'rupturas': _salvarRupturasParaFirestore(),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      await Share.shareXFiles(
+        [
+          XFile.fromData(pdfBytes,
+              name: nomeArquivo, mimeType: 'application/pdf')
         ],
-      ),
-    );
-
-    final pdfBytes = await pdf.save();
-
-    final textoRelatorio = await _gerarTextoRelatorioParaArquivo();
-
-    await _firestore
-        .collection('relatorios')
-        .doc('lojas')
-        .collection('lojas')
-        .doc(widget.storeName)
-        .collection('datas')
-        .doc(dataParaArquivo)
-        .set({
-      'loja': widget.storeName,
-      'data': dataParaArquivo,
-      'dataFormatada': dataFormatada,
-      'textoCompleto': textoRelatorio,
-      'tecnico': userName,
-      'cracha': crachaController.text,
-      'gerente': gerenteController.text,
-      'encarregado': encarregadoController.text,
-      'colaboradoresAtivos': colaboradoresAtivos,
-      'nomeArquivoPDF': nomeArquivo,
-      'rupturas': _salvarRupturasParaFirestore(),
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-
-    await Share.shareXFiles(
-      [
-        XFile.fromData(pdfBytes,
-            name: nomeArquivo, mimeType: 'application/pdf')
-      ],
-      text: 'Relatorio Final - ${widget.storeName} - $dataFormatada',
-    );
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).clearSnackBars();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ PDF compartilhado e relatorio arquivado!'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 4),
-        ),
+        text: 'Relatorio Final - ${widget.storeName} - $dataFormatada',
       );
-    }
-  } catch (e) {
-    print('Erro: $e');
-    if (mounted) {
-      ScaffoldMessenger.of(context).clearSnackBars();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Erro ao gerar PDF: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ PDF compartilhado e relatorio arquivado!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Erro: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Erro ao gerar PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
-}
 
   List<pw.Widget> _buildFotosListEmGrid() {
     final widgets = <pw.Widget>[];
-    
+
     final double imageWidth = 360;
     final double imageHeight = 270;
-    
+
     for (int i = 0; i < fotos.length; i += 2) {
       final rowChildren = <pw.Widget>[];
-      
+
       rowChildren.add(
         pw.Expanded(
           child: pw.Container(
             padding: const pw.EdgeInsets.all(5),
             child: pw.Column(
               children: [
-                pw.Image(pw.MemoryImage(fotos[i]), 
-                    width: imageWidth, 
+                pw.Image(pw.MemoryImage(fotos[i]),
+                    width: imageWidth,
                     height: imageHeight,
                     fit: pw.BoxFit.contain),
                 pw.SizedBox(height: 8),
@@ -8140,7 +8399,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
           ),
         ),
       );
-      
+
       if (i + 1 < fotos.length) {
         rowChildren.add(
           pw.Expanded(
@@ -8148,14 +8407,15 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
               padding: const pw.EdgeInsets.all(5),
               child: pw.Column(
                 children: [
-                  pw.Image(pw.MemoryImage(fotos[i + 1]), 
-                      width: imageWidth, 
+                  pw.Image(pw.MemoryImage(fotos[i + 1]),
+                      width: imageWidth,
                       height: imageHeight,
                       fit: pw.BoxFit.contain),
                   pw.SizedBox(height: 8),
                   if (fotosDescricao[i + 1].isNotEmpty)
                     pw.Text(fotosDescricao[i + 1],
-                        style: pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
+                        style:
+                            pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
                 ],
               ),
             ),
@@ -8164,11 +8424,11 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
       } else {
         rowChildren.add(pw.Expanded(child: pw.Container()));
       }
-      
+
       widgets.add(pw.Row(children: rowChildren));
       widgets.add(pw.SizedBox(height: 10));
     }
-    
+
     return widgets;
   }
 
@@ -8568,7 +8828,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                   color: Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                
               ),
             ],
           ),
@@ -21946,7 +22205,7 @@ class ConsultarRelatorios extends StatefulWidget {
 
 class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
   static const verdeEscuro = Color(0xFF006400);
-  static const rosaEscuro = Color(0xFFE91E63);
+  static const azulEscuro = Color(0xFF075fa8);
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -22026,7 +22285,6 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
           .doc(lojaSelecionada)
           .collection('datas')
           .where('data', isEqualTo: _formatarDataFirestore(dataSelecionada!))
-          .orderBy('data', descending: true)
           .get();
 
       setState(() {
@@ -22081,6 +22339,8 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
   }
 
   Widget _campoInfo(String titulo, String valor) {
+    if (valor.isEmpty) return const SizedBox.shrink();
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: RichText(
@@ -22104,86 +22364,6 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
     );
   }
 
-  Widget _buildMotivo(Map<String, dynamic> data) {
-    final rotinaSelecionadas =
-        List<String>.from(data['rotinaSelecionadas'] ?? []);
-    final rotinaOutros = data['rotinaOutros'] ?? '';
-
-    if (rotinaSelecionadas.isEmpty) {
-      return _campoInfo('Motivo:', 'Nenhum motivo selecionado');
-    }
-
-    String motivoTexto = rotinaSelecionadas.join(', ');
-    if (rotinaSelecionadas.contains('outros') && rotinaOutros.isNotEmpty) {
-      motivoTexto = '$motivoTexto ($rotinaOutros)';
-    }
-
-    return _campoInfo('Motivo:', motivoTexto);
-  }
-
-  Widget _buildVendasDiaAnterior(Map<String, dynamic> data) {
-    final vendamediadiaria = data['vendamediadiaria'] ?? '';
-    final qtdRetirada = data['qtdRetirada'] ?? '0';
-    final lotesRetirados = data['lotesRetirados'] ?? '0';
-    final qtdSobra = data['qtdSobra'] ?? '0';
-    final giroMedio = data['giroMedio'] ?? '0';
-
-    String paoFrancesUnidades = vendamediadiaria;
-    if (paoFrancesUnidades.isEmpty && giroMedio != '0') {
-      final valor = double.tryParse(giroMedio.toString()) ?? 0;
-      paoFrancesUnidades = (valor / 0.07).toStringAsFixed(0);
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 18),
-        const Text(
-          'Vendas do Dia Anterior:',
-          style: TextStyle(
-            fontSize: 21,
-            fontWeight: FontWeight.bold,
-            color: verdeEscuro,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade300),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Pão Francês: ${paoFrancesUnidades.isEmpty ? '0' : paoFrancesUnidades} unidades',
-                style: const TextStyle(fontSize: 17, color: Colors.black87),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Pão de Queijo Tradicional: $qtdRetirada Kilos',
-                style: const TextStyle(fontSize: 17, color: Colors.black87),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Pão de Queijo Coquetel: $lotesRetirados Kilos',
-                style: const TextStyle(fontSize: 17, color: Colors.black87),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Biscoito de Queijo: $qtdSobra Kilos',
-                style: const TextStyle(fontSize: 17, color: Colors.black87),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildRupturas(Map<String, dynamic> data) {
     final rupturas = data['rupturas'] ?? {};
 
@@ -22196,6 +22376,8 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
         }
       });
     }
+
+    if (produtosComRuptura.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -22218,34 +22400,28 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: Colors.grey.shade300),
           ),
-          child: produtosComRuptura.isEmpty
-              ? const Text(
-                  'Nenhuma ruptura registrada',
-                  style: TextStyle(fontSize: 17, color: Colors.black87),
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: produtosComRuptura.map((entry) {
-                    final produto = entry.key;
-                    final info = entry.value;
-                    final motivo = info['motivo'] ?? 'sem motivo';
-                    final outroMotivo = info['outroMotivo'] ?? '';
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: produtosComRuptura.map((entry) {
+              final produto = entry.key;
+              final info = entry.value;
+              final motivo = info['motivo'] ?? 'sem motivo';
+              final outroMotivo = info['outroMotivo'] ?? '';
 
-                    String motivoTexto = motivo;
-                    if (motivo == 'outros' && outroMotivo.isNotEmpty) {
-                      motivoTexto = 'outros ($outroMotivo)';
-                    }
+              String motivoTexto = motivo;
+              if (motivo == 'outros' && outroMotivo.isNotEmpty) {
+                motivoTexto = 'outros ($outroMotivo)';
+              }
 
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text(
-                        '• $produto (Motivo: $motivoTexto)',
-                        style: const TextStyle(
-                            fontSize: 16, color: Colors.black87),
-                      ),
-                    );
-                  }).toList(),
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  '• $produto (Motivo: $motivoTexto)',
+                  style: const TextStyle(fontSize: 16, color: Colors.black87),
                 ),
+              );
+            }).toList(),
+          ),
         ),
       ],
     );
@@ -22255,7 +22431,7 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: rosaEscuro,
+        backgroundColor: azulEscuro,
         centerTitle: true,
         title: Row(
           children: [
@@ -22266,7 +22442,7 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
             const SizedBox(width: 8),
             const Expanded(
               child: Text(
-                'Consultar',
+                'Consultar Relatórios',
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 20,
@@ -22356,7 +22532,7 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
                   style: TextStyle(fontSize: 20),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: rosaEscuro,
+                  backgroundColor: azulEscuro,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 onPressed: _buscarRelatorios,
@@ -22393,7 +22569,7 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.store, color: rosaEscuro),
+                          const Icon(Icons.store, color: azulEscuro),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -22401,11 +22577,10 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
                               style: const TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
-                                color: rosaEscuro,
+                                color: azulEscuro,
                               ),
                             ),
                           ),
-                          // Botão de copiar ao lado do nome da loja
                           if (textoCompleto.isNotEmpty)
                             IconButton(
                               icon: const Icon(Icons.copy, color: Colors.blue),
@@ -22415,45 +22590,16 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
                         ],
                       ),
                       const Divider(height: 30),
+                      // Informações da visita
                       _campoInfo('Data:', data['dataFormatada'] ?? ''),
-                      _campoInfo('Horário:', data['horario'] ?? ''),
                       _campoInfo('Técnico:', data['tecnico'] ?? ''),
                       _campoInfo('Crachá:', data['cracha'] ?? ''),
                       _campoInfo('Gerente:', data['gerente'] ?? ''),
                       _campoInfo('Encarregado:', data['encarregado'] ?? ''),
-                      _campoInfo('Colaboradores:',
+                      _campoInfo('Colaboradores no dia:',
                           '${data['colaboradoresAtivos'] ?? ''}'),
-                      _campoInfo('Venda Média Pão Francês/Dia:',
-                          '${data['resultadoInteiro'] ?? '0'} unidades'),
 
-                      _buildMotivo(data),
-
-                      const SizedBox(height: 18),
-                      const Text(
-                        'Trabalho Realizado:',
-                        style: TextStyle(
-                          fontSize: 21,
-                          fontWeight: FontWeight.bold,
-                          color: verdeEscuro,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: Text(
-                          data['trabalhoRealizado'] ?? 'Não informado',
-                          style: const TextStyle(
-                              fontSize: 17, color: Colors.black87),
-                        ),
-                      ),
-
-                      _buildVendasDiaAnterior(data),
+                      // Rupturas
                       _buildRupturas(data),
 
                       const SizedBox(height: 16),
