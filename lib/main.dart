@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:html' as html;
 import 'dart:io';
+import 'package:image/image.dart' as img;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7625,7 +7626,7 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
   late String dataFormatada;
   late String dataParaArquivo;
 
-  // Lista de produtos para rupturas (mesma da ReportFinalScreen)
+  // Lista de produtos para rupturas
   final List<String> produtos = [
     'Pão Francês',
     'Pão Francês Fibras',
@@ -7695,7 +7696,6 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     encarregadoController = TextEditingController();
     dataController = TextEditingController();
 
-    // Inicializa os mapas de rupturas
     rupturasSelecionadas = {for (var p in produtos) p: false};
     motivosSelecionados = {for (var p in produtos) p: motivos[0]};
     outrosMotivos = {for (var p in produtos) p: ''};
@@ -8148,49 +8148,113 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
 
   List<pw.Widget> _buildFotosListEmGrid() {
     final widgets = <pw.Widget>[];
+    final List<Uint8List> fotosPaisagem = [];
+    final List<Uint8List> fotosRetrato = [];
+    final List<String> descricoesPaisagem = [];
+    final List<String> descricoesRetrato = [];
 
-    final double imageWidth = 360;
-    final double imageHeight = 270;
+    // Separa as fotos por orientação
+    for (int i = 0; i < fotos.length; i++) {
+      final imgObj = img.decodeImage(fotos[i]);
+      if (imgObj != null) {
+        if (imgObj.width > imgObj.height) {
+          // Paisagem (largura > altura)
+          fotosPaisagem.add(fotos[i]);
+          descricoesPaisagem.add(fotosDescricao[i]);
+        } else {
+          // Retrato (altura >= largura)
+          fotosRetrato.add(fotos[i]);
+          descricoesRetrato.add(fotosDescricao[i]);
+        }
+      } else {
+        // Se não conseguir decodificar, trata como retrato
+        fotosRetrato.add(fotos[i]);
+        descricoesRetrato.add(fotosDescricao[i]);
+      }
+    }
 
-    for (int i = 0; i < fotos.length; i += 2) {
+    // Adiciona fotos em paisagem (uma por linha)
+    for (int i = 0; i < fotosPaisagem.length; i++) {
+      widgets.add(
+        pw.Container(
+          padding: const pw.EdgeInsets.all(5),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Center(
+                child: pw.Image(
+                  pw.MemoryImage(fotosPaisagem[i]),
+                  width: 500,
+                  height: 350,
+                  fit: pw.BoxFit.contain,
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              if (descricoesPaisagem[i].isNotEmpty)
+                pw.Center(
+                  child: pw.Text(
+                    descricoesPaisagem[i],
+                    style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
+                  ),
+                ),
+              pw.SizedBox(height: 10),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Adiciona fotos em retrato (duas por linha)
+    for (int i = 0; i < fotosRetrato.length; i += 2) {
       final rowChildren = <pw.Widget>[];
 
+      // Primeira foto da linha
       rowChildren.add(
         pw.Expanded(
           child: pw.Container(
             padding: const pw.EdgeInsets.all(5),
             child: pw.Column(
               children: [
-                pw.Image(pw.MemoryImage(fotos[i]),
-                    width: imageWidth,
-                    height: imageHeight,
-                    fit: pw.BoxFit.contain),
+                pw.Image(
+                  pw.MemoryImage(fotosRetrato[i]),
+                  width: 360,
+                  height: 270,
+                  fit: pw.BoxFit.contain,
+                ),
                 pw.SizedBox(height: 8),
-                if (fotosDescricao[i].isNotEmpty)
-                  pw.Text(fotosDescricao[i],
-                      style: pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
+                if (descricoesRetrato[i].isNotEmpty)
+                  pw.Text(
+                    descricoesRetrato[i],
+                    style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
+                    textAlign: pw.TextAlign.center,
+                  ),
               ],
             ),
           ),
         ),
       );
 
-      if (i + 1 < fotos.length) {
+      // Segunda foto da linha (se existir)
+      if (i + 1 < fotosRetrato.length) {
         rowChildren.add(
           pw.Expanded(
             child: pw.Container(
               padding: const pw.EdgeInsets.all(5),
               child: pw.Column(
                 children: [
-                  pw.Image(pw.MemoryImage(fotos[i + 1]),
-                      width: imageWidth,
-                      height: imageHeight,
-                      fit: pw.BoxFit.contain),
+                  pw.Image(
+                    pw.MemoryImage(fotosRetrato[i + 1]),
+                    width: 360,
+                    height: 270,
+                    fit: pw.BoxFit.contain,
+                  ),
                   pw.SizedBox(height: 8),
-                  if (fotosDescricao[i + 1].isNotEmpty)
-                    pw.Text(fotosDescricao[i + 1],
-                        style:
-                            pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
+                  if (descricoesRetrato[i + 1].isNotEmpty)
+                    pw.Text(
+                      descricoesRetrato[i + 1],
+                      style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
+                      textAlign: pw.TextAlign.center,
+                    ),
                 ],
               ),
             ),
