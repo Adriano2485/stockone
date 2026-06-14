@@ -7772,7 +7772,6 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
       final img.Image? image = img.decodeImage(bytes);
       if (image == null) return bytes;
       
-      // Redimensiona para máximo 900x900
       int targetWidth = image.width;
       int targetHeight = image.height;
       
@@ -8250,41 +8249,36 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     return widgets;
   }
 
-  // ===== FUNÇÃO SIMPLIFICADA - TODAS AS FOTOS 2 POR LINHA (MAIS RÁPIDO) =====
+  // ===== FUNÇÃO IDÊNTICA À DA REPORTFINALSCREEN =====
   List<pw.Widget> _buildFotosListEmGrid() {
     final widgets = <pw.Widget>[];
 
-    // Exibe todas as fotos em grid de 2 por linha (sem detectar orientação)
+    final double imageWidth = 360;
+    final double imageHeight = 270;
+
     for (int i = 0; i < fotos.length; i += 2) {
       final rowChildren = <pw.Widget>[];
 
-      // Primeira foto da linha
       rowChildren.add(
         pw.Expanded(
           child: pw.Container(
             padding: const pw.EdgeInsets.all(5),
             child: pw.Column(
               children: [
-                pw.Image(
-                  pw.MemoryImage(fotos[i]),
-                  width: 360,
-                  height: 270,
-                  fit: pw.BoxFit.contain,
-                ),
+                pw.Image(pw.MemoryImage(fotos[i]),
+                    width: imageWidth,
+                    height: imageHeight,
+                    fit: pw.BoxFit.contain),
                 pw.SizedBox(height: 8),
                 if (fotosDescricao[i].isNotEmpty)
-                  pw.Text(
-                    fotosDescricao[i],
-                    style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
-                    textAlign: pw.TextAlign.center,
-                  ),
+                  pw.Text(fotosDescricao[i],
+                      style: pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
               ],
             ),
           ),
         ),
       );
 
-      // Segunda foto da linha (se existir)
       if (i + 1 < fotos.length) {
         rowChildren.add(
           pw.Expanded(
@@ -8292,19 +8286,15 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
               padding: const pw.EdgeInsets.all(5),
               child: pw.Column(
                 children: [
-                  pw.Image(
-                    pw.MemoryImage(fotos[i + 1]),
-                    width: 360,
-                    height: 270,
-                    fit: pw.BoxFit.contain,
-                  ),
+                  pw.Image(pw.MemoryImage(fotos[i + 1]),
+                      width: imageWidth,
+                      height: imageHeight,
+                      fit: pw.BoxFit.contain),
                   pw.SizedBox(height: 8),
                   if (fotosDescricao[i + 1].isNotEmpty)
-                    pw.Text(
-                      fotosDescricao[i + 1],
-                      style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
-                      textAlign: pw.TextAlign.center,
-                    ),
+                    pw.Text(fotosDescricao[i + 1],
+                        style:
+                            pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
                 ],
               ),
             ),
