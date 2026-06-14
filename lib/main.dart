@@ -8052,7 +8052,8 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     final dia = dataParts[0];
     final mes = dataParts[1];
     final ano = dataParts[2].substring(2);
-    final nomeArquivo = 'Abertura_${widget.storeName}_${dia}_${mes}_$ano.pdf';
+    final nomeArquivo =
+        'Posicionamento_${widget.storeName}_${dia}_${mes}_$ano.pdf';
 
     showDialog(
       context: context,
@@ -8106,7 +8107,7 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text('RELATÓRIO DE ABERTURA',
+                  pw.Text('POSICIONAMENTO',
                       style: pw.TextStyle(
                         fontSize: 18,
                         fontWeight: pw.FontWeight.bold,
@@ -8114,7 +8115,7 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
                       )),
                   pw.SizedBox(height: 10),
                   pw.Text('Data: $dataFormatada'),
-                  pw.Text('Técnico: $userName'),
+                  pw.Text('Promotor: $userName'),
                   pw.Text('Crachá: ${crachaController.text}'),
                   pw.Text('Gerência: ${gerenteController.text}'),
                   pw.Text('Encarregado(s): ${encarregadoController.text}'),
@@ -8187,7 +8188,7 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
           XFile.fromData(pdfBytes,
               name: nomeArquivo, mimeType: 'application/pdf')
         ],
-        text: 'Relatório de Abertura - ${widget.storeName} - $dataFormatada',
+        text: 'Posicionamento - ${widget.storeName} - $dataFormatada',
       );
 
       if (mounted) {
@@ -8332,14 +8333,13 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: verdeEscuro,
-        centerTitle: true,
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Image.asset('assets/images/Logo StockOne.png', height: 32),
             const SizedBox(width: 8),
             const Text(
-              "POSICIONAMENTO",
+              "ABERTURA",
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
