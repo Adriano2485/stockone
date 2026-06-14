@@ -7766,13 +7766,13 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     }
   }
 
-  // ===== FUNÇÃO DE COMPRESSÃO DE IMAGEM OTIMIZADA =====
+  // ===== FUNÇÃO DE COMPRESSÃO DE IMAGEM =====
   Future<Uint8List> _compressImage(Uint8List bytes) async {
     try {
       final img.Image? image = img.decodeImage(bytes);
       if (image == null) return bytes;
       
-      // Redimensiona para máximo 900x900 (equilíbrio perfeito)
+      // Redimensiona para máximo 900x900
       int targetWidth = image.width;
       int targetHeight = image.height;
       
@@ -7793,7 +7793,6 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
         interpolation: img.Interpolation.average,
       );
       
-      // Qualidade 75% (excelente qualidade com tamanho controlado)
       return Uint8List.fromList(img.encodeJpg(resized, quality: 75));
     } catch (e) {
       print('Erro ao comprimir imagem: $e');
@@ -7885,8 +7884,8 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
   Future<void> _selecionarMultiplasFotos() async {
     try {
       final List<XFile>? fotosSelecionadas = await _picker.pickMultiImage(
-        imageQuality: 70,  // Qualidade na captura
-        maxWidth: 900,     // Resolução máxima
+        imageQuality: 70,
+        maxWidth: 900,
         maxHeight: 900,
       );
 
@@ -7929,8 +7928,8 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     try {
       final XFile? foto = await _picker.pickImage(
         source: ImageSource.camera,
-        imageQuality: 70,  // Qualidade na captura
-        maxWidth: 900,     // Resolução máxima
+        imageQuality: 70,
+        maxWidth: 900,
         maxHeight: 900,
       );
 
@@ -8251,64 +8250,15 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     return widgets;
   }
 
+  // ===== FUNÇÃO SIMPLIFICADA - TODAS AS FOTOS 2 POR LINHA (MAIS RÁPIDO) =====
   List<pw.Widget> _buildFotosListEmGrid() {
     final widgets = <pw.Widget>[];
-    final List<Uint8List> fotosPaisagem = [];
-    final List<Uint8List> fotosRetrato = [];
-    final List<String> descricoesPaisagem = [];
-    final List<String> descricoesRetrato = [];
 
-    for (int i = 0; i < fotos.length; i++) {
-      final imgObj = img.decodeImage(fotos[i]);
-      if (imgObj != null) {
-        if (imgObj.width > imgObj.height) {
-          fotosPaisagem.add(fotos[i]);
-          descricoesPaisagem.add(fotosDescricao[i]);
-        } else {
-          fotosRetrato.add(fotos[i]);
-          descricoesRetrato.add(fotosDescricao[i]);
-        }
-      } else {
-        fotosRetrato.add(fotos[i]);
-        descricoesRetrato.add(fotosDescricao[i]);
-      }
-    }
-
-    // Paisagem: uma por linha
-    for (int i = 0; i < fotosPaisagem.length; i++) {
-      widgets.add(
-        pw.Container(
-          padding: const pw.EdgeInsets.all(5),
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Center(
-                child: pw.Image(
-                  pw.MemoryImage(fotosPaisagem[i]),
-                  width: 500,
-                  height: 350,
-                  fit: pw.BoxFit.contain,
-                ),
-              ),
-              pw.SizedBox(height: 8),
-              if (descricoesPaisagem[i].isNotEmpty)
-                pw.Center(
-                  child: pw.Text(
-                    descricoesPaisagem[i],
-                    style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
-                  ),
-                ),
-              pw.SizedBox(height: 10),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // Retrato: duas por linha
-    for (int i = 0; i < fotosRetrato.length; i += 2) {
+    // Exibe todas as fotos em grid de 2 por linha (sem detectar orientação)
+    for (int i = 0; i < fotos.length; i += 2) {
       final rowChildren = <pw.Widget>[];
 
+      // Primeira foto da linha
       rowChildren.add(
         pw.Expanded(
           child: pw.Container(
@@ -8316,15 +8266,15 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
             child: pw.Column(
               children: [
                 pw.Image(
-                  pw.MemoryImage(fotosRetrato[i]),
+                  pw.MemoryImage(fotos[i]),
                   width: 360,
                   height: 270,
                   fit: pw.BoxFit.contain,
                 ),
                 pw.SizedBox(height: 8),
-                if (descricoesRetrato[i].isNotEmpty)
+                if (fotosDescricao[i].isNotEmpty)
                   pw.Text(
-                    descricoesRetrato[i],
+                    fotosDescricao[i],
                     style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
                     textAlign: pw.TextAlign.center,
                   ),
@@ -8334,7 +8284,8 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
         ),
       );
 
-      if (i + 1 < fotosRetrato.length) {
+      // Segunda foto da linha (se existir)
+      if (i + 1 < fotos.length) {
         rowChildren.add(
           pw.Expanded(
             child: pw.Container(
@@ -8342,15 +8293,15 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
               child: pw.Column(
                 children: [
                   pw.Image(
-                    pw.MemoryImage(fotosRetrato[i + 1]),
+                    pw.MemoryImage(fotos[i + 1]),
                     width: 360,
                     height: 270,
                     fit: pw.BoxFit.contain,
                   ),
                   pw.SizedBox(height: 8),
-                  if (descricoesRetrato[i + 1].isNotEmpty)
+                  if (fotosDescricao[i + 1].isNotEmpty)
                     pw.Text(
-                      descricoesRetrato[i + 1],
+                      fotosDescricao[i + 1],
                       style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
                       textAlign: pw.TextAlign.center,
                     ),
