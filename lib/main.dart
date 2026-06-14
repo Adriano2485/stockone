@@ -7703,6 +7703,34 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     _atualizarDataAtual();
     _carregarPreferencias();
     _carregarFotosDoSharedPreferences();
+    _recompressExistingPhotos();
+  }
+
+  // Recomprime todas as fotos existentes
+  Future<void> _recompressExistingPhotos() async {
+    if (fotos.isEmpty) return;
+
+    print('Recomprimindo ${fotos.length} fotos existentes...');
+    bool changed = false;
+    List<Uint8List> novasFotos = [];
+
+    for (var foto in fotos) {
+      final comprimida = await _compressImage(foto);
+      if (comprimida.length < foto.length) {
+        changed = true;
+        novasFotos.add(comprimida);
+      } else {
+        novasFotos.add(foto);
+      }
+    }
+
+    if (changed) {
+      setState(() {
+        fotos = novasFotos;
+      });
+      await _salvarFotosNoSharedPreferences();
+      print('Fotos recomprimidas com sucesso!');
+    }
   }
 
   void _atualizarDataAtual() {
@@ -7738,32 +7766,33 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     }
   }
 
-  // ===== FUNÇÃO PARA MOSTRAR O TAMANHO TOTAL DAS FOTOS =====
-  String _getTotalSize() {
-    int totalBytes = fotos.fold(0, (sum, foto) => sum + foto.length);
-    if (totalBytes < 1024 * 1024) {
-      return '${(totalBytes / 1024).toStringAsFixed(1)} KB';
-    } else {
-      return '${(totalBytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-  }
-
   // ===== FUNÇÃO DE COMPRESSÃO DE IMAGEM =====
   Future<Uint8List> _compressImage(Uint8List bytes) async {
     try {
       final img.Image? image = img.decodeImage(bytes);
       if (image == null) return bytes;
 
-      // Redimensiona para no máximo 800x600 mantendo proporção
+      int targetWidth = image.width;
+      int targetHeight = image.height;
+
+      if (image.width > 900 || image.height > 900) {
+        if (image.width > image.height) {
+          targetWidth = 900;
+          targetHeight = (image.height * 900 / image.width).round();
+        } else {
+          targetHeight = 900;
+          targetWidth = (image.width * 900 / image.height).round();
+        }
+      }
+
       final img.Image resized = img.copyResize(
         image,
-        width: 800,
-        height: 600,
+        width: targetWidth,
+        height: targetHeight,
         interpolation: img.Interpolation.average,
       );
 
-      // Codifica com qualidade 70%
-      return Uint8List.fromList(img.encodeJpg(resized, quality: 70));
+      return Uint8List.fromList(img.encodeJpg(resized, quality: 75));
     } catch (e) {
       print('Erro ao comprimir imagem: $e');
       return bytes;
@@ -7854,14 +7883,17 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
 
   Future<void> _selecionarMultiplasFotos() async {
     try {
-      final List<XFile>? fotosSelecionadas = await _picker.pickMultiImage();
+      final List<XFile>? fotosSelecionadas = await _picker.pickMultiImage(
+        imageQuality: 70,
+        maxWidth: 900,
+        maxHeight: 900,
+      );
 
       if (fotosSelecionadas != null && fotosSelecionadas.isNotEmpty) {
-        // Mostrar diálogo de progresso
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Comprimindo imagens...'),
+              content: Text('Processando imagens...'),
               duration: Duration(seconds: 1),
             ),
           );
@@ -7869,7 +7901,7 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
 
         for (var foto in fotosSelecionadas) {
           Uint8List bytes = await foto.readAsBytes();
-          bytes = await _compressImage(bytes); // Comprime a foto
+          bytes = await _compressImage(bytes);
           setState(() {
             fotos.add(bytes);
             fotosDescricao.add('');
@@ -7880,8 +7912,8 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content:
-                  Text('✅ ${fotosSelecionadas.length} foto(s) adicionadas!'),
+              content: Text(
+                  '✅ ${fotosSelecionadas.length} foto(s) adicionadas! Tamanho total: ${_getTotalSize()}'),
               backgroundColor: Colors.green,
               duration: Duration(seconds: 2),
             ),
@@ -7897,11 +7929,14 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     try {
       final XFile? foto = await _picker.pickImage(
         source: ImageSource.camera,
+        imageQuality: 70,
+        maxWidth: 900,
+        maxHeight: 900,
       );
 
       if (foto != null) {
         Uint8List bytes = await foto.readAsBytes();
-        bytes = await _compressImage(bytes); // Comprime a foto
+        bytes = await _compressImage(bytes);
 
         setState(() {
           fotos.add(bytes);
@@ -7921,6 +7956,15 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
       }
     } catch (e) {
       print('Erro ao tirar foto: $e');
+    }
+  }
+
+  String _getTotalSize() {
+    int totalBytes = fotos.fold(0, (sum, foto) => sum + foto.length);
+    if (totalBytes < 1024 * 1024) {
+      return '${(totalBytes / 1024).toStringAsFixed(1)} KB';
+    } else {
+      return '${(totalBytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     }
   }
 
@@ -7952,11 +7996,10 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
           gerenteController.text = data['gerente'] ?? '';
           encarregadoController.text = data['encarregado'] ?? '';
           userName = data['userName'] ?? '';
-          colaboradoresAtivos = relatorioData['colaboradoresAtivos'] ?? 0;
-          sobrasGeladeira = relatorioData['sobrasGeladeira'] ?? 0;
+          colaboradoresAtivos = data['colaboradoresAtivos'] ?? 0;
+          sobrasGeladeira = data['sobrasGeladeira'] ?? 0;
         });
 
-        // Carrega rupturas
         final rupturasData = relatorioData['rupturas'] ?? {};
         for (var produto in produtos) {
           final produtoData = rupturasData[produto] ?? {};
@@ -7976,10 +8019,11 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
         'cracha': crachaController.text,
         'gerente': gerenteController.text,
         'encarregado': encarregadoController.text,
+        'colaboradoresAtivos': colaboradoresAtivos,
+        'sobrasGeladeira': sobrasGeladeira,
         'lastUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      // Salva rupturas
       final rupturasData = <String, dynamic>{};
       for (var produto in produtos) {
         rupturasData[produto] = {
@@ -7990,8 +8034,6 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
       }
 
       final relatorioData = {
-        'colaboradoresAtivos': colaboradoresAtivos,
-        'sobrasGeladeira': sobrasGeladeira,
         'rupturas': rupturasData,
       };
 
@@ -8004,7 +8046,7 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     }
   }
 
-  // ===== FUNÇÃO PARA GERAR E COMPARTILHAR PDF (COM DIÁLOGO IGUAL AO REPORTFINALSCREEN) =====
+  // ===== FUNÇÃO PARA GERAR E COMPARTILHAR PDF =====
   Future<void> _compartilharPDF() async {
     final dataParts = dataFormatada.split('/');
     final dia = dataParts[0];
@@ -8012,7 +8054,6 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     final ano = dataParts[2].substring(2);
     final nomeArquivo = 'Abertura_${widget.storeName}_${dia}_${mes}_$ano.pdf';
 
-    // Mostra diálogo de progresso IGUAL ao ReportFinalScreen
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -8139,10 +8180,8 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
 
       final pdfBytes = await pdf.save();
 
-      // Fecha o diálogo de progresso
       if (mounted) Navigator.pop(context);
 
-      // Compartilha o PDF
       await Share.shareXFiles(
         [
           XFile.fromData(pdfBytes,
@@ -8154,16 +8193,15 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ PDF compartilhado! (${(pdfBytes.length / (1024 * 1024)).toStringAsFixed(1)} MB)'),
+            content: Text(
+                '✅ PDF compartilhado! (${(pdfBytes.length / (1024 * 1024)).toStringAsFixed(1)} MB)'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 3),
           ),
         );
       }
     } catch (e) {
-      // Fecha o diálogo de progresso se estiver aberto
       if (mounted) Navigator.pop(context);
-
       print('Erro: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -8214,65 +8252,14 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     return widgets;
   }
 
+  // ===== FUNÇÃO CORRIGIDA - SEM DIMENSÕES FIXAS (NÃO ESTOURA MARGENS) =====
   List<pw.Widget> _buildFotosListEmGrid() {
     final widgets = <pw.Widget>[];
-    final List<Uint8List> fotosPaisagem = [];
-    final List<Uint8List> fotosRetrato = [];
-    final List<String> descricoesPaisagem = [];
-    final List<String> descricoesRetrato = [];
 
-    // Separa as fotos por orientação
-    for (int i = 0; i < fotos.length; i++) {
-      final imgObj = img.decodeImage(fotos[i]);
-      if (imgObj != null) {
-        if (imgObj.width > imgObj.height) {
-          fotosPaisagem.add(fotos[i]);
-          descricoesPaisagem.add(fotosDescricao[i]);
-        } else {
-          fotosRetrato.add(fotos[i]);
-          descricoesRetrato.add(fotosDescricao[i]);
-        }
-      } else {
-        fotosRetrato.add(fotos[i]);
-        descricoesRetrato.add(fotosDescricao[i]);
-      }
-    }
-
-    // Adiciona fotos em paisagem (uma por linha)
-    for (int i = 0; i < fotosPaisagem.length; i++) {
-      widgets.add(
-        pw.Container(
-          padding: const pw.EdgeInsets.all(5),
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Center(
-                child: pw.Image(
-                  pw.MemoryImage(fotosPaisagem[i]),
-                  width: 500,
-                  height: 350,
-                  fit: pw.BoxFit.contain,
-                ),
-              ),
-              pw.SizedBox(height: 8),
-              if (descricoesPaisagem[i].isNotEmpty)
-                pw.Center(
-                  child: pw.Text(
-                    descricoesPaisagem[i],
-                    style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
-                  ),
-                ),
-              pw.SizedBox(height: 10),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // Adiciona fotos em retrato (duas por linha)
-    for (int i = 0; i < fotosRetrato.length; i += 2) {
+    for (int i = 0; i < fotos.length; i += 2) {
       final rowChildren = <pw.Widget>[];
 
+      // Primeira foto
       rowChildren.add(
         pw.Expanded(
           child: pw.Container(
@@ -8280,15 +8267,13 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
             child: pw.Column(
               children: [
                 pw.Image(
-                  pw.MemoryImage(fotosRetrato[i]),
-                  width: 360,
-                  height: 270,
+                  pw.MemoryImage(fotos[i]),
                   fit: pw.BoxFit.contain,
                 ),
                 pw.SizedBox(height: 8),
-                if (descricoesRetrato[i].isNotEmpty)
+                if (fotosDescricao[i].isNotEmpty)
                   pw.Text(
-                    descricoesRetrato[i],
+                    fotosDescricao[i],
                     style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
                     textAlign: pw.TextAlign.center,
                   ),
@@ -8298,7 +8283,8 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
         ),
       );
 
-      if (i + 1 < fotosRetrato.length) {
+      // Segunda foto (se existir)
+      if (i + 1 < fotos.length) {
         rowChildren.add(
           pw.Expanded(
             child: pw.Container(
@@ -8306,15 +8292,13 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
               child: pw.Column(
                 children: [
                   pw.Image(
-                    pw.MemoryImage(fotosRetrato[i + 1]),
-                    width: 360,
-                    height: 270,
+                    pw.MemoryImage(fotos[i + 1]),
                     fit: pw.BoxFit.contain,
                   ),
                   pw.SizedBox(height: 8),
-                  if (descricoesRetrato[i + 1].isNotEmpty)
+                  if (fotosDescricao[i + 1].isNotEmpty)
                     pw.Text(
-                      descricoesRetrato[i + 1],
+                      fotosDescricao[i + 1],
                       style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
                       textAlign: pw.TextAlign.center,
                     ),
@@ -8571,6 +8555,15 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
                 ],
               ),
               const SizedBox(height: 10),
+              // Mostrar tamanho total das fotos
+              if (fotos.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'Tamanho total das fotos: ${_getTotalSize()}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                ),
               // Lista de fotos adicionadas
               if (fotos.isNotEmpty)
                 Column(
@@ -8650,6 +8643,7 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     );
   }
 }
+
 class ReportFinalScreen extends StatefulWidget {
   final String storeName;
   const ReportFinalScreen({super.key, required this.storeName});
