@@ -7611,13 +7611,80 @@ class ReportAberturaScreen extends StatefulWidget {
 }
 
 class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
+  static const verdeEscuro = Color(0xFF006400);
+  static const azulEscuro = Color(0xff075fa8);
+
   late TextEditingController crachaController;
   late TextEditingController gerenteController;
   late TextEditingController encarregadoController;
+  late TextEditingController dataController;
+
   int colaboradoresAtivos = 0;
   int sobrasGeladeira = 0;
   late String userName;
   late String dataFormatada;
+  late String dataParaArquivo;
+
+  // Lista de produtos para rupturas (mesma da ReportFinalScreen)
+  final List<String> produtos = [
+    'Pão Francês',
+    'Pão Francês Fibras',
+    'Pão Francês Panhoca',
+    'Pão Francês com Queijo',
+    'Pão Baguete Francesa Queijo',
+    'Pão Baguete Francesa',
+    'Pão Baguete Francesa Gergelim',
+    'Baguete Francesa Queijo',
+    'Baguete Francesa',
+    'Pão Queijo Tradicional',
+    'Pão Queijo Coquetel',
+    'Biscoito Queijo',
+    'Biscoito Polvilho',
+    'Pão Samaritano',
+    'Pão Pizza',
+    'Pão Tatu',
+    'Pão Tatu Com Açúcar',
+    'Mini Pão Sonho',
+    'Mini Pão Sonho Chocolate',
+    'Pão Bambino',
+    'Mini Marta Rocha',
+    'Pão Doce Ferradura',
+    'Pão Doce Caracol',
+    'Rosca Caseira',
+    'Rosca Caseira Côco',
+    'Rosca Caseira Leite em Pó',
+    'Rosca Côco/Queijo',
+    'Sanduíche Bahamas 120',
+    'Rabanada Assada',
+    'Pão Fofinho',
+    'Sanduíche Fofinho',
+    'Rosca Fofinha Temperada',
+    'Caseirinho',
+    'Pão P/ Rabanada',
+    'Pão Doce Comprido',
+    'Pão Milho',
+    'Pão de Alho da Casa',
+    'Pão de Alho da Casa Picante',
+  ];
+
+  final List<String> motivos = [
+    'aguardando fermentação',
+    'não foi retirado',
+    'aguardando acabamento',
+    'ruptura em estoque',
+    'aguardando forneamento',
+    'outros',
+  ];
+
+  late Map<String, bool> rupturasSelecionadas;
+  late Map<String, String> motivosSelecionados;
+  late Map<String, String> outrosMotivos;
+
+  // Lista para armazenar as fotos
+  List<Uint8List> fotos = [];
+  List<String> fotosDescricao = [];
+
+  final ImagePicker _picker = ImagePicker();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
@@ -7626,10 +7693,189 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     crachaController = TextEditingController();
     gerenteController = TextEditingController();
     encarregadoController = TextEditingController();
+    dataController = TextEditingController();
+
+    // Inicializa os mapas de rupturas
+    rupturasSelecionadas = {for (var p in produtos) p: false};
+    motivosSelecionados = {for (var p in produtos) p: motivos[0]};
+    outrosMotivos = {for (var p in produtos) p: ''};
+
+    _atualizarDataAtual();
     _carregarPreferencias();
+    _carregarFotosDoSharedPreferences();
+  }
+
+  void _atualizarDataAtual() {
     final dataHoje = DateTime.now();
     dataFormatada =
         "${dataHoje.day.toString().padLeft(2, '0')}/${dataHoje.month.toString().padLeft(2, '0')}/${dataHoje.year}";
+    dataParaArquivo =
+        "${dataHoje.year}-${dataHoje.month.toString().padLeft(2, '0')}-${dataHoje.day.toString().padLeft(2, '0')}";
+    dataController.text = dataFormatada;
+  }
+
+  void _atualizarDataManual(String texto) {
+    final regex = RegExp(r'^(\d{2})/(\d{2})/(\d{4})$');
+    final match = regex.firstMatch(texto);
+
+    if (match != null) {
+      final dia = int.parse(match.group(1)!);
+      final mes = int.parse(match.group(2)!);
+      final ano = int.parse(match.group(3)!);
+
+      if (ano >= 2000 &&
+          ano <= 2100 &&
+          mes >= 1 &&
+          mes <= 12 &&
+          dia >= 1 &&
+          dia <= 31) {
+        setState(() {
+          dataFormatada = texto;
+          dataParaArquivo =
+              "$ano-${mes.toString().padLeft(2, '0')}-${dia.toString().padLeft(2, '0')}";
+        });
+      }
+    }
+  }
+
+  // Funções para salvar e carregar fotos no SharedPreferences
+  Future<void> _salvarFotosNoSharedPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      final List<String> fotosBase64 =
+          fotos.map((foto) => base64Encode(foto)).toList();
+      await prefs.setStringList(
+          'fotos_abertura_${widget.storeName}', fotosBase64);
+      await prefs.setStringList(
+          'fotos_abertura_desc_${widget.storeName}', fotosDescricao);
+    } catch (e) {
+      print('Erro ao salvar fotos abertura: $e');
+    }
+  }
+
+  Future<void> _carregarFotosDoSharedPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      final List<String>? fotosBase64 =
+          prefs.getStringList('fotos_abertura_${widget.storeName}');
+      final List<String>? descricoes =
+          prefs.getStringList('fotos_abertura_desc_${widget.storeName}');
+
+      if (fotosBase64 != null && fotosBase64.isNotEmpty) {
+        final List<Uint8List> fotosCarregadas = [];
+        for (String fotoBase64 in fotosBase64) {
+          fotosCarregadas.add(base64Decode(fotoBase64));
+        }
+
+        setState(() {
+          fotos = fotosCarregadas;
+          fotosDescricao =
+              descricoes ?? List.filled(fotosCarregadas.length, '');
+        });
+      }
+    } catch (e) {
+      print('Erro ao carregar fotos abertura: $e');
+    }
+  }
+
+  Future<void> _apagarTodasFotos() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Apagar todas as fotos'),
+        content: const Text(
+            'Tem certeza que deseja apagar TODAS as fotos? Esta ação não pode ser desfeita.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Apagar todas'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      setState(() {
+        fotos.clear();
+        fotosDescricao.clear();
+      });
+      await _salvarFotosNoSharedPreferences();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Todas as fotos foram removidas!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _selecionarMultiplasFotos() async {
+    try {
+      final List<XFile>? fotosSelecionadas = await _picker.pickMultiImage(
+        imageQuality: 80,
+        maxWidth: 1024,
+      );
+
+      if (fotosSelecionadas != null && fotosSelecionadas.isNotEmpty) {
+        for (var foto in fotosSelecionadas) {
+          final bytes = await foto.readAsBytes();
+          setState(() {
+            fotos.add(bytes);
+            fotosDescricao.add('');
+          });
+        }
+        await _salvarFotosNoSharedPreferences();
+      }
+    } catch (e) {
+      print('Erro ao selecionar múltiplas fotos: $e');
+    }
+  }
+
+  Future<void> _adicionarFotoCamera() async {
+    try {
+      final XFile? foto = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 80,
+        maxWidth: 1024,
+      );
+
+      if (foto != null) {
+        final bytes = await foto.readAsBytes();
+        setState(() {
+          fotos.add(bytes);
+          fotosDescricao.add('');
+        });
+        await _salvarFotosNoSharedPreferences();
+      }
+    } catch (e) {
+      print('Erro ao tirar foto: $e');
+    }
+  }
+
+  void _removerFoto(int index) async {
+    setState(() {
+      fotos.removeAt(index);
+      fotosDescricao.removeAt(index);
+    });
+    await _salvarFotosNoSharedPreferences();
+  }
+
+  void _atualizarDescricaoFoto(int index, String descricao) async {
+    setState(() {
+      fotosDescricao[index] = descricao;
+    });
+    await _salvarFotosNoSharedPreferences();
   }
 
   Future<void> _carregarPreferencias() async {
@@ -7638,14 +7884,25 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
           await _firestore.collection('stores').doc(widget.storeName).get();
       if (doc.exists) {
         final data = doc.data() ?? {};
+        final relatorioData = data['relatorioAbertura'] ?? {};
+
         setState(() {
           crachaController.text = data['cracha'] ?? '';
           gerenteController.text = data['gerente'] ?? '';
           encarregadoController.text = data['encarregado'] ?? '';
           userName = data['userName'] ?? '';
-          colaboradoresAtivos = data['colaboradoresAtivos'] ?? 0;
-          sobrasGeladeira = data['sobrasGeladeira'] ?? 0;
+          colaboradoresAtivos = relatorioData['colaboradoresAtivos'] ?? 0;
+          sobrasGeladeira = relatorioData['sobrasGeladeira'] ?? 0;
         });
+
+        // Carrega rupturas
+        final rupturasData = relatorioData['rupturas'] ?? {};
+        for (var produto in produtos) {
+          final produtoData = rupturasData[produto] ?? {};
+          rupturasSelecionadas[produto] = produtoData['selecionado'] ?? false;
+          motivosSelecionados[produto] = produtoData['motivo'] ?? motivos[0];
+          outrosMotivos[produto] = produtoData['outroMotivo'] ?? '';
+        }
       }
     } catch (e) {
       print('Erro ao carregar preferências: $e');
@@ -7658,8 +7915,27 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
         'cracha': crachaController.text,
         'gerente': gerenteController.text,
         'encarregado': encarregadoController.text,
+        'lastUpdatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      // Salva rupturas
+      final rupturasData = <String, dynamic>{};
+      for (var produto in produtos) {
+        rupturasData[produto] = {
+          'selecionado': rupturasSelecionadas[produto] ?? false,
+          'motivo': motivosSelecionados[produto] ?? motivos[0],
+          'outroMotivo': outrosMotivos[produto] ?? '',
+        };
+      }
+
+      final relatorioData = {
         'colaboradoresAtivos': colaboradoresAtivos,
         'sobrasGeladeira': sobrasGeladeira,
+        'rupturas': rupturasData,
+      };
+
+      await _firestore.collection('stores').doc(widget.storeName).set({
+        'relatorioAbertura': relatorioData,
         'lastUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (e) {
@@ -7667,20 +7943,268 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     }
   }
 
-  Future<void> _compartilharRelatorioComImagens() async {
-    String texto = """ BOM DIA A TODOS!
+  // ===== FUNÇÃO PARA GERAR E COMPARTILHAR PDF =====
+  Future<void> _compartilharPDF() async {
+    final dataParts = dataFormatada.split('/');
+    final dia = dataParts[0];
+    final mes = dataParts[1];
+    final ano = dataParts[2].substring(2);
+    final nomeArquivo = 'Abertura_${widget.storeName}_${dia}_${mes}_$ano.pdf';
 
-*Posicionamento: ${widget.storeName}
-*Data: $dataFormatada
-*Técnico: $userName
-*Crachá: ${crachaController.text}
-*Gerência: ${gerenteController.text}
-*Encarregado: ${encarregadoController.text}
-*Colaboradores ativos: $colaboradoresAtivos
-*Sobras Pão Francês: $sobrasGeladeira telas
-""";
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(width: 12),
+              Text('Gerando PDF...'),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
 
-    await Share.share(texto.trim(), subject: 'Relatório Abertura');
+    try {
+      final pdf = pw.Document();
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          build: (context) => [
+            pw.Center(
+              child: pw.Column(
+                children: [
+                  pw.Text(widget.storeName,
+                      style: pw.TextStyle(
+                        fontSize: 48,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.green900,
+                      )),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 30),
+            pw.Container(
+              padding: const pw.EdgeInsets.all(10),
+              decoration: pw.BoxDecoration(
+                border: pw.Border(
+                    left: pw.BorderSide(color: PdfColors.green900, width: 4)),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text('RELATÓRIO DE ABERTURA',
+                      style: pw.TextStyle(
+                        fontSize: 18,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.green900,
+                      )),
+                  pw.SizedBox(height: 10),
+                  pw.Text('Data: $dataFormatada'),
+                  pw.Text('Técnico: $userName'),
+                  pw.Text('Crachá: ${crachaController.text}'),
+                  pw.Text('Gerência: ${gerenteController.text}'),
+                  pw.Text('Encarregado(s): ${encarregadoController.text}'),
+                  pw.Text('Colaboradores ativos: $colaboradoresAtivos'),
+                  pw.Text('Sobras Pão Francês: $sobrasGeladeira telas'),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 20),
+            pw.Container(
+              padding: const pw.EdgeInsets.all(10),
+              decoration: pw.BoxDecoration(
+                border: pw.Border(
+                    left: pw.BorderSide(color: PdfColors.red, width: 4)),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text('RUPTURAS REGISTRADAS',
+                      style: pw.TextStyle(
+                        fontSize: 18,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.red,
+                      )),
+                  pw.SizedBox(height: 10),
+                  ..._buildRupturasList(),
+                ],
+              ),
+            ),
+            if (fotos.isNotEmpty) ...[
+              pw.SizedBox(height: 20),
+              pw.Container(
+                padding: const pw.EdgeInsets.all(10),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border(
+                      left: pw.BorderSide(color: PdfColors.blue, width: 4)),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text('FOTOS REGISTRADAS',
+                        style: pw.TextStyle(
+                          fontSize: 18,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.blue,
+                        )),
+                    pw.SizedBox(height: 10),
+                    ..._buildFotosListEmGrid(),
+                  ],
+                ),
+              ),
+            ],
+            pw.SizedBox(height: 40),
+            pw.Center(
+              child: pw.Text(
+                'Relatório gerado automaticamente em $dataFormatada',
+                style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      final pdfBytes = await pdf.save();
+
+      await Share.shareXFiles(
+        [
+          XFile.fromData(pdfBytes,
+              name: nomeArquivo, mimeType: 'application/pdf')
+        ],
+        text: 'Relatório de Abertura - ${widget.storeName} - $dataFormatada',
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ PDF compartilhado com sucesso!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Erro: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Erro ao gerar PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  List<pw.Widget> _buildRupturasList() {
+    final widgets = <pw.Widget>[];
+    bool hasRuptura = false;
+
+    for (var produto in produtos) {
+      if (rupturasSelecionadas[produto] == true) {
+        hasRuptura = true;
+        final motivo = motivosSelecionados[produto];
+        if (motivo == 'outros') {
+          final outroMotivo = (outrosMotivos[produto]?.isNotEmpty == true)
+              ? outrosMotivos[produto]
+              : 'outros';
+          widgets.add(pw.Padding(
+            padding: const pw.EdgeInsets.only(left: 20),
+            child: pw.Text('- $produto (Motivo: $outroMotivo)',
+                style: pw.TextStyle(color: PdfColors.red900)),
+          ));
+        } else {
+          widgets.add(pw.Padding(
+            padding: const pw.EdgeInsets.only(left: 20),
+            child: pw.Text('- $produto (Motivo: $motivo)',
+                style: pw.TextStyle(color: PdfColors.red900)),
+          ));
+        }
+      }
+    }
+
+    if (!hasRuptura) {
+      widgets.add(pw.Padding(
+        padding: const pw.EdgeInsets.only(left: 20),
+        child: pw.Text('Nenhuma ruptura registrada',
+            style: pw.TextStyle(color: PdfColors.green)),
+      ));
+    }
+
+    return widgets;
+  }
+
+  List<pw.Widget> _buildFotosListEmGrid() {
+    final widgets = <pw.Widget>[];
+
+    final double imageWidth = 360;
+    final double imageHeight = 270;
+
+    for (int i = 0; i < fotos.length; i += 2) {
+      final rowChildren = <pw.Widget>[];
+
+      rowChildren.add(
+        pw.Expanded(
+          child: pw.Container(
+            padding: const pw.EdgeInsets.all(5),
+            child: pw.Column(
+              children: [
+                pw.Image(pw.MemoryImage(fotos[i]),
+                    width: imageWidth,
+                    height: imageHeight,
+                    fit: pw.BoxFit.contain),
+                pw.SizedBox(height: 8),
+                if (fotosDescricao[i].isNotEmpty)
+                  pw.Text(fotosDescricao[i],
+                      style: pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      if (i + 1 < fotos.length) {
+        rowChildren.add(
+          pw.Expanded(
+            child: pw.Container(
+              padding: const pw.EdgeInsets.all(5),
+              child: pw.Column(
+                children: [
+                  pw.Image(pw.MemoryImage(fotos[i + 1]),
+                      width: imageWidth,
+                      height: imageHeight,
+                      fit: pw.BoxFit.contain),
+                  pw.SizedBox(height: 8),
+                  if (fotosDescricao[i + 1].isNotEmpty)
+                    pw.Text(fotosDescricao[i + 1],
+                        style:
+                            pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
+                ],
+              ),
+            ),
+          ),
+        );
+      } else {
+        rowChildren.add(pw.Expanded(child: pw.Container()));
+      }
+
+      widgets.add(pw.Row(children: rowChildren));
+      widgets.add(pw.SizedBox(height: 10));
+    }
+
+    return widgets;
   }
 
   @override
@@ -7688,13 +8212,12 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     crachaController.dispose();
     gerenteController.dispose();
     encarregadoController.dispose();
+    dataController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    const verdeEscuro = Color(0xFF006400);
-    const preto = Color(0xff0e0101);
     return Scaffold(
       appBar: AppBar(
         backgroundColor: verdeEscuro,
@@ -7715,27 +8238,34 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share, color: Colors.white, size: 28),
+            onPressed: _compartilharPDF,
+            tooltip: 'Compartilhar PDF',
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: DefaultTextStyle(
-          style: const TextStyle(fontSize: 19, color: preto),
+          style: const TextStyle(fontSize: 19, color: verdeEscuro),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 16),
-              Text(
-                'Data: $dataFormatada',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 19,
-                  color: verdeEscuro,
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Data:',
+                  labelStyle: TextStyle(fontSize: 23, color: verdeEscuro),
+                  hintText: 'dd/MM/yyyy',
                 ),
+                controller: dataController,
+                onChanged: _atualizarDataManual,
               ),
               const SizedBox(height: 32),
               TextField(
                 decoration: const InputDecoration(
-                  labelText: "Gerência:",
+                  labelText: 'Gerência:',
                   labelStyle: TextStyle(fontSize: 23, color: verdeEscuro),
                 ),
                 controller: gerenteController,
@@ -7744,7 +8274,7 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
               const SizedBox(height: 16),
               TextField(
                 decoration: const InputDecoration(
-                  labelText: "Encarregado(s):",
+                  labelText: 'Encarregado(s):',
                   labelStyle: TextStyle(fontSize: 23, color: verdeEscuro),
                 ),
                 controller: encarregadoController,
@@ -7758,8 +8288,10 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
                   labelStyle: TextStyle(fontSize: 23, color: verdeEscuro),
                 ),
                 items: List.generate(16, (index) => index)
-                    .map((v) =>
-                        DropdownMenuItem(value: v, child: Text(v.toString())))
+                    .map((v) => DropdownMenuItem(
+                          value: v,
+                          child: Text(v.toString()),
+                        ))
                     .toList(),
                 onChanged: (value) {
                   setState(() => colaboradoresAtivos = value ?? 0);
@@ -7769,7 +8301,7 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
               const SizedBox(height: 16),
               TextField(
                 decoration: const InputDecoration(
-                  labelText: "Crachá:",
+                  labelText: 'Crachá:',
                   labelStyle: TextStyle(fontSize: 23, color: verdeEscuro),
                 ),
                 controller: crachaController,
@@ -7783,29 +8315,207 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
                   labelStyle: TextStyle(fontSize: 23, color: verdeEscuro),
                 ),
                 items: List.generate(31, (index) => index)
-                    .map((v) =>
-                        DropdownMenuItem(value: v, child: Text(v.toString())))
+                    .map((v) => DropdownMenuItem(
+                          value: v,
+                          child: Text(v.toString()),
+                        ))
                     .toList(),
                 onChanged: (value) {
                   setState(() => sobrasGeladeira = value ?? 0);
                   _salvarPreferencias();
                 },
               ),
-              const SizedBox(height: 32),
-              Center(
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: verdeEscuro,
-                    foregroundColor: Colors.white,
+              const SizedBox(height: 20),
+              const Text(
+                'Rupturas:',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 23,
+                    color: verdeEscuro),
+              ),
+              Column(
+                children: produtos.map((produto) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CheckboxListTile(
+                        title: Text(produto),
+                        value: rupturasSelecionadas[produto],
+                        onChanged: (v) {
+                          setState(() {
+                            rupturasSelecionadas[produto] = v ?? false;
+                            if (v == false) {
+                              motivosSelecionados[produto] = motivos[0];
+                              outrosMotivos[produto] = '';
+                            }
+                            _salvarPreferencias();
+                          });
+                        },
+                      ),
+                      if (rupturasSelecionadas[produto] == true)
+                        Padding(
+                          padding:
+                              const EdgeInsets.only(left: 32.0, bottom: 10),
+                          child: DropdownButtonFormField<String>(
+                            value: motivosSelecionados[produto],
+                            decoration: InputDecoration(
+                              labelText: 'Motivo ($produto)',
+                              labelStyle: const TextStyle(
+                                  fontSize: 19, color: verdeEscuro),
+                            ),
+                            style: const TextStyle(
+                                fontSize: 19, color: Colors.red),
+                            items: motivos
+                                .map((m) => DropdownMenuItem(
+                                      value: m,
+                                      child: Text(m,
+                                          style: const TextStyle(
+                                              fontSize: 19, color: Colors.red)),
+                                    ))
+                                .toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                motivosSelecionados[produto] = value!;
+                                _salvarPreferencias();
+                              });
+                            },
+                          ),
+                        ),
+                      if (motivosSelecionados[produto] == 'outros' &&
+                          rupturasSelecionadas[produto] == true)
+                        Padding(
+                          padding:
+                              const EdgeInsets.only(left: 32.0, bottom: 10),
+                          child: TextField(
+                            decoration: const InputDecoration(
+                              labelText: 'Descreva o motivo',
+                            ),
+                            onChanged: (v) {
+                              outrosMotivos[produto] = v;
+                              _salvarPreferencias();
+                            },
+                            controller: TextEditingController(
+                                text: outrosMotivos[produto])
+                              ..selection = TextSelection.fromPosition(
+                                  TextPosition(
+                                      offset:
+                                          outrosMotivos[produto]?.length ?? 0)),
+                          ),
+                        ),
+                    ],
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 20),
+              // Seção de Fotos
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Fotos:',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 23,
+                        color: azulEscuro),
                   ),
-                  onPressed: _compartilharRelatorioComImagens,
-                  icon: const Icon(Icons.share),
-                  label: const Text(
-                    'Compartilhar',
-                    style: TextStyle(fontSize: 19),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.camera_alt,
+                            size: 32, color: verdeEscuro),
+                        onPressed: _adicionarFotoCamera,
+                        tooltip: 'Tirar foto',
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.photo_library,
+                            size: 32, color: verdeEscuro),
+                        onPressed: _selecionarMultiplasFotos,
+                        tooltip: 'Escolher múltiplas fotos',
+                      ),
+                      if (fotos.isNotEmpty)
+                        IconButton(
+                          icon: const Icon(Icons.delete_sweep,
+                              size: 32, color: Colors.red),
+                          onPressed: _apagarTodasFotos,
+                          tooltip: 'Apagar todas as fotos',
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              // Lista de fotos adicionadas
+              if (fotos.isNotEmpty)
+                Column(
+                  children: [
+                    ...fotos.asMap().entries.map((entry) {
+                      int index = entry.key;
+                      Uint8List foto = entry.value;
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                height: 200,
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  border:
+                                      Border.all(color: Colors.grey.shade300),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child:
+                                      Image.memory(foto, fit: BoxFit.contain),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              TextField(
+                                decoration: const InputDecoration(
+                                  labelText: 'Descrição da foto (opcional)',
+                                  border: OutlineInputBorder(),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 8),
+                                ),
+                                onChanged: (descricao) =>
+                                    _atualizarDescricaoFoto(index, descricao),
+                              ),
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton.icon(
+                                  icon: const Icon(Icons.delete,
+                                      color: Colors.red),
+                                  label: const Text('Remover',
+                                      style: TextStyle(color: Colors.red)),
+                                  onPressed: () => _removerFoto(index),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ],
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'Nenhuma foto adicionada.\nClique nos ícones da câmera ou galeria para adicionar fotos.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
