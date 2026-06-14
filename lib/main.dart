@@ -4265,235 +4265,231 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
     }
   }
 
- Future<void> _sharePdf() async {
-  // Mostra diálogo de progresso
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) => AlertDialog(
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const CircularProgressIndicator(),
-          const SizedBox(height: 16),
-          Text(
-            'Gerando PDF...',
-            style: const TextStyle(fontSize: 16),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Aguarde, isso pode levar alguns segundos',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
-          ),
-        ],
-      ),
-    ),
-  );
-
-  try {
-    final pdf = pw.Document();
-
-    pdf.addPage(
-      pw.MultiPage(
-        build: (context) {
-          // Mantém a estrutura original do seu PDF (não alterei nada aqui)
-          List<List<String>> tabelaPrincipal = [];
-
-          for (var entry in controllers.entries) {
-            final produto = entry.key;
-            final pacotes = entry.value.text.isEmpty ? '0' : entry.value.text;
-            final convertido = _calcularConversao(produto);
-            final consumoDiario = consumoDiarioPorProduto[produto] ?? 0;
-
-            tabelaPrincipal.add([
-              produto,
-              pacotes,
-              convertido,
-              consumoDiario > 0 ? _formatNumber(consumoDiario) : '-'
-            ]);
-          }
-
-          return [
-            pw.Header(level: 0, child: pw.Text('Acerto Estoque')),
-            pw.Paragraph(text: widget.storeName),
-            pw.Paragraph(text: 'Responsável: $userName'),
-            pw.Paragraph(
-                text: 'Data: ${DateFormat('dd/MM/yyyy').format(selectedDate)}'),
-            pw.SizedBox(height: 20),
-
-            pw.Table.fromTextArray(
-              headers: ['Produto', 'Pacotes', 'Valor Kg/Unid', 'Consumo/Dia'],
-              data: tabelaPrincipal,
-              cellAlignment: pw.Alignment.centerLeft,
+  Future<void> _sharePdf() async {
+    // Mostra diálogo de progresso
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(
+              'Gerando PDF...',
+              style: const TextStyle(fontSize: 16),
             ),
+            const SizedBox(height: 8),
+            const Text(
+              'Aguarde, isso pode levar alguns segundos',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+      ),
+    );
 
-            pw.SizedBox(height: 30),
+    try {
+      final pdf = pw.Document();
 
-            pw.Header(level: 1, child: pw.Text('Controle de Validades e Giro')),
-            pw.SizedBox(height: 10),
+      pdf.addPage(
+        pw.MultiPage(
+          build: (context) {
+            // Mantém a estrutura original do seu PDF (não alterei nada aqui)
+            List<List<String>> tabelaPrincipal = [];
 
-            for (var entry in lotesPorProduto.entries)
-              if (entry.value.isNotEmpty) ...[
-                pw.Header(level: 2, child: pw.Text(entry.key)),
-                pw.SizedBox(height: 5),
+            for (var entry in controllers.entries) {
+              final produto = entry.key;
+              final pacotes = entry.value.text.isEmpty ? '0' : entry.value.text;
+              final convertido = _calcularConversao(produto);
+              final consumoDiario = consumoDiarioPorProduto[produto] ?? 0;
 
-                pw.Table(
-                  columnWidths: {
-                    0: const pw.FixedColumnWidth(50),
-                    1: const pw.FixedColumnWidth(85),
-                    2: const pw.FixedColumnWidth(80),
-                    3: const pw.FlexColumnWidth(),
-                  },
-                  border: pw.TableBorder.all(),
-                  children: [
-                    pw.TableRow(
-                      children: [
-                        pw.Padding(
-                            padding: const pw.EdgeInsets.all(4),
-                            child: pw.Text('Quantidade',
-                                style: pw.TextStyle(
-                                    fontWeight: pw.FontWeight.bold))),
-                        pw.Padding(
-                            padding: const pw.EdgeInsets.all(4),
-                            child: pw.Text('Data Validade',
-                                style: pw.TextStyle(
-                                    fontWeight: pw.FontWeight.bold))),
-                        pw.Padding(
-                            padding: const pw.EdgeInsets.all(4),
-                            child: pw.Text('Status',
-                                style: pw.TextStyle(
-                                    fontWeight: pw.FontWeight.bold))),
-                        pw.Padding(
-                            padding: const pw.EdgeInsets.all(4),
-                            child: pw.Text('Análise de Giro',
-                                style: pw.TextStyle(
-                                    fontWeight: pw.FontWeight.bold))),
-                      ],
-                    ),
-                    ...entry.value.asMap().entries.map((item) {
-                      final index = item.key;
-                      final lote = item.value;
-                      bool isVencido = lote.validade.isBefore(DateTime.now());
-                      String status = isVencido ? 'VENCIDO' : 'Válido';
+              tabelaPrincipal.add([
+                produto,
+                pacotes,
+                convertido,
+                consumoDiario > 0 ? _formatNumber(consumoDiario) : '-'
+              ]);
+            }
 
-                      String analiseGiro = '';
-                      double consumoDiario =
-                          consumoDiarioPorProduto[entry.key] ?? 0;
-
-                      if (consumoDiario > 0 && !isVencido) {
-                        double saldoAteLote = 0;
-                        for (int i = 0; i <= index; i++) {
-                          saldoAteLote += entry.value[i].quantidade;
-                        }
-                        int diasDeEstoque =
-                            (saldoAteLote / consumoDiario).ceil();
-                        int diasAteVencer =
-                            lote.validade.difference(DateTime.now()).inDays;
-
-                        if (diasAteVencer < diasDeEstoque) {
-                          analiseGiro =
-                              'ALERTA: Vence em $diasAteVencer dias, mas estoque para $diasDeEstoque dias';
-                        } else {
-                          analiseGiro =
-                              'OK: Estoque para $diasDeEstoque dias, vence em $diasAteVencer dias';
-                        }
-                      } else if (isVencido) {
-                        analiseGiro = 'Produto vencido';
-                      } else if (consumoDiario == 0) {
-                        analiseGiro = 'Sem dados de consumo';
-                      }
-
-                      return pw.TableRow(
+            return [
+              pw.Header(level: 0, child: pw.Text('Acerto Estoque')),
+              pw.Paragraph(text: widget.storeName),
+              pw.Paragraph(text: 'Responsável: $userName'),
+              pw.Paragraph(
+                  text:
+                      'Data: ${DateFormat('dd/MM/yyyy').format(selectedDate)}'),
+              pw.SizedBox(height: 20),
+              pw.Table.fromTextArray(
+                headers: ['Produto', 'Pacotes', 'Valor Kg/Unid', 'Consumo/Dia'],
+                data: tabelaPrincipal,
+                cellAlignment: pw.Alignment.centerLeft,
+              ),
+              pw.SizedBox(height: 30),
+              pw.Header(
+                  level: 1, child: pw.Text('Controle de Validades e Giro')),
+              pw.SizedBox(height: 10),
+              for (var entry in lotesPorProduto.entries)
+                if (entry.value.isNotEmpty) ...[
+                  pw.Header(level: 2, child: pw.Text(entry.key)),
+                  pw.SizedBox(height: 5),
+                  pw.Table(
+                    columnWidths: {
+                      0: const pw.FixedColumnWidth(50),
+                      1: const pw.FixedColumnWidth(85),
+                      2: const pw.FixedColumnWidth(80),
+                      3: const pw.FlexColumnWidth(),
+                    },
+                    border: pw.TableBorder.all(),
+                    children: [
+                      pw.TableRow(
                         children: [
                           pw.Padding(
                               padding: const pw.EdgeInsets.all(4),
-                              child: pw.Text(_formatNumber(lote.quantidade))),
+                              child: pw.Text('Quantidade',
+                                  style: pw.TextStyle(
+                                      fontWeight: pw.FontWeight.bold))),
                           pw.Padding(
                               padding: const pw.EdgeInsets.all(4),
-                              child: pw.Text(DateFormat('dd/MM/yyyy')
-                                  .format(lote.validade))),
+                              child: pw.Text('Data Validade',
+                                  style: pw.TextStyle(
+                                      fontWeight: pw.FontWeight.bold))),
                           pw.Padding(
                               padding: const pw.EdgeInsets.all(4),
-                              child: pw.Text(status)),
+                              child: pw.Text('Status',
+                                  style: pw.TextStyle(
+                                      fontWeight: pw.FontWeight.bold))),
                           pw.Padding(
                               padding: const pw.EdgeInsets.all(4),
-                              child: pw.Text(analiseGiro)),
+                              child: pw.Text('Análise de Giro',
+                                  style: pw.TextStyle(
+                                      fontWeight: pw.FontWeight.bold))),
                         ],
-                      );
-                    }).toList(),
-                  ],
-                ),
+                      ),
+                      ...entry.value.asMap().entries.map((item) {
+                        final index = item.key;
+                        final lote = item.value;
+                        bool isVencido = lote.validade.isBefore(DateTime.now());
+                        String status = isVencido ? 'VENCIDO' : 'Válido';
 
-                pw.Padding(
-                  padding: pw.EdgeInsets.only(top: 5),
-                  child: pw.Text(
-                    'Total: ${_formatNumber(entry.value.fold(0, (sum, lote) => sum + lote.quantidade))} pacotes | Consumo diário: ${consumoDiarioPorProduto[entry.key] != null ? _formatNumber(consumoDiarioPorProduto[entry.key]!) : 'N/A'} pacotes/dia',
-                    style: pw.TextStyle(
-                      fontStyle: pw.FontStyle.italic,
-                      fontSize: 10,
+                        String analiseGiro = '';
+                        double consumoDiario =
+                            consumoDiarioPorProduto[entry.key] ?? 0;
+
+                        if (consumoDiario > 0 && !isVencido) {
+                          double saldoAteLote = 0;
+                          for (int i = 0; i <= index; i++) {
+                            saldoAteLote += entry.value[i].quantidade;
+                          }
+                          int diasDeEstoque =
+                              (saldoAteLote / consumoDiario).ceil();
+                          int diasAteVencer =
+                              lote.validade.difference(DateTime.now()).inDays;
+
+                          if (diasAteVencer < diasDeEstoque) {
+                            analiseGiro =
+                                'ALERTA: Vence em $diasAteVencer dias, mas estoque para $diasDeEstoque dias';
+                          } else {
+                            analiseGiro =
+                                'OK: Estoque para $diasDeEstoque dias, vence em $diasAteVencer dias';
+                          }
+                        } else if (isVencido) {
+                          analiseGiro = 'Produto vencido';
+                        } else if (consumoDiario == 0) {
+                          analiseGiro = 'Sem dados de consumo';
+                        }
+
+                        return pw.TableRow(
+                          children: [
+                            pw.Padding(
+                                padding: const pw.EdgeInsets.all(4),
+                                child: pw.Text(_formatNumber(lote.quantidade))),
+                            pw.Padding(
+                                padding: const pw.EdgeInsets.all(4),
+                                child: pw.Text(DateFormat('dd/MM/yyyy')
+                                    .format(lote.validade))),
+                            pw.Padding(
+                                padding: const pw.EdgeInsets.all(4),
+                                child: pw.Text(status)),
+                            pw.Padding(
+                                padding: const pw.EdgeInsets.all(4),
+                                child: pw.Text(analiseGiro)),
+                          ],
+                        );
+                      }).toList(),
+                    ],
+                  ),
+                  pw.Padding(
+                    padding: pw.EdgeInsets.only(top: 5),
+                    child: pw.Text(
+                      'Total: ${_formatNumber(entry.value.fold(0, (sum, lote) => sum + lote.quantidade))} pacotes | Consumo diário: ${consumoDiarioPorProduto[entry.key] != null ? _formatNumber(consumoDiarioPorProduto[entry.key]!) : 'N/A'} pacotes/dia',
+                      style: pw.TextStyle(
+                        fontStyle: pw.FontStyle.italic,
+                        fontSize: 10,
+                      ),
                     ),
                   ),
+                  pw.SizedBox(height: 15),
+                ],
+              if (lotesPorProduto.values.every((lotes) => lotes.isEmpty))
+                pw.Paragraph(
+                  text: 'Nenhum lote com validade cadastrado.',
+                  style: pw.TextStyle(fontStyle: pw.FontStyle.italic),
                 ),
-                pw.SizedBox(height: 15),
-              ],
-
-            if (lotesPorProduto.values.every((lotes) => lotes.isEmpty))
+              pw.SizedBox(height: 20),
               pw.Paragraph(
-                text: 'Nenhum lote com validade cadastrado.',
-                style: pw.TextStyle(fontStyle: pw.FontStyle.italic),
+                text:
+                    'Documento gerado em ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}',
+                style:
+                    pw.TextStyle(fontSize: 8, fontStyle: pw.FontStyle.italic),
               ),
-
-            pw.SizedBox(height: 20),
-
-            pw.Paragraph(
-              text:
-                  'Documento gerado em ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}',
-              style: pw.TextStyle(fontSize: 8, fontStyle: pw.FontStyle.italic),
-            ),
-          ];
-        },
-      ),
-    );
-
-    final bytes = await pdf.save();
-
-    // Fecha o diálogo de progresso
-    if (mounted) Navigator.pop(context);
-
-    // COMPARTILHA O PDF DIRETAMENTE (SEM SALVAR)
-    await Share.shareXFiles(
-      [
-        XFile.fromData(
-          bytes,
-          name: 'acerto_estoque_${widget.storeName}_${DateFormat('ddMMyyyy').format(selectedDate)}.pdf',
-          mimeType: 'application/pdf',
-        )
-      ],
-      text: 'Acerto Estoque - ${widget.storeName} - ${DateFormat('dd/MM/yyyy').format(selectedDate)}',
-    );
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ PDF compartilhado com sucesso!'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 3),
+            ];
+          },
         ),
       );
-    }
-  } catch (e) {
-    if (mounted) Navigator.pop(context);
-    print('Erro: $e');
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Erro ao gerar PDF: $e'),
-          backgroundColor: Colors.red,
-        ),
+
+      final bytes = await pdf.save();
+
+      // Fecha o diálogo de progresso
+      if (mounted) Navigator.pop(context);
+
+      // COMPARTILHA O PDF DIRETAMENTE (SEM SALVAR)
+      await Share.shareXFiles(
+        [
+          XFile.fromData(
+            bytes,
+            name:
+                'acerto_estoque_${widget.storeName}_${DateFormat('ddMMyyyy').format(selectedDate)}.pdf',
+            mimeType: 'application/pdf',
+          )
+        ],
+        text:
+            'Acerto Estoque - ${widget.storeName} - ${DateFormat('dd/MM/yyyy').format(selectedDate)}',
       );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ PDF compartilhado com sucesso!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      print('Erro: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Erro ao gerar PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
-}
 
   void _incrementValue(String produto) {
     double atual = double.tryParse(controllers[produto]!.text) ?? 0;
@@ -6987,96 +6983,94 @@ class DetalhesPedidoScreen extends StatelessWidget {
   }
 
   Future<void> _sharePedidoPdf(BuildContext context) async {
-    final pdf = pw.Document();
-    final produtos = Map<String, dynamic>.from(pedido['produtos']);
+  final pdf = pw.Document();
+  final produtos = Map<String, dynamic>.from(pedido['produtos']);
 
-    pdf.addPage(
-      pw.MultiPage(
-        build: (context) => [
-          pw.Header(level: 0, child: pw.Text('Resumo do Pedido')),
-          pw.Paragraph(text: '${pedido['loja']}'),
-          pw.Paragraph(text: 'Responsável: ${pedido['usuario']}'),
-          pw.Paragraph(text: 'Data: ${pedido['data']}'),
-          pw.SizedBox(height: 20),
-          pw.Table.fromTextArray(
-            headers: ['Produto', 'Caixas'],
-            data: multiplicadores.keys.map((produto) {
-              final caixas = produtos[produto] ?? 0;
-              return [produto, (caixas as num).toInt()];
-            }).toList(),
+  pdf.addPage(
+    pw.MultiPage(
+      build: (context) => [
+        pw.Header(level: 0, child: pw.Text('Resumo do Pedido')),
+        pw.Paragraph(text: '${pedido['loja']}'),
+        pw.Paragraph(text: 'Responsável: ${pedido['usuario']}'),
+        pw.Paragraph(text: 'Data: ${pedido['data']}'),
+        pw.SizedBox(height: 20),
+        pw.Table.fromTextArray(
+          headers: ['Produto', 'Caixas'],
+          data: multiplicadores.keys.map((produto) {
+            final caixas = produtos[produto] ?? 0;
+            return [produto, (caixas as num).toInt()];
+          }).toList(),
+        ),
+      ],
+    ),
+  );
+
+  // Mostrar diálogo de progresso igual ao ReportFinalScreen
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) => AlertDialog(
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(height: 16),
+          const Text(
+            'Gerando PDF...',
+            style: TextStyle(fontSize: 16),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Aguarde, isso pode levar alguns segundos',
+            style: TextStyle(fontSize: 12, color: Colors.grey),
           ),
         ],
       ),
+    ),
+  );
+
+  try {
+    final bytes = await pdf.save();
+
+    // Fecha o diálogo de progresso
+    if (context.mounted) Navigator.of(context).pop();
+
+    // COMPARTILHA O PDF DIRETAMENTE (SEM SALVAR) - Igual à ReportFinalScreen
+    await Share.shareXFiles(
+      [
+        XFile.fromData(
+          bytes,
+          name: 'pedido_${pedido['loja']}_${pedido['data']?.replaceAll('/', '') ?? DateTime.now().toString()}.pdf',
+          mimeType: 'application/pdf',
+        )
+      ],
+      text: 'Pedido - ${pedido['loja']} - ${pedido['data']}',
     );
 
-    // Mostrar loading
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return const Center(child: CircularProgressIndicator());
-      },
-    );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ PDF compartilhado! (${(bytes.length / (1024 * 1024)).toStringAsFixed(1)} MB)'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  } catch (e) {
+    // Fecha o diálogo de progresso se estiver aberto
+    if (context.mounted) Navigator.of(context).pop();
 
-    try {
-      final bytes = await pdf.save();
-
-      // Verifica se é Web
-      if (kIsWeb) {
-        // WEB: Faz download
-        final base64 = base64Encode(bytes);
-        final anchor = html.AnchorElement(
-            href:
-                'data:application/octet-stream;charset=utf-16le;base64,$base64')
-          ..setAttribute('download',
-              'pedido_${pedido['loja']}_${pedido['data']?.replaceAll('/', '') ?? DateTime.now().toString()}.pdf')
-          ..click();
-
-        if (context.mounted) Navigator.of(context).pop();
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('PDF baixado com sucesso!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else {
-        // MOBILE: Compartilha
-        final dir = await getTemporaryDirectory();
-        final file = File(
-            '${dir.path}/pedido_${pedido['loja']}_${DateTime.now().millisecondsSinceEpoch}.pdf');
-        await file.writeAsBytes(bytes);
-
-        await Share.shareXFiles(
-          [XFile(file.path)],
-          text: 'Pedido - ${pedido['loja']} - ${pedido['data']}',
-        );
-
-        if (context.mounted) Navigator.of(context).pop();
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('PDF gerado e compartilhado com sucesso!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (context.mounted) Navigator.of(context).pop();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao gerar PDF: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+    print('Erro: $e');
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Erro ao gerar PDF: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {
