@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:html' as html;
 import 'dart:io';
 
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cross_file/cross_file.dart';
@@ -422,13 +421,13 @@ class _RedeScreenState extends State<RedeScreen> {
     }
   }
 
-  // ===== CARD PARA LOJA FAVORITA (mesmo estilo da StoreSelectionScreen) =====
+  // ===== CARD PARA LOJA FAVORITA (tamanho reduzido igual ao da StoreSelectionScreen) =====
   Widget _favoriteStoreCard(String storeName) {
     return Card(
-      elevation: 3,
+      elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: Colors.amber.shade300, width: 1.5),
+        side: BorderSide(color: Colors.amber.shade300, width: 1),
       ),
       child: Container(
         decoration: BoxDecoration(
@@ -445,59 +444,45 @@ class _RedeScreenState extends State<RedeScreen> {
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
           onTap: () => _onFavoriteStoreTap(storeName),
-          child: Stack(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 4,
-                  vertical: 12,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 4,
+              vertical: 8,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.star,
+                  color: Colors.amber,
+                  size: 32,
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const SizedBox(height: 20),
-                    Text(
-                      storeName,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.brown.shade800,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Loja favorita',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.brown.shade600,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              Positioned(
-                top: 4,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: const Icon(
-                      Icons.star,
-                      color: Colors.amber,
-                      size: 28,
-                    ),
+                const SizedBox(height: 8),
+                Text(
+                  storeName,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.brown.shade700,
                   ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ],
+                const SizedBox(height: 2),
+                Text(
+                  'Favorita',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.brown.shade500,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
         ),
       ),
