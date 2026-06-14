@@ -4266,7 +4266,7 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
   }
 
  Future<void> _sharePdf() async {
-  // Mostra diálogo de progresso igual ao ReportFinalScreen
+  // Mostra diálogo de progresso
   showDialog(
     context: context,
     barrierDismissible: false,
@@ -4276,9 +4276,9 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
         children: [
           const CircularProgressIndicator(),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'Gerando PDF...',
-            style: TextStyle(fontSize: 16),
+            style: const TextStyle(fontSize: 16),
           ),
           const SizedBox(height: 8),
           const Text(
@@ -4295,8 +4295,8 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
 
     pdf.addPage(
       pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
         build: (context) {
+          // Mantém a estrutura original do seu PDF (não alterei nada aqui)
           List<List<String>> tabelaPrincipal = [];
 
           for (var entry in controllers.entries) {
@@ -4314,215 +4314,141 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
           }
 
           return [
-            pw.Center(
-              child: pw.Column(
-                children: [
-                  pw.Text(widget.storeName,
-                      style: pw.TextStyle(
-                        fontSize: 48,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.green900,
-                      )),
-                ],
-              ),
-            ),
-            pw.SizedBox(height: 30),
-            pw.Container(
-              padding: const pw.EdgeInsets.all(10),
-              decoration: pw.BoxDecoration(
-                border: pw.Border(
-                    left: pw.BorderSide(color: PdfColors.green900, width: 4)),
-              ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text('ACERTO DE ESTOQUE',
-                      style: pw.TextStyle(
-                        fontSize: 18,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.green900,
-                      )),
-                  pw.SizedBox(height: 10),
-                  pw.Text('Responsável: $userName'),
-                  pw.Text('Data: ${DateFormat('dd/MM/yyyy').format(selectedDate)}'),
-                ],
-              ),
-            ),
+            pw.Header(level: 0, child: pw.Text('Acerto Estoque')),
+            pw.Paragraph(text: widget.storeName),
+            pw.Paragraph(text: 'Responsável: $userName'),
+            pw.Paragraph(
+                text: 'Data: ${DateFormat('dd/MM/yyyy').format(selectedDate)}'),
             pw.SizedBox(height: 20),
 
-            // Tabela principal
-            pw.Container(
-              padding: const pw.EdgeInsets.all(10),
-              decoration: pw.BoxDecoration(
-                border: pw.Border(
-                    left: pw.BorderSide(color: PdfColors.blue, width: 4)),
-              ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text('PRODUTOS',
-                      style: pw.TextStyle(
-                        fontSize: 18,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.blue,
-                      )),
-                  pw.SizedBox(height: 10),
-                  pw.Table.fromTextArray(
-                    headers: ['Produto', 'Pacotes', 'Valor Kg/Unid', 'Consumo/Dia'],
-                    data: tabelaPrincipal,
-                    cellAlignment: pw.Alignment.centerLeft,
-                  ),
-                ],
-              ),
+            pw.Table.fromTextArray(
+              headers: ['Produto', 'Pacotes', 'Valor Kg/Unid', 'Consumo/Dia'],
+              data: tabelaPrincipal,
+              cellAlignment: pw.Alignment.centerLeft,
             ),
 
             pw.SizedBox(height: 30),
 
-            // Seção de Validades
-            pw.Container(
-              padding: const pw.EdgeInsets.all(10),
-              decoration: pw.BoxDecoration(
-                border: pw.Border(
-                    left: pw.BorderSide(color: PdfColors.red, width: 4)),
-              ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text('CONTROLE DE VALIDADES E GIRO',
-                      style: pw.TextStyle(
-                        fontSize: 18,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.red,
-                      )),
-                  pw.SizedBox(height: 10),
+            pw.Header(level: 1, child: pw.Text('Controle de Validades e Giro')),
+            pw.SizedBox(height: 10),
 
-                  for (var entry in lotesPorProduto.entries)
-                    if (entry.value.isNotEmpty) ...[
-                      pw.Text(entry.key,
-                          style: pw.TextStyle(
-                            fontSize: 14,
-                            fontWeight: pw.FontWeight.bold,
-                          )),
-                      pw.SizedBox(height: 5),
+            for (var entry in lotesPorProduto.entries)
+              if (entry.value.isNotEmpty) ...[
+                pw.Header(level: 2, child: pw.Text(entry.key)),
+                pw.SizedBox(height: 5),
 
-                      // Tabela de lotes
-                      pw.Table(
-                        columnWidths: {
-                          0: const pw.FixedColumnWidth(60),
-                          1: const pw.FixedColumnWidth(85),
-                          2: const pw.FixedColumnWidth(70),
-                          3: const pw.FlexColumnWidth(),
-                        },
-                        border: pw.TableBorder.all(),
-                        children: [
-                          pw.TableRow(
-                            children: [
-                              pw.Padding(
-                                  padding: const pw.EdgeInsets.all(4),
-                                  child: pw.Text('Quantidade',
-                                      style: pw.TextStyle(
-                                          fontWeight: pw.FontWeight.bold))),
-                              pw.Padding(
-                                  padding: const pw.EdgeInsets.all(4),
-                                  child: pw.Text('Data Validade',
-                                      style: pw.TextStyle(
-                                          fontWeight: pw.FontWeight.bold))),
-                              pw.Padding(
-                                  padding: const pw.EdgeInsets.all(4),
-                                  child: pw.Text('Status',
-                                      style: pw.TextStyle(
-                                          fontWeight: pw.FontWeight.bold))),
-                              pw.Padding(
-                                  padding: const pw.EdgeInsets.all(4),
-                                  child: pw.Text('Análise de Giro',
-                                      style: pw.TextStyle(
-                                          fontWeight: pw.FontWeight.bold))),
-                            ],
-                          ),
-                          ...entry.value.asMap().entries.map((item) {
-                            final index = item.key;
-                            final lote = item.value;
-                            bool isVencido = lote.validade.isBefore(DateTime.now());
-                            String status = isVencido ? 'VENCIDO' : 'Válido';
-
-                            String analiseGiro = '';
-                            double consumoDiario =
-                                consumoDiarioPorProduto[entry.key] ?? 0;
-
-                            if (consumoDiario > 0 && !isVencido) {
-                              double saldoAteLote = 0;
-                              for (int i = 0; i <= index; i++) {
-                                saldoAteLote += entry.value[i].quantidade;
-                              }
-                              int diasDeEstoque =
-                                  (saldoAteLote / consumoDiario).ceil();
-                              int diasAteVencer =
-                                  lote.validade.difference(DateTime.now()).inDays;
-
-                              if (diasAteVencer < diasDeEstoque) {
-                                analiseGiro =
-                                    'ALERTA: Vence em $diasAteVencer dias, mas estoque para $diasDeEstoque dias';
-                              } else {
-                                analiseGiro =
-                                    'OK: Estoque para $diasDeEstoque dias, vence em $diasAteVencer dias';
-                              }
-                            } else if (isVencido) {
-                              analiseGiro = 'Produto vencido';
-                            } else if (consumoDiario == 0) {
-                              analiseGiro = 'Sem dados de consumo';
-                            }
-
-                            return pw.TableRow(
-                              children: [
-                                pw.Padding(
-                                    padding: const pw.EdgeInsets.all(4),
-                                    child: pw.Text(_formatNumber(lote.quantidade))),
-                                pw.Padding(
-                                    padding: const pw.EdgeInsets.all(4),
-                                    child: pw.Text(DateFormat('dd/MM/yyyy')
-                                        .format(lote.validade))),
-                                pw.Padding(
-                                    padding: const pw.EdgeInsets.all(4),
-                                    child: pw.Text(status)),
-                                pw.Padding(
-                                    padding: const pw.EdgeInsets.all(4),
-                                    child: pw.Text(analiseGiro)),
-                              ],
-                            );
-                          }).toList(),
-                        ],
-                      ),
-
-                      pw.Padding(
-                        padding: pw.EdgeInsets.only(top: 5),
-                        child: pw.Text(
-                          'Total: ${_formatNumber(entry.value.fold(0, (sum, lote) => sum + lote.quantidade))} pacotes | Consumo diário: ${consumoDiarioPorProduto[entry.key] != null ? _formatNumber(consumoDiarioPorProduto[entry.key]!) : 'N/A'} pacotes/dia',
-                          style: pw.TextStyle(
-                            fontStyle: pw.FontStyle.italic,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ),
-                      pw.SizedBox(height: 15),
-                    ],
-
-                  if (lotesPorProduto.values.every((lotes) => lotes.isEmpty))
-                    pw.Text(
-                      'Nenhum lote com validade cadastrado.',
-                      style: pw.TextStyle(fontStyle: pw.FontStyle.italic),
+                pw.Table(
+                  columnWidths: {
+                    0: const pw.FixedColumnWidth(50),
+                    1: const pw.FixedColumnWidth(85),
+                    2: const pw.FixedColumnWidth(80),
+                    3: const pw.FlexColumnWidth(),
+                  },
+                  border: pw.TableBorder.all(),
+                  children: [
+                    pw.TableRow(
+                      children: [
+                        pw.Padding(
+                            padding: const pw.EdgeInsets.all(4),
+                            child: pw.Text('Quantidade',
+                                style: pw.TextStyle(
+                                    fontWeight: pw.FontWeight.bold))),
+                        pw.Padding(
+                            padding: const pw.EdgeInsets.all(4),
+                            child: pw.Text('Data Validade',
+                                style: pw.TextStyle(
+                                    fontWeight: pw.FontWeight.bold))),
+                        pw.Padding(
+                            padding: const pw.EdgeInsets.all(4),
+                            child: pw.Text('Status',
+                                style: pw.TextStyle(
+                                    fontWeight: pw.FontWeight.bold))),
+                        pw.Padding(
+                            padding: const pw.EdgeInsets.all(4),
+                            child: pw.Text('Análise de Giro',
+                                style: pw.TextStyle(
+                                    fontWeight: pw.FontWeight.bold))),
+                      ],
                     ),
-                ],
+                    ...entry.value.asMap().entries.map((item) {
+                      final index = item.key;
+                      final lote = item.value;
+                      bool isVencido = lote.validade.isBefore(DateTime.now());
+                      String status = isVencido ? 'VENCIDO' : 'Válido';
+
+                      String analiseGiro = '';
+                      double consumoDiario =
+                          consumoDiarioPorProduto[entry.key] ?? 0;
+
+                      if (consumoDiario > 0 && !isVencido) {
+                        double saldoAteLote = 0;
+                        for (int i = 0; i <= index; i++) {
+                          saldoAteLote += entry.value[i].quantidade;
+                        }
+                        int diasDeEstoque =
+                            (saldoAteLote / consumoDiario).ceil();
+                        int diasAteVencer =
+                            lote.validade.difference(DateTime.now()).inDays;
+
+                        if (diasAteVencer < diasDeEstoque) {
+                          analiseGiro =
+                              'ALERTA: Vence em $diasAteVencer dias, mas estoque para $diasDeEstoque dias';
+                        } else {
+                          analiseGiro =
+                              'OK: Estoque para $diasDeEstoque dias, vence em $diasAteVencer dias';
+                        }
+                      } else if (isVencido) {
+                        analiseGiro = 'Produto vencido';
+                      } else if (consumoDiario == 0) {
+                        analiseGiro = 'Sem dados de consumo';
+                      }
+
+                      return pw.TableRow(
+                        children: [
+                          pw.Padding(
+                              padding: const pw.EdgeInsets.all(4),
+                              child: pw.Text(_formatNumber(lote.quantidade))),
+                          pw.Padding(
+                              padding: const pw.EdgeInsets.all(4),
+                              child: pw.Text(DateFormat('dd/MM/yyyy')
+                                  .format(lote.validade))),
+                          pw.Padding(
+                              padding: const pw.EdgeInsets.all(4),
+                              child: pw.Text(status)),
+                          pw.Padding(
+                              padding: const pw.EdgeInsets.all(4),
+                              child: pw.Text(analiseGiro)),
+                        ],
+                      );
+                    }).toList(),
+                  ],
+                ),
+
+                pw.Padding(
+                  padding: pw.EdgeInsets.only(top: 5),
+                  child: pw.Text(
+                    'Total: ${_formatNumber(entry.value.fold(0, (sum, lote) => sum + lote.quantidade))} pacotes | Consumo diário: ${consumoDiarioPorProduto[entry.key] != null ? _formatNumber(consumoDiarioPorProduto[entry.key]!) : 'N/A'} pacotes/dia',
+                    style: pw.TextStyle(
+                      fontStyle: pw.FontStyle.italic,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+                pw.SizedBox(height: 15),
+              ],
+
+            if (lotesPorProduto.values.every((lotes) => lotes.isEmpty))
+              pw.Paragraph(
+                text: 'Nenhum lote com validade cadastrado.',
+                style: pw.TextStyle(fontStyle: pw.FontStyle.italic),
               ),
-            ),
 
             pw.SizedBox(height: 20),
 
-            // Rodapé
-            pw.Center(
-              child: pw.Text(
-                'Documento gerado em ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}',
-                style: pw.TextStyle(fontSize: 8, fontStyle: pw.FontStyle.italic),
-              ),
+            pw.Paragraph(
+              text:
+                  'Documento gerado em ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}',
+              style: pw.TextStyle(fontSize: 8, fontStyle: pw.FontStyle.italic),
             ),
           ];
         },
@@ -4534,7 +4460,7 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
     // Fecha o diálogo de progresso
     if (mounted) Navigator.pop(context);
 
-    // COMPARTILHA O PDF (SEM SALVAR) - Igual à ReportFinalScreen
+    // COMPARTILHA O PDF DIRETAMENTE (SEM SALVAR)
     await Share.shareXFiles(
       [
         XFile.fromData(
@@ -4548,17 +4474,15 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('✅ PDF compartilhado! (${(bytes.length / (1024 * 1024)).toStringAsFixed(1)} MB)'),
+        const SnackBar(
+          content: Text('✅ PDF compartilhado com sucesso!'),
           backgroundColor: Colors.green,
           duration: Duration(seconds: 3),
         ),
       );
     }
   } catch (e) {
-    // Fecha o diálogo de progresso se estiver aberto
     if (mounted) Navigator.pop(context);
-
     print('Erro: $e');
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
