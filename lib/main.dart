@@ -7738,6 +7738,28 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     }
   }
 
+  // ===== FUNÇÃO DE COMPRESSÃO DE IMAGEM =====
+  Future<Uint8List> _compressImage(Uint8List bytes) async {
+    try {
+      final img.Image? image = img.decodeImage(bytes);
+      if (image == null) return bytes;
+      
+      // Redimensiona para no máximo 800x600 mantendo proporção
+      final img.Image resized = img.copyResize(
+        image,
+        width: 800,
+        height: 600,
+        interpolation: img.Interpolation.average,
+      );
+      
+      // Codifica com qualidade 70%
+      return Uint8List.fromList(img.encodeJpg(resized, quality: 70));
+    } catch (e) {
+      print('Erro ao comprimir imagem: $e');
+      return bytes;
+    }
+  }
+
   // Funções para salvar e carregar fotos no SharedPreferences
   Future<void> _salvarFotosNoSharedPreferences() async {
     try {
@@ -7745,8 +7767,7 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
 
       final List<String> fotosBase64 =
           fotos.map((foto) => base64Encode(foto)).toList();
-      await prefs.setStringList(
-          'fotos_abertura_${widget.storeName}', fotosBase64);
+      await prefs.setStringList('fotos_abertura_${widget.storeName}', fotosBase64);
       await prefs.setStringList(
           'fotos_abertura_desc_${widget.storeName}', fotosDescricao);
     } catch (e) {
@@ -7822,20 +7843,38 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
 
   Future<void> _selecionarMultiplasFotos() async {
     try {
-      final List<XFile>? fotosSelecionadas = await _picker.pickMultiImage(
-        imageQuality: 80,
-        maxWidth: 1024,
-      );
+      final List<XFile>? fotosSelecionadas = await _picker.pickMultiImage();
 
       if (fotosSelecionadas != null && fotosSelecionadas.isNotEmpty) {
+        // Mostrar diálogo de progresso
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Comprimindo imagens...'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+        }
+        
         for (var foto in fotosSelecionadas) {
-          final bytes = await foto.readAsBytes();
+          Uint8List bytes = await foto.readAsBytes();
+          bytes = await _compressImage(bytes); // Comprime a foto
           setState(() {
             fotos.add(bytes);
             fotosDescricao.add('');
           });
         }
         await _salvarFotosNoSharedPreferences();
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ ${fotosSelecionadas.length} foto(s) adicionadas!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
       }
     } catch (e) {
       print('Erro ao selecionar múltiplas fotos: $e');
@@ -7846,17 +7885,27 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     try {
       final XFile? foto = await _picker.pickImage(
         source: ImageSource.camera,
-        imageQuality: 80,
-        maxWidth: 1024,
       );
 
       if (foto != null) {
-        final bytes = await foto.readAsBytes();
+        Uint8List bytes = await foto.readAsBytes();
+        bytes = await _compressImage(bytes); // Comprime a foto
+        
         setState(() {
           fotos.add(bytes);
           fotosDescricao.add('');
         });
         await _salvarFotosNoSharedPreferences();
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Foto adicionada!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 1),
+            ),
+          );
+        }
       }
     } catch (e) {
       print('Erro ao tirar foto: $e');
@@ -7951,27 +8000,29 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     final ano = dataParts[2].substring(2);
     final nomeArquivo = 'Abertura_${widget.storeName}_${dia}_${mes}_$ano.pdf';
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              ),
-              SizedBox(width: 12),
-              Text('Gerando PDF...'),
-            ],
-          ),
-          duration: Duration(seconds: 2),
+    // Mostra diálogo de progresso
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(
+              'Gerando PDF com ${fotos.length} foto(s)...',
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Aguarde, isso pode levar alguns segundos',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
         ),
-      );
-    }
+      ),
+    );
 
     try {
       final pdf = pw.Document();
@@ -8076,6 +8127,10 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
 
       final pdfBytes = await pdf.save();
 
+      // Fecha o diálogo de progresso
+      if (mounted) Navigator.pop(context);
+
+      // Compartilha o PDF
       await Share.shareXFiles(
         [
           XFile.fromData(pdfBytes,
@@ -8085,7 +8140,6 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('✅ PDF compartilhado com sucesso!'),
@@ -8095,9 +8149,11 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
         );
       }
     } catch (e) {
+      // Fecha o diálogo de progresso se estiver aberto
+      if (mounted) Navigator.pop(context);
+      
       print('Erro: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('❌ Erro ao gerar PDF: $e'),
@@ -8158,16 +8214,13 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
       final imgObj = img.decodeImage(fotos[i]);
       if (imgObj != null) {
         if (imgObj.width > imgObj.height) {
-          // Paisagem (largura > altura)
           fotosPaisagem.add(fotos[i]);
           descricoesPaisagem.add(fotosDescricao[i]);
         } else {
-          // Retrato (altura >= largura)
           fotosRetrato.add(fotos[i]);
           descricoesRetrato.add(fotosDescricao[i]);
         }
       } else {
-        // Se não conseguir decodificar, trata como retrato
         fotosRetrato.add(fotos[i]);
         descricoesRetrato.add(fotosDescricao[i]);
       }
@@ -8208,7 +8261,6 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     for (int i = 0; i < fotosRetrato.length; i += 2) {
       final rowChildren = <pw.Widget>[];
 
-      // Primeira foto da linha
       rowChildren.add(
         pw.Expanded(
           child: pw.Container(
@@ -8234,7 +8286,6 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
         ),
       );
 
-      // Segunda foto da linha (se existir)
       if (i + 1 < fotosRetrato.length) {
         rowChildren.add(
           pw.Expanded(
