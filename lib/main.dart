@@ -7703,10 +7703,10 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     _atualizarDataAtual();
     _carregarPreferencias();
     _carregarFotosDoSharedPreferences();
-    _recompressExistingPhotos(); // NOVO: Recomprime fotos antigas
+    _recompressExistingPhotos();
   }
 
-  // NOVO: Recomprime todas as fotos existentes
+  // Recomprime todas as fotos existentes
   Future<void> _recompressExistingPhotos() async {
     if (fotos.isEmpty) return;
     
@@ -7766,23 +7766,23 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     }
   }
 
-  // ===== FUNÇÃO DE COMPRESSÃO DE IMAGEM MAIS AGRESSIVA =====
+  // ===== FUNÇÃO DE COMPRESSÃO DE IMAGEM OTIMIZADA =====
   Future<Uint8List> _compressImage(Uint8List bytes) async {
     try {
       final img.Image? image = img.decodeImage(bytes);
       if (image == null) return bytes;
       
-      // Redimensiona para no máximo 600x600 (mais agressivo)
+      // Redimensiona para máximo 900x900 (equilíbrio perfeito)
       int targetWidth = image.width;
       int targetHeight = image.height;
       
-      if (image.width > 600 || image.height > 600) {
+      if (image.width > 900 || image.height > 900) {
         if (image.width > image.height) {
-          targetWidth = 600;
-          targetHeight = (image.height * 600 / image.width).round();
+          targetWidth = 900;
+          targetHeight = (image.height * 900 / image.width).round();
         } else {
-          targetHeight = 600;
-          targetWidth = (image.width * 600 / image.height).round();
+          targetHeight = 900;
+          targetWidth = (image.width * 900 / image.height).round();
         }
       }
       
@@ -7793,8 +7793,8 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
         interpolation: img.Interpolation.average,
       );
       
-      // Qualidade mais baixa (50-60% para arquivo menor)
-      return Uint8List.fromList(img.encodeJpg(resized, quality: 60));
+      // Qualidade 75% (excelente qualidade com tamanho controlado)
+      return Uint8List.fromList(img.encodeJpg(resized, quality: 75));
     } catch (e) {
       print('Erro ao comprimir imagem: $e');
       return bytes;
@@ -7885,9 +7885,9 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
   Future<void> _selecionarMultiplasFotos() async {
     try {
       final List<XFile>? fotosSelecionadas = await _picker.pickMultiImage(
-        imageQuality: 50, // Já comprime na origem
-        maxWidth: 800,
-        maxHeight: 800,
+        imageQuality: 70,  // Qualidade na captura
+        maxWidth: 900,     // Resolução máxima
+        maxHeight: 900,
       );
 
       if (fotosSelecionadas != null && fotosSelecionadas.isNotEmpty) {
@@ -7929,9 +7929,9 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     try {
       final XFile? foto = await _picker.pickImage(
         source: ImageSource.camera,
-        imageQuality: 50,
-        maxWidth: 800,
-        maxHeight: 800,
+        imageQuality: 70,  // Qualidade na captura
+        maxWidth: 900,     // Resolução máxima
+        maxHeight: 900,
       );
 
       if (foto != null) {
@@ -7996,8 +7996,8 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
           gerenteController.text = data['gerente'] ?? '';
           encarregadoController.text = data['encarregado'] ?? '';
           userName = data['userName'] ?? '';
-          colaboradoresAtivos = relatorioData['colaboradoresAtivos'] ?? 0;
-          sobrasGeladeira = relatorioData['sobrasGeladeira'] ?? 0;
+          colaboradoresAtivos = data['colaboradoresAtivos'] ?? 0;
+          sobrasGeladeira = data['sobrasGeladeira'] ?? 0;
         });
 
         final rupturasData = relatorioData['rupturas'] ?? {};
@@ -8019,6 +8019,8 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
         'cracha': crachaController.text,
         'gerente': gerenteController.text,
         'encarregado': encarregadoController.text,
+        'colaboradoresAtivos': colaboradoresAtivos,
+        'sobrasGeladeira': sobrasGeladeira,
         'lastUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
@@ -8032,8 +8034,6 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
       }
 
       final relatorioData = {
-        'colaboradoresAtivos': colaboradoresAtivos,
-        'sobrasGeladeira': sobrasGeladeira,
         'rupturas': rupturasData,
       };
 
