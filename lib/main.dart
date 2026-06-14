@@ -7738,6 +7738,16 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     }
   }
 
+  // ===== FUNÇÃO PARA MOSTRAR O TAMANHO TOTAL DAS FOTOS =====
+  String _getTotalSize() {
+    int totalBytes = fotos.fold(0, (sum, foto) => sum + foto.length);
+    if (totalBytes < 1024 * 1024) {
+      return '${(totalBytes / 1024).toStringAsFixed(1)} KB';
+    } else {
+      return '${(totalBytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+  }
+
   // ===== FUNÇÃO DE COMPRESSÃO DE IMAGEM =====
   Future<Uint8List> _compressImage(Uint8List bytes) async {
     try {
@@ -7994,7 +8004,7 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     }
   }
 
-  // ===== FUNÇÃO PARA GERAR E COMPARTILHAR PDF =====
+  // ===== FUNÇÃO PARA GERAR E COMPARTILHAR PDF (COM DIÁLOGO IGUAL AO REPORTFINALSCREEN) =====
   Future<void> _compartilharPDF() async {
     final dataParts = dataFormatada.split('/');
     final dia = dataParts[0];
@@ -8002,7 +8012,7 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     final ano = dataParts[2].substring(2);
     final nomeArquivo = 'Abertura_${widget.storeName}_${dia}_${mes}_$ano.pdf';
 
-    // Mostra diálogo de progresso
+    // Mostra diálogo de progresso IGUAL ao ReportFinalScreen
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -8017,9 +8027,9 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
               style: const TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Aguarde, isso pode levar alguns segundos',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+            Text(
+              'Tamanho total das fotos: ${_getTotalSize()}',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ],
         ),
@@ -8143,8 +8153,8 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ PDF compartilhado com sucesso!'),
+          SnackBar(
+            content: Text('✅ PDF compartilhado! (${(pdfBytes.length / (1024 * 1024)).toStringAsFixed(1)} MB)'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 3),
           ),
@@ -8640,7 +8650,6 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     );
   }
 }
-
 class ReportFinalScreen extends StatefulWidget {
   final String storeName;
   const ReportFinalScreen({super.key, required this.storeName});
@@ -8738,10 +8747,10 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     try {
       final img.Image? image = img.decodeImage(bytes);
       if (image == null) return bytes;
-      
+
       int targetWidth = image.width;
       int targetHeight = image.height;
-      
+
       if (image.width > 900 || image.height > 900) {
         if (image.width > image.height) {
           targetWidth = 900;
@@ -8751,14 +8760,14 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
           targetWidth = (image.width * 900 / image.height).round();
         }
       }
-      
+
       final img.Image resized = img.copyResize(
         image,
         width: targetWidth,
         height: targetHeight,
         interpolation: img.Interpolation.average,
       );
-      
+
       return Uint8List.fromList(img.encodeJpg(resized, quality: 75));
     } catch (e) {
       print('Erro ao comprimir imagem: $e');
@@ -8874,11 +8883,11 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   // Recomprime todas as fotos existentes
   Future<void> _recompressExistingPhotos() async {
     if (fotos.isEmpty) return;
-    
+
     print('Recomprimindo ${fotos.length} fotos existentes...');
     bool changed = false;
     List<Uint8List> novasFotos = [];
-    
+
     for (var foto in fotos) {
       final comprimida = await _compressImage(foto);
       if (comprimida.length < foto.length) {
@@ -8888,7 +8897,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         novasFotos.add(foto);
       }
     }
-    
+
     if (changed) {
       setState(() {
         fotos = novasFotos;
@@ -8916,7 +8925,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
             ),
           );
         }
-        
+
         for (var foto in fotosSelecionadas) {
           Uint8List bytes = await foto.readAsBytes();
           bytes = await _compressImage(bytes);
@@ -8926,11 +8935,12 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
           });
         }
         await _salvarFotosNoSharedPreferences();
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('✅ ${fotosSelecionadas.length} foto(s) adicionadas!'),
+              content:
+                  Text('✅ ${fotosSelecionadas.length} foto(s) adicionadas!'),
               backgroundColor: Colors.green,
               duration: Duration(seconds: 2),
             ),
@@ -8960,7 +8970,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
           fotosDescricao.add('');
         });
         await _salvarFotosNoSharedPreferences();
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -9766,6 +9776,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     );
   }
 }
+
 class FoldedCornerPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
