@@ -1,27 +1,25 @@
-import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/services.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:convert';
+import 'dart:html' as html;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:convert';
 import 'dart:io';
-import 'package:image/image.dart' as img;
-import 'dart:html' as html;
-
-import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:async';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cross_file/cross_file.dart';
 import 'package:csv/csv.dart';
 import 'package:dio/dio.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-import 'package:in_app_update/in_app_update.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -32,6 +30,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import 'firebase_options.dart';
+import 'package:flutter/foundation.dart';
+import 'package:in_app_update/in_app_update.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -174,27 +174,9 @@ class RedeScreen extends StatefulWidget {
 
 class _RedeScreenState extends State<RedeScreen> {
   bool _checking = false;
-  List<String> favoriteStores = []; // Lista de lojas favoritadas
-  final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadFavoriteStores();
-  }
+  Timer? _pressTimer;
 
-  // Carrega as lojas favoritadas do SharedPreferences
-  Future<void> _loadFavoriteStores() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (mounted) {
-      setState(() {
-        favoriteStores = prefs.getStringList('favoriteStores') ?? [];
-      });
-    }
-  }
-
-  // ===== Função para abrir vídeo =====
   void _mostrarAjuda() async {
     final resposta = await showDialog<bool>(
       context: context,
@@ -226,125 +208,23 @@ class _RedeScreenState extends State<RedeScreen> {
     }
   }
 
-  // ===== MÉTODO PARA LOJAS FAVORITAS (da StoreSelectionScreen) =====
-  Future<void> _onFavoriteStoreTap(String storeName) async {
-    if (_checking) return;
-    setState(() => _checking = true);
-
-    try {
-      // Verificar se este dispositivo já está autorizado para esta loja
-      bool isDeviceAuthorized = await _checkDeviceAuthorization(storeName);
-
-      if (isDeviceAuthorized) {
-        // Dispositivo autorizado - acesso direto
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('selectedStore', storeName);
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => SecondScreen(storeName: storeName),
-            ),
-          );
-        }
-      } else {
-        // Verificar se já existe cadastro para esta loja
-        bool hasExistingPassword = await _checkExistingPassword(storeName);
-
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('selectedStore', storeName);
-
-        if (hasExistingPassword) {
-          // Loja já tem senha cadastrada - pedir senha
-          if (mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => PasswordScreen(
-                  storeName: storeName,
-                  isFirstTime: false,
-                ),
-              ),
-            );
-          }
-        } else {
-          // Primeiro cadastro - criar senha
-          if (mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => FirstTimeScreen(storeName: storeName),
-              ),
-            );
-          }
-        }
-      }
-    } catch (e) {
-      _showError("Erro ao acessar loja: $e");
-    } finally {
-      if (mounted) setState(() => _checking = false);
-    }
-  }
-
-  Future<bool> _checkDeviceAuthorization(String storeName) async {
-    try {
-      // 1) Ler token salvo no dispositivo
-      String? savedToken =
-          await _secureStorage.read(key: '${storeName}_auth_token');
-
-      if (savedToken == null) return false;
-
-      // 2) Buscar senha atual do Firestore
-      final doc = await _firestore.collection('stores').doc(storeName).get();
-
-      if (!doc.exists) return false;
-
-      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-      String? currentPassword = data['password'];
-
-      if (currentPassword == null) return false;
-
-      // 3) Se a senha mudou -> FORÇA novo login
-      return savedToken == currentPassword;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  Future<bool> _checkExistingPassword(String storeName) async {
-    try {
-      final doc = await _firestore.collection('stores').doc(storeName).get();
-      if (!doc.exists) return false;
-
-      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-      return data['password'] != null;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  // ===== MÉTODO PARA REDES FIXAS =====
   Future<void> _onCardTap(String rede, Widget destino) async {
     if (_checking) return;
     setState(() => _checking = true);
+
     try {
       final doc =
           await FirebaseFirestore.instance.collection('redes').doc(rede).get();
 
       if (!doc.exists) {
-        _showError("Rede '$rede' não encontrada no Firestore.");
+        _showError("Rede '$rede' não encontrada.");
         return;
       }
 
       final senhaFirebase = doc.data()?['senha'];
-      if (senhaFirebase == null) {
-        _showError("Campo 'senha' ausente em '$rede'.");
-        return;
-      }
 
       final prefs = await SharedPreferences.getInstance();
-      final chave = "senha_$rede";
-      final senhaLocal = prefs.getString(chave);
+      final senhaLocal = prefs.getString("senha_$rede");
 
       if (senhaLocal == senhaFirebase) {
         if (!mounted) return;
@@ -353,13 +233,14 @@ class _RedeScreenState extends State<RedeScreen> {
       }
 
       final aceita = await _mostrarDialogSenha(rede, senhaFirebase);
+
       if (aceita == true) {
-        await prefs.setString(chave, senhaFirebase);
+        await prefs.setString("senha_$rede", senhaFirebase);
         if (!mounted) return;
         Navigator.push(context, MaterialPageRoute(builder: (_) => destino));
       }
-    } catch (e, st) {
-      _showError("Erro inesperado: ${e.toString()}");
+    } catch (e) {
+      _showError("Erro: $e");
     } finally {
       if (mounted) setState(() => _checking = false);
     }
@@ -374,18 +255,13 @@ class _RedeScreenState extends State<RedeScreen> {
       builder: (ctx) {
         return AlertDialog(
           title: Text("Senha $rede"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: controller,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: "Digite a senha",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
+          content: TextField(
+            controller: controller,
+            obscureText: true,
+            decoration: const InputDecoration(
+              labelText: "Digite a senha",
+              border: OutlineInputBorder(),
+            ),
           ),
           actions: [
             TextButton(
@@ -395,6 +271,7 @@ class _RedeScreenState extends State<RedeScreen> {
             ElevatedButton(
               onPressed: () {
                 final digitada = controller.text.trim();
+
                 if (digitada == senhaCorreta) {
                   Navigator.pop(ctx, true);
                 } else {
@@ -414,88 +291,35 @@ class _RedeScreenState extends State<RedeScreen> {
     );
   }
 
-  void _showError(String mensagem) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(mensagem), backgroundColor: Colors.red),
-      );
-    }
-  }
-
-  // ===== CARD PARA LOJA FAVORITA (tamanho reduzido igual ao da StoreSelectionScreen) =====
-  Widget _favoriteStoreCard(String storeName) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: Colors.amber.shade300, width: 1),
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.amber.shade50,
-              Colors.orange.shade50,
-            ],
-          ),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(8),
-          onTap: () => _onFavoriteStoreTap(storeName),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 4,
-              vertical: 8,
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.star,
-                  color: Colors.amber,
-                  size: 32,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  storeName,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.brown.shade700,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Favorita',
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.brown.shade500,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: Colors.red),
     );
   }
 
-  // ===== CARD PARA REDE FIXA =====
   Widget _card(String imgPath, String rede, Widget destino) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () => _onCardTap(rede, destino),
+        onLongPress: () {
+          if (rede == "bahamas") {
+            _pressTimer = Timer(const Duration(seconds: 5), () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const HoleriteScreen(),
+                ),
+              );
+            });
+          }
+        },
+        onTapUp: (_) {
+          _pressTimer?.cancel();
+        },
+        onTapCancel: () {
+          _pressTimer?.cancel();
+        },
         borderRadius: BorderRadius.circular(16),
         child: Ink(
           height: double.infinity,
@@ -510,28 +334,13 @@ class _RedeScreenState extends State<RedeScreen> {
   }
 
   @override
+  void dispose() {
+    _pressTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Lista de cards fixos (redes)
-    final List<Widget> fixedCards = [
-      _card("assets/images/bahamas.jpg", "bahamas", const Bahamas()),
-      _card(
-          "assets/images/paisefilhos.jpg", "paisefilhos", const PaiseFilhos()),
-      _card("assets/images/bh.jpg", "bh", const BH()),
-      _card("assets/images/Mart-Minas.jpg", "martminas", const Martminas()),
-    ];
-
-    // Lista de cards das lojas favoritadas (da StoreSelectionScreen)
-    final List<Widget> favoriteStoreCards = [];
-    for (String store in favoriteStores) {
-      favoriteStoreCards.add(_favoriteStoreCard(store));
-    }
-
-    // Combinar todos os cards: primeiros os fixos, depois os favoritos
-    final List<Widget> allCards = [
-      ...fixedCards,
-      if (favoriteStoreCards.isNotEmpty) ...favoriteStoreCards,
-    ];
-
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8F0),
       appBar: AppBar(
@@ -585,7 +394,15 @@ class _RedeScreenState extends State<RedeScreen> {
                     crossAxisSpacing: 16,
                     mainAxisSpacing: 16,
                     childAspectRatio: 1.2,
-                    children: allCards,
+                    children: [
+                      _card("assets/images/bahamas.jpg", "bahamas",
+                          const Bahamas()),
+                      _card("assets/images/paisefilhos.jpg", "paisefilhos",
+                          const PaiseFilhos()),
+                      _card("assets/images/bh.jpg", "bh", const BH()),
+                      _card("assets/images/Mart-Minas.jpg", "martminas",
+                          const Martminas()),
+                    ],
                   ),
                 ),
               ],
@@ -1107,13 +924,6 @@ class PaiseFilhos extends StatelessWidget {
 }
 
 class StoreSelectionScreen extends StatefulWidget {
-  final bool showOnlyFavorites;
-
-  const StoreSelectionScreen({
-    Key? key,
-    this.showOnlyFavorites = false,
-  }) : super(key: key);
-
   @override
   _StoreSelectionScreenState createState() => _StoreSelectionScreenState();
 }
@@ -1334,12 +1144,8 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
     // Separar lojas favoritas das normais
     final favoriteList =
         stores.where((store) => favoriteStores.contains(store)).toList();
-
     final normalList =
         stores.where((store) => !favoriteStores.contains(store)).toList();
-
-    final visibleNormalList =
-        widget.showOnlyFavorites ? <String>[] : normalList;
 
     return WillPopScope(
       onWillPop: () async {
@@ -1372,9 +1178,9 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
             children: [
               Image.asset('assets/images/Logo StockOne.png', height: 32),
               const SizedBox(width: 8),
-              Text(
-                widget.showOnlyFavorites ? "FAVORITOS" : "ATENDIMENTO",
-                style: const TextStyle(
+              const Text(
+                "ATENDIMENTO",
+                style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                   fontFamily: 'Lora',
@@ -1395,11 +1201,9 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
             padding: const EdgeInsets.all(12.0),
             child: Column(
               children: [
-                Text(
-                  widget.showOnlyFavorites
-                      ? "SELECIONE UMA LOJA FAVORITA:"
-                      : "SELECIONE A LOJA:",
-                  style: const TextStyle(
+                const Text(
+                  "SELECIONE A LOJA:",
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                     color: Colors.brown,
@@ -1415,172 +1219,130 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
                                 AlwaysStoppedAnimation<Color>(Colors.brown),
                           ),
                         )
-                      : (widget.showOnlyFavorites && favoriteList.isEmpty)
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.star_border,
-                                    size: 64,
-                                    color: Colors.grey.shade400,
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    "Nenhuma loja favorita",
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.grey.shade600,
-                                      fontWeight: FontWeight.w500,
+                      : ListView(
+                          children: [
+                            // Seção de Favoritos
+                            if (favoriteList.isNotEmpty) ...[
+                              Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.star,
+                                      color: Colors.amber.shade600,
+                                      size: 18,
                                     ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    "Adicione lojas aos favoritos na tela principal",
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade500,
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      "FAVORITOS",
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.amber.shade800,
+                                        letterSpacing: 0.5,
+                                      ),
                                     ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              ),
-                            )
-                          : ListView(
-                              children: [
-                                // Seção de Favoritos (sempre mostrar se houver favoritos)
-                                if (favoriteList.isNotEmpty) ...[
-                                  Container(
-                                    margin: const EdgeInsets.only(bottom: 8),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          Icons.star,
-                                          color: Colors.amber.shade600,
-                                          size: 18,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          "FAVORITOS",
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.amber.shade800,
-                                            letterSpacing: 0.5,
-                                          ),
-                                        ),
-                                        const Spacer(),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 2,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.amber.shade100,
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                          ),
-                                          child: Text(
-                                            "${favoriteList.length}",
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.amber.shade800,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  GridView.builder(
-                                    shrinkWrap: true,
-                                    physics:
-                                        const NeverScrollableScrollPhysics(),
-                                    gridDelegate:
-                                        SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: crossAxisCount,
-                                      crossAxisSpacing: 8,
-                                      mainAxisSpacing: 8,
-                                      childAspectRatio: 0.8,
-                                    ),
-                                    itemCount: favoriteList.length,
-                                    itemBuilder: (context, index) {
-                                      final store = favoriteList[index];
-                                      return _buildStoreTile(
-                                        store,
-                                        true,
-                                        isFavoriteSection: true,
-                                      );
-                                    },
-                                  ),
-
-                                  // Divisor (só mostrar se tiver lojas normais visíveis)
-                                  if (visibleNormalList.isNotEmpty) ...[
-                                    if (!widget.showOnlyFavorites) ...[
-                                      const SizedBox(height: 16),
-                                      Container(
-                                        margin:
-                                            const EdgeInsets.only(bottom: 12),
-                                        child: Row(
-                                          children: [
-                                            Expanded(
-                                              child: Divider(
-                                                color: Colors.grey.shade300,
-                                                thickness: 1,
-                                              ),
-                                            ),
-                                            Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 8),
-                                              child: Text(
-                                                "TODAS AS LOJAS",
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w500,
-                                                  color: Colors.grey.shade600,
-                                                  letterSpacing: 0.5,
-                                                ),
-                                              ),
-                                            ),
-                                            Expanded(
-                                              child: Divider(
-                                                color: Colors.grey.shade300,
-                                                thickness: 1,
-                                              ),
-                                            ),
-                                          ],
+                                    const Spacer(),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.amber.shade100,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        "${favoriteList.length}",
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.amber.shade800,
                                         ),
                                       ),
-                                    ],
-                                  ],
-                                ],
-
-                                // Seção de Todas as Lojas (usando visibleNormalList)
-                                if (visibleNormalList.isNotEmpty)
-                                  GridView.builder(
-                                    shrinkWrap: true,
-                                    physics:
-                                        const NeverScrollableScrollPhysics(),
-                                    gridDelegate:
-                                        SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: crossAxisCount,
-                                      crossAxisSpacing: 8,
-                                      mainAxisSpacing: 8,
-                                      childAspectRatio: 0.8,
                                     ),
-                                    itemCount: visibleNormalList.length,
-                                    itemBuilder: (context, index) {
-                                      final store = visibleNormalList[index];
-                                      return _buildStoreTile(
-                                        store,
-                                        favoriteStores.contains(store),
-                                        isFavoriteSection: false,
-                                      );
-                                    },
-                                  ),
-                              ],
+                                  ],
+                                ),
+                              ),
+                              GridView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                gridDelegate:
+                                    SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: crossAxisCount,
+                                  crossAxisSpacing: 8,
+                                  mainAxisSpacing: 8,
+                                  childAspectRatio: 0.8,
+                                ),
+                                itemCount: favoriteList.length,
+                                itemBuilder: (context, index) {
+                                  final store = favoriteList[index];
+                                  return _buildStoreTile(
+                                    store,
+                                    true,
+                                    isFavoriteSection: true,
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              // Divisor
+                              Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Divider(
+                                        color: Colors.grey.shade300,
+                                        thickness: 1,
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8),
+                                      child: Text(
+                                        "TODAS AS LOJAS",
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.grey.shade600,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Divider(
+                                        color: Colors.grey.shade300,
+                                        thickness: 1,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+
+                            // Seção de Todas as Lojas
+                            GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: crossAxisCount,
+                                crossAxisSpacing: 8,
+                                mainAxisSpacing: 8,
+                                childAspectRatio: 0.8,
+                              ),
+                              itemCount: normalList.length,
+                              itemBuilder: (context, index) {
+                                final store = normalList[index];
+                                return _buildStoreTile(
+                                  store,
+                                  false,
+                                  isFavoriteSection: false,
+                                );
+                              },
                             ),
+                          ],
+                        ),
                 ),
               ],
             ),
@@ -4266,224 +4028,235 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
   }
 
   Future<void> _sharePdf() async {
-    // Mostra diálogo de progresso
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text(
-              'Gerando PDF...',
-              style: const TextStyle(fontSize: 16),
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.MultiPage(
+        build: (context) {
+          List<List<String>> tabelaPrincipal = [];
+
+          for (var entry in controllers.entries) {
+            final produto = entry.key;
+            final pacotes = entry.value.text.isEmpty ? '0' : entry.value.text;
+            final convertido = _calcularConversao(produto);
+            final consumoDiario = consumoDiarioPorProduto[produto] ?? 0;
+
+            tabelaPrincipal.add([
+              produto,
+              pacotes,
+              convertido,
+              consumoDiario > 0 ? _formatNumber(consumoDiario) : '-'
+            ]);
+          }
+
+          return [
+            pw.Header(level: 0, child: pw.Text('Acerto Estoque')),
+            pw.Paragraph(text: widget.storeName),
+            pw.Paragraph(text: 'Responsável: $userName'),
+            pw.Paragraph(
+                text: 'Data: ${DateFormat('dd/MM/yyyy').format(selectedDate)}'),
+            pw.SizedBox(height: 20),
+
+            // Tabela principal
+            pw.Table.fromTextArray(
+              headers: ['Produto', 'Pacotes', 'Valor Kg/Unid', 'Consumo/Dia'],
+              data: tabelaPrincipal,
+              cellAlignment: pw.Alignment.centerLeft,
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Aguarde, isso pode levar alguns segundos',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
-        ),
-      ),
-    );
 
-    try {
-      final pdf = pw.Document();
+            pw.SizedBox(height: 30),
 
-      pdf.addPage(
-        pw.MultiPage(
-          build: (context) {
-            // Mantém a estrutura original do seu PDF (não alterei nada aqui)
-            List<List<String>> tabelaPrincipal = [];
+            // Seção de Validades
+            pw.Header(level: 1, child: pw.Text('Controle de Validades e Giro')),
+            pw.SizedBox(height: 10),
 
-            for (var entry in controllers.entries) {
-              final produto = entry.key;
-              final pacotes = entry.value.text.isEmpty ? '0' : entry.value.text;
-              final convertido = _calcularConversao(produto);
-              final consumoDiario = consumoDiarioPorProduto[produto] ?? 0;
+            for (var entry in lotesPorProduto.entries)
+              if (entry.value.isNotEmpty) ...[
+                pw.Header(level: 2, child: pw.Text(entry.key)),
+                pw.SizedBox(height: 5),
 
-              tabelaPrincipal.add([
-                produto,
-                pacotes,
-                convertido,
-                consumoDiario > 0 ? _formatNumber(consumoDiario) : '-'
-              ]);
-            }
+                // Tabela de lotes com larguras definidas
+                pw.Table(
+                  columnWidths: {
+                    0: const pw.FixedColumnWidth(
+                        50), // Quantidade (+2 caracteres)
+                    1: const pw.FixedColumnWidth(85), // Data Validade
+                    2: const pw.FixedColumnWidth(80), // Status (+3 caracteres)
+                    3: const pw.FlexColumnWidth(), // Análise de Giro
+                  },
+                  border: pw.TableBorder.all(),
+                  children: [
+                    // Header
+                    pw.TableRow(
+                      children: [
+                        pw.Padding(
+                            padding: const pw.EdgeInsets.all(4),
+                            child: pw.Text('Quantidade',
+                                style: pw.TextStyle(
+                                    fontWeight: pw.FontWeight.bold))),
+                        pw.Padding(
+                            padding: const pw.EdgeInsets.all(4),
+                            child: pw.Text('Data Validade',
+                                style: pw.TextStyle(
+                                    fontWeight: pw.FontWeight.bold))),
+                        pw.Padding(
+                            padding: const pw.EdgeInsets.all(4),
+                            child: pw.Text('Status',
+                                style: pw.TextStyle(
+                                    fontWeight: pw.FontWeight.bold))),
+                        pw.Padding(
+                            padding: const pw.EdgeInsets.all(4),
+                            child: pw.Text('Análise de Giro',
+                                style: pw.TextStyle(
+                                    fontWeight: pw.FontWeight.bold))),
+                      ],
+                    ),
+                    // Dados
+                    ...entry.value.asMap().entries.map((item) {
+                      final index = item.key;
+                      final lote = item.value;
+                      bool isVencido = lote.validade.isBefore(DateTime.now());
+                      String status = isVencido ? 'VENCIDO' : 'Válido';
 
-            return [
-              pw.Header(level: 0, child: pw.Text('Acerto Estoque')),
-              pw.Paragraph(text: widget.storeName),
-              pw.Paragraph(text: 'Responsável: $userName'),
-              pw.Paragraph(
-                  text:
-                      'Data: ${DateFormat('dd/MM/yyyy').format(selectedDate)}'),
-              pw.SizedBox(height: 20),
-              pw.Table.fromTextArray(
-                headers: ['Produto', 'Pacotes', 'Valor Kg/Unid', 'Consumo/Dia'],
-                data: tabelaPrincipal,
-                cellAlignment: pw.Alignment.centerLeft,
-              ),
-              pw.SizedBox(height: 30),
-              pw.Header(
-                  level: 1, child: pw.Text('Controle de Validades e Giro')),
-              pw.SizedBox(height: 10),
-              for (var entry in lotesPorProduto.entries)
-                if (entry.value.isNotEmpty) ...[
-                  pw.Header(level: 2, child: pw.Text(entry.key)),
-                  pw.SizedBox(height: 5),
-                  pw.Table(
-                    columnWidths: {
-                      0: const pw.FixedColumnWidth(50),
-                      1: const pw.FixedColumnWidth(85),
-                      2: const pw.FixedColumnWidth(80),
-                      3: const pw.FlexColumnWidth(),
-                    },
-                    border: pw.TableBorder.all(),
-                    children: [
-                      pw.TableRow(
+                      String analiseGiro = '';
+                      double consumoDiario =
+                          consumoDiarioPorProduto[entry.key] ?? 0;
+
+                      if (consumoDiario > 0 && !isVencido) {
+                        double saldoAteLote = 0;
+                        for (int i = 0; i <= index; i++) {
+                          saldoAteLote += entry.value[i].quantidade;
+                        }
+                        int diasDeEstoque =
+                            (saldoAteLote / consumoDiario).ceil();
+                        int diasAteVencer =
+                            lote.validade.difference(DateTime.now()).inDays;
+
+                        if (diasAteVencer < diasDeEstoque) {
+                          analiseGiro =
+                              'ALERTA: Vence em $diasAteVencer dias, mas estoque para $diasDeEstoque dias';
+                        } else {
+                          analiseGiro =
+                              'OK: Estoque para $diasDeEstoque dias, vence em $diasAteVencer dias';
+                        }
+                      } else if (isVencido) {
+                        analiseGiro = 'Produto vencido';
+                      } else if (consumoDiario == 0) {
+                        analiseGiro = 'Sem dados de consumo';
+                      }
+
+                      return pw.TableRow(
                         children: [
                           pw.Padding(
                               padding: const pw.EdgeInsets.all(4),
-                              child: pw.Text('Quantidade',
-                                  style: pw.TextStyle(
-                                      fontWeight: pw.FontWeight.bold))),
+                              child: pw.Text(_formatNumber(lote.quantidade))),
                           pw.Padding(
                               padding: const pw.EdgeInsets.all(4),
-                              child: pw.Text('Data Validade',
-                                  style: pw.TextStyle(
-                                      fontWeight: pw.FontWeight.bold))),
+                              child: pw.Text(DateFormat('dd/MM/yyyy')
+                                  .format(lote.validade))),
                           pw.Padding(
                               padding: const pw.EdgeInsets.all(4),
-                              child: pw.Text('Status',
-                                  style: pw.TextStyle(
-                                      fontWeight: pw.FontWeight.bold))),
+                              child: pw.Text(status)),
                           pw.Padding(
                               padding: const pw.EdgeInsets.all(4),
-                              child: pw.Text('Análise de Giro',
-                                  style: pw.TextStyle(
-                                      fontWeight: pw.FontWeight.bold))),
+                              child: pw.Text(analiseGiro)),
                         ],
-                      ),
-                      ...entry.value.asMap().entries.map((item) {
-                        final index = item.key;
-                        final lote = item.value;
-                        bool isVencido = lote.validade.isBefore(DateTime.now());
-                        String status = isVencido ? 'VENCIDO' : 'Válido';
+                      );
+                    }).toList(),
+                  ],
+                ),
 
-                        String analiseGiro = '';
-                        double consumoDiario =
-                            consumoDiarioPorProduto[entry.key] ?? 0;
-
-                        if (consumoDiario > 0 && !isVencido) {
-                          double saldoAteLote = 0;
-                          for (int i = 0; i <= index; i++) {
-                            saldoAteLote += entry.value[i].quantidade;
-                          }
-                          int diasDeEstoque =
-                              (saldoAteLote / consumoDiario).ceil();
-                          int diasAteVencer =
-                              lote.validade.difference(DateTime.now()).inDays;
-
-                          if (diasAteVencer < diasDeEstoque) {
-                            analiseGiro =
-                                'ALERTA: Vence em $diasAteVencer dias, mas estoque para $diasDeEstoque dias';
-                          } else {
-                            analiseGiro =
-                                'OK: Estoque para $diasDeEstoque dias, vence em $diasAteVencer dias';
-                          }
-                        } else if (isVencido) {
-                          analiseGiro = 'Produto vencido';
-                        } else if (consumoDiario == 0) {
-                          analiseGiro = 'Sem dados de consumo';
-                        }
-
-                        return pw.TableRow(
-                          children: [
-                            pw.Padding(
-                                padding: const pw.EdgeInsets.all(4),
-                                child: pw.Text(_formatNumber(lote.quantidade))),
-                            pw.Padding(
-                                padding: const pw.EdgeInsets.all(4),
-                                child: pw.Text(DateFormat('dd/MM/yyyy')
-                                    .format(lote.validade))),
-                            pw.Padding(
-                                padding: const pw.EdgeInsets.all(4),
-                                child: pw.Text(status)),
-                            pw.Padding(
-                                padding: const pw.EdgeInsets.all(4),
-                                child: pw.Text(analiseGiro)),
-                          ],
-                        );
-                      }).toList(),
-                    ],
-                  ),
-                  pw.Padding(
-                    padding: pw.EdgeInsets.only(top: 5),
-                    child: pw.Text(
-                      'Total: ${_formatNumber(entry.value.fold(0, (sum, lote) => sum + lote.quantidade))} pacotes | Consumo diário: ${consumoDiarioPorProduto[entry.key] != null ? _formatNumber(consumoDiarioPorProduto[entry.key]!) : 'N/A'} pacotes/dia',
-                      style: pw.TextStyle(
-                        fontStyle: pw.FontStyle.italic,
-                        fontSize: 10,
-                      ),
+                // Total do produto
+                pw.Padding(
+                  padding: pw.EdgeInsets.only(top: 5),
+                  child: pw.Text(
+                    'Total: ${_formatNumber(entry.value.fold(0, (sum, lote) => sum + lote.quantidade))} pacotes | Consumo diário: ${consumoDiarioPorProduto[entry.key] != null ? _formatNumber(consumoDiarioPorProduto[entry.key]!) : 'N/A'} pacotes/dia',
+                    style: pw.TextStyle(
+                      fontStyle: pw.FontStyle.italic,
+                      fontSize: 10,
                     ),
                   ),
-                  pw.SizedBox(height: 15),
-                ],
-              if (lotesPorProduto.values.every((lotes) => lotes.isEmpty))
-                pw.Paragraph(
-                  text: 'Nenhum lote com validade cadastrado.',
-                  style: pw.TextStyle(fontStyle: pw.FontStyle.italic),
                 ),
-              pw.SizedBox(height: 20),
-              pw.Paragraph(
-                text:
-                    'Documento gerado em ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}',
-                style:
-                    pw.TextStyle(fontSize: 8, fontStyle: pw.FontStyle.italic),
-              ),
-            ];
-          },
-        ),
-      );
+                pw.SizedBox(height: 15),
+              ],
 
+            // Se não houver nenhum lote cadastrado
+            if (lotesPorProduto.values.every((lotes) => lotes.isEmpty))
+              pw.Paragraph(
+                text: 'Nenhum lote com validade cadastrado.',
+                style: pw.TextStyle(fontStyle: pw.FontStyle.italic),
+              ),
+
+            pw.SizedBox(height: 20),
+
+            // Rodapé
+            pw.Paragraph(
+              text:
+                  'Documento gerado em ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}',
+              style: pw.TextStyle(fontSize: 8, fontStyle: pw.FontStyle.italic),
+            ),
+          ];
+        },
+      ),
+    );
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
+
+    try {
       final bytes = await pdf.save();
 
-      // Fecha o diálogo de progresso
-      if (mounted) Navigator.pop(context);
+      if (kIsWeb) {
+        final base64 = base64Encode(bytes);
+        final anchor = html.AnchorElement(
+            href:
+                'data:application/octet-stream;charset=utf-16le;base64,$base64')
+          ..setAttribute('download',
+              'acerto_estoque_${widget.storeName}_${DateFormat('ddMMyyyy').format(selectedDate)}.pdf')
+          ..click();
 
-      // COMPARTILHA O PDF DIRETAMENTE (SEM SALVAR)
-      await Share.shareXFiles(
-        [
-          XFile.fromData(
-            bytes,
-            name:
-                'acerto_estoque_${widget.storeName}_${DateFormat('ddMMyyyy').format(selectedDate)}.pdf',
-            mimeType: 'application/pdf',
-          )
-        ],
-        text:
-            'Acerto Estoque - ${widget.storeName} - ${DateFormat('dd/MM/yyyy').format(selectedDate)}',
-      );
+        if (context.mounted) Navigator.of(context).pop();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF baixado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        final dir = await getTemporaryDirectory();
+        final file = File(
+            '${dir.path}/acerto_estoque_${widget.storeName}_${DateFormat('ddMMyyyy').format(selectedDate)}.pdf');
+        await file.writeAsBytes(bytes);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ PDF compartilhado com sucesso!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
-          ),
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text:
+              'Acerto Estoque - ${widget.storeName} - ${DateFormat('dd/MM/yyyy').format(selectedDate)}',
         );
+
+        if (context.mounted) Navigator.of(context).pop();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF gerado e compartilhado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
     } catch (e) {
-      if (mounted) Navigator.pop(context);
-      print('Erro: $e');
-      if (mounted) {
+      if (context.mounted) Navigator.of(context).pop();
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Erro ao gerar PDF: $e'),
+            content: Text('Erro ao gerar PDF: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -7005,68 +6778,68 @@ class DetalhesPedidoScreen extends StatelessWidget {
       ),
     );
 
-    // Mostrar diálogo de progresso igual ao ReportFinalScreen
+    // Mostrar loading
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext context) => AlertDialog(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            const Text(
-              'Gerando PDF...',
-              style: TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Aguarde, isso pode levar alguns segundos',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
-        ),
-      ),
+      builder: (BuildContext context) {
+        return const Center(child: CircularProgressIndicator());
+      },
     );
 
     try {
       final bytes = await pdf.save();
 
-      // Fecha o diálogo de progresso
-      if (context.mounted) Navigator.of(context).pop();
+      // Verifica se é Web
+      if (kIsWeb) {
+        // WEB: Faz download
+        final base64 = base64Encode(bytes);
+        final anchor = html.AnchorElement(
+            href:
+                'data:application/octet-stream;charset=utf-16le;base64,$base64')
+          ..setAttribute('download',
+              'pedido_${pedido['loja']}_${pedido['data']?.replaceAll('/', '') ?? DateTime.now().toString()}.pdf')
+          ..click();
 
-      // COMPARTILHA O PDF DIRETAMENTE (SEM SALVAR) - Igual à ReportFinalScreen
-      await Share.shareXFiles(
-        [
-          XFile.fromData(
-            bytes,
-            name:
-                'pedido_${pedido['loja']}_${pedido['data']?.replaceAll('/', '') ?? DateTime.now().toString()}.pdf',
-            mimeType: 'application/pdf',
-          )
-        ],
-        text: 'Pedido - ${pedido['loja']} - ${pedido['data']}',
-      );
+        if (context.mounted) Navigator.of(context).pop();
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                '✅ PDF compartilhado! (${(bytes.length / (1024 * 1024)).toStringAsFixed(1)} MB)'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
-          ),
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF baixado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        // MOBILE: Compartilha
+        final dir = await getTemporaryDirectory();
+        final file = File(
+            '${dir.path}/pedido_${pedido['loja']}_${DateTime.now().millisecondsSinceEpoch}.pdf');
+        await file.writeAsBytes(bytes);
+
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text: 'Pedido - ${pedido['loja']} - ${pedido['data']}',
         );
+
+        if (context.mounted) Navigator.of(context).pop();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF gerado e compartilhado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
     } catch (e) {
-      // Fecha o diálogo de progresso se estiver aberto
       if (context.mounted) Navigator.of(context).pop();
-
-      print('Erro: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Erro ao gerar PDF: $e'),
+            content: Text('Erro ao gerar PDF: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -7601,80 +7374,13 @@ class ReportAberturaScreen extends StatefulWidget {
 }
 
 class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
-  static const verdeEscuro = Color(0xFF006400);
-  static const azulEscuro = Color(0xff075fa8);
-
   late TextEditingController crachaController;
   late TextEditingController gerenteController;
   late TextEditingController encarregadoController;
-  late TextEditingController dataController;
-
   int colaboradoresAtivos = 0;
   int sobrasGeladeira = 0;
   late String userName;
   late String dataFormatada;
-  late String dataParaArquivo;
-
-  // Lista de produtos para rupturas
-  final List<String> produtos = [
-    'Pão Francês',
-    'Pão Francês Fibras',
-    'Pão Francês Panhoca',
-    'Pão Francês com Queijo',
-    'Pão Baguete Francesa Queijo',
-    'Pão Baguete Francesa',
-    'Pão Baguete Francesa Gergelim',
-    'Baguete Francesa Queijo',
-    'Baguete Francesa',
-    'Pão Queijo Tradicional',
-    'Pão Queijo Coquetel',
-    'Biscoito Queijo',
-    'Biscoito Polvilho',
-    'Pão Samaritano',
-    'Pão Pizza',
-    'Pão Tatu',
-    'Pão Tatu Com Açúcar',
-    'Mini Pão Sonho',
-    'Mini Pão Sonho Chocolate',
-    'Pão Bambino',
-    'Mini Marta Rocha',
-    'Pão Doce Ferradura',
-    'Pão Doce Caracol',
-    'Rosca Caseira',
-    'Rosca Caseira Côco',
-    'Rosca Caseira Leite em Pó',
-    'Rosca Côco/Queijo',
-    'Sanduíche Bahamas 120',
-    'Rabanada Assada',
-    'Pão Fofinho',
-    'Sanduíche Fofinho',
-    'Rosca Fofinha Temperada',
-    'Caseirinho',
-    'Pão P/ Rabanada',
-    'Pão Doce Comprido',
-    'Pão Milho',
-    'Pão de Alho da Casa',
-    'Pão de Alho da Casa Picante',
-  ];
-
-  final List<String> motivos = [
-    'aguardando fermentação',
-    'não foi retirado',
-    'aguardando acabamento',
-    'ruptura em estoque',
-    'aguardando forneamento',
-    'outros',
-  ];
-
-  late Map<String, bool> rupturasSelecionadas;
-  late Map<String, String> motivosSelecionados;
-  late Map<String, String> outrosMotivos;
-
-  // Lista para armazenar as fotos
-  List<Uint8List> fotos = [];
-  List<String> fotosDescricao = [];
-
-  final ImagePicker _picker = ImagePicker();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
@@ -7683,293 +7389,10 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     crachaController = TextEditingController();
     gerenteController = TextEditingController();
     encarregadoController = TextEditingController();
-    dataController = TextEditingController();
-
-    rupturasSelecionadas = {for (var p in produtos) p: false};
-    motivosSelecionados = {for (var p in produtos) p: motivos[0]};
-    outrosMotivos = {for (var p in produtos) p: ''};
-
-    _atualizarDataAtual();
     _carregarPreferencias();
-    _carregarFotosDoSharedPreferences();
-    _recompressExistingPhotos();
-  }
-
-  // Recomprime todas as fotos existentes
-  Future<void> _recompressExistingPhotos() async {
-    if (fotos.isEmpty) return;
-
-    print('Recomprimindo ${fotos.length} fotos existentes...');
-    bool changed = false;
-    List<Uint8List> novasFotos = [];
-
-    for (var foto in fotos) {
-      final comprimida = await _compressImage(foto);
-      if (comprimida.length < foto.length) {
-        changed = true;
-        novasFotos.add(comprimida);
-      } else {
-        novasFotos.add(foto);
-      }
-    }
-
-    if (changed) {
-      setState(() {
-        fotos = novasFotos;
-      });
-      await _salvarFotosNoSharedPreferences();
-      print('Fotos recomprimidas com sucesso!');
-    }
-  }
-
-  void _atualizarDataAtual() {
     final dataHoje = DateTime.now();
     dataFormatada =
         "${dataHoje.day.toString().padLeft(2, '0')}/${dataHoje.month.toString().padLeft(2, '0')}/${dataHoje.year}";
-    dataParaArquivo =
-        "${dataHoje.year}-${dataHoje.month.toString().padLeft(2, '0')}-${dataHoje.day.toString().padLeft(2, '0')}";
-    dataController.text = dataFormatada;
-  }
-
-  void _atualizarDataManual(String texto) {
-    final regex = RegExp(r'^(\d{2})/(\d{2})/(\d{4})$');
-    final match = regex.firstMatch(texto);
-
-    if (match != null) {
-      final dia = int.parse(match.group(1)!);
-      final mes = int.parse(match.group(2)!);
-      final ano = int.parse(match.group(3)!);
-
-      if (ano >= 2000 &&
-          ano <= 2100 &&
-          mes >= 1 &&
-          mes <= 12 &&
-          dia >= 1 &&
-          dia <= 31) {
-        setState(() {
-          dataFormatada = texto;
-          dataParaArquivo =
-              "$ano-${mes.toString().padLeft(2, '0')}-${dia.toString().padLeft(2, '0')}";
-        });
-      }
-    }
-  }
-
-  // ===== FUNÇÃO DE COMPRESSÃO DE IMAGEM =====
-  Future<Uint8List> _compressImage(Uint8List bytes) async {
-    try {
-      final img.Image? image = img.decodeImage(bytes);
-      if (image == null) return bytes;
-
-      int targetWidth = image.width;
-      int targetHeight = image.height;
-
-      if (image.width > 900 || image.height > 900) {
-        if (image.width > image.height) {
-          targetWidth = 900;
-          targetHeight = (image.height * 900 / image.width).round();
-        } else {
-          targetHeight = 900;
-          targetWidth = (image.width * 900 / image.height).round();
-        }
-      }
-
-      final img.Image resized = img.copyResize(
-        image,
-        width: targetWidth,
-        height: targetHeight,
-        interpolation: img.Interpolation.average,
-      );
-
-      return Uint8List.fromList(img.encodeJpg(resized, quality: 75));
-    } catch (e) {
-      print('Erro ao comprimir imagem: $e');
-      return bytes;
-    }
-  }
-
-  // Funções para salvar e carregar fotos no SharedPreferences
-  Future<void> _salvarFotosNoSharedPreferences() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-
-      final List<String> fotosBase64 =
-          fotos.map((foto) => base64Encode(foto)).toList();
-      await prefs.setStringList(
-          'fotos_abertura_${widget.storeName}', fotosBase64);
-      await prefs.setStringList(
-          'fotos_abertura_desc_${widget.storeName}', fotosDescricao);
-    } catch (e) {
-      print('Erro ao salvar fotos abertura: $e');
-    }
-  }
-
-  Future<void> _carregarFotosDoSharedPreferences() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-
-      final List<String>? fotosBase64 =
-          prefs.getStringList('fotos_abertura_${widget.storeName}');
-      final List<String>? descricoes =
-          prefs.getStringList('fotos_abertura_desc_${widget.storeName}');
-
-      if (fotosBase64 != null && fotosBase64.isNotEmpty) {
-        final List<Uint8List> fotosCarregadas = [];
-        for (String fotoBase64 in fotosBase64) {
-          fotosCarregadas.add(base64Decode(fotoBase64));
-        }
-
-        setState(() {
-          fotos = fotosCarregadas;
-          fotosDescricao =
-              descricoes ?? List.filled(fotosCarregadas.length, '');
-        });
-      }
-    } catch (e) {
-      print('Erro ao carregar fotos abertura: $e');
-    }
-  }
-
-  Future<void> _apagarTodasFotos() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Apagar todas as fotos'),
-        content: const Text(
-            'Tem certeza que deseja apagar TODAS as fotos? Esta ação não pode ser desfeita.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Apagar todas'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      setState(() {
-        fotos.clear();
-        fotosDescricao.clear();
-      });
-      await _salvarFotosNoSharedPreferences();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Todas as fotos foram removidas!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _selecionarMultiplasFotos() async {
-    try {
-      final List<XFile>? fotosSelecionadas = await _picker.pickMultiImage(
-        imageQuality: 70,
-        maxWidth: 900,
-        maxHeight: 900,
-      );
-
-      if (fotosSelecionadas != null && fotosSelecionadas.isNotEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Processando imagens...'),
-              duration: Duration(seconds: 1),
-            ),
-          );
-        }
-
-        for (var foto in fotosSelecionadas) {
-          Uint8List bytes = await foto.readAsBytes();
-          bytes = await _compressImage(bytes);
-          setState(() {
-            fotos.add(bytes);
-            fotosDescricao.add('');
-          });
-        }
-        await _salvarFotosNoSharedPreferences();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                  '✅ ${fotosSelecionadas.length} foto(s) adicionadas! Tamanho total: ${_getTotalSize()}'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      print('Erro ao selecionar múltiplas fotos: $e');
-    }
-  }
-
-  Future<void> _adicionarFotoCamera() async {
-    try {
-      final XFile? foto = await _picker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 70,
-        maxWidth: 900,
-        maxHeight: 900,
-      );
-
-      if (foto != null) {
-        Uint8List bytes = await foto.readAsBytes();
-        bytes = await _compressImage(bytes);
-
-        setState(() {
-          fotos.add(bytes);
-          fotosDescricao.add('');
-        });
-        await _salvarFotosNoSharedPreferences();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Foto adicionada!'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 1),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      print('Erro ao tirar foto: $e');
-    }
-  }
-
-  String _getTotalSize() {
-    int totalBytes = fotos.fold(0, (sum, foto) => sum + foto.length);
-    if (totalBytes < 1024 * 1024) {
-      return '${(totalBytes / 1024).toStringAsFixed(1)} KB';
-    } else {
-      return '${(totalBytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-  }
-
-  void _removerFoto(int index) async {
-    setState(() {
-      fotos.removeAt(index);
-      fotosDescricao.removeAt(index);
-    });
-    await _salvarFotosNoSharedPreferences();
-  }
-
-  void _atualizarDescricaoFoto(int index, String descricao) async {
-    setState(() {
-      fotosDescricao[index] = descricao;
-    });
-    await _salvarFotosNoSharedPreferences();
   }
 
   Future<void> _carregarPreferencias() async {
@@ -7978,8 +7401,6 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
           await _firestore.collection('stores').doc(widget.storeName).get();
       if (doc.exists) {
         final data = doc.data() ?? {};
-        final relatorioData = data['relatorioAbertura'] ?? {};
-
         setState(() {
           crachaController.text = data['cracha'] ?? '';
           gerenteController.text = data['gerente'] ?? '';
@@ -7988,14 +7409,6 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
           colaboradoresAtivos = data['colaboradoresAtivos'] ?? 0;
           sobrasGeladeira = data['sobrasGeladeira'] ?? 0;
         });
-
-        final rupturasData = relatorioData['rupturas'] ?? {};
-        for (var produto in produtos) {
-          final produtoData = rupturasData[produto] ?? {};
-          rupturasSelecionadas[produto] = produtoData['selecionado'] ?? false;
-          motivosSelecionados[produto] = produtoData['motivo'] ?? motivos[0];
-          outrosMotivos[produto] = produtoData['outroMotivo'] ?? '';
-        }
       }
     } catch (e) {
       print('Erro ao carregar preferências: $e');
@@ -8012,300 +7425,25 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
         'sobrasGeladeira': sobrasGeladeira,
         'lastUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-
-      final rupturasData = <String, dynamic>{};
-      for (var produto in produtos) {
-        rupturasData[produto] = {
-          'selecionado': rupturasSelecionadas[produto] ?? false,
-          'motivo': motivosSelecionados[produto] ?? motivos[0],
-          'outroMotivo': outrosMotivos[produto] ?? '',
-        };
-      }
-
-      final relatorioData = {
-        'rupturas': rupturasData,
-      };
-
-      await _firestore.collection('stores').doc(widget.storeName).set({
-        'relatorioAbertura': relatorioData,
-        'lastUpdatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
     } catch (e) {
       print('Erro ao salvar preferências: $e');
     }
   }
 
-  // ===== FUNÇÃO PARA GERAR E COMPARTILHAR PDF =====
-  Future<void> _compartilharPDF() async {
-    final dataParts = dataFormatada.split('/');
-    final dia = dataParts[0];
-    final mes = dataParts[1];
-    final ano = dataParts[2].substring(2);
-    final nomeArquivo =
-        'Posicionamento_${widget.storeName}_${dia}_${mes}_$ano.pdf';
+  Future<void> _compartilharRelatorioComImagens() async {
+    String texto = """ BOM DIA A TODOS!
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text(
-              'Gerando PDF com ${fotos.length} foto(s)...',
-              style: const TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Tamanho total das fotos: ${_getTotalSize()}',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
-        ),
-      ),
-    );
+*Posicionamento: ${widget.storeName}
+*Data: $dataFormatada
+*Técnico: $userName
+*Crachá: ${crachaController.text}
+*Gerência: ${gerenteController.text}
+*Encarregado: ${encarregadoController.text}
+*Colaboradores ativos: $colaboradoresAtivos
+*Sobras Pão Francês: $sobrasGeladeira telas
+""";
 
-    try {
-      final pdf = pw.Document();
-
-      pdf.addPage(
-        pw.MultiPage(
-          pageFormat: PdfPageFormat.a4,
-          build: (context) => [
-            pw.Center(
-              child: pw.Column(
-                children: [
-                  pw.Text(widget.storeName,
-                      style: pw.TextStyle(
-                        fontSize: 48,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.green900,
-                      )),
-                ],
-              ),
-            ),
-            pw.SizedBox(height: 30),
-            pw.Container(
-              padding: const pw.EdgeInsets.all(10),
-              decoration: pw.BoxDecoration(
-                border: pw.Border(
-                    left: pw.BorderSide(color: PdfColors.green900, width: 4)),
-              ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text('POSICIONAMENTO',
-                      style: pw.TextStyle(
-                        fontSize: 18,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.green900,
-                      )),
-                  pw.SizedBox(height: 10),
-                  pw.Text('Data: $dataFormatada'),
-                  pw.Text('Promotor: $userName'),
-                  pw.Text('Crachá: ${crachaController.text}'),
-                  pw.Text('Gerência: ${gerenteController.text}'),
-                  pw.Text('Encarregado(s): ${encarregadoController.text}'),
-                  pw.Text('Colaboradores ativos: $colaboradoresAtivos'),
-                  pw.Text('Sobras Pão Francês: $sobrasGeladeira telas'),
-                ],
-              ),
-            ),
-            pw.SizedBox(height: 20),
-            pw.Container(
-              padding: const pw.EdgeInsets.all(10),
-              decoration: pw.BoxDecoration(
-                border: pw.Border(
-                    left: pw.BorderSide(color: PdfColors.red, width: 4)),
-              ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text('RUPTURAS REGISTRADAS',
-                      style: pw.TextStyle(
-                        fontSize: 18,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.red,
-                      )),
-                  pw.SizedBox(height: 10),
-                  ..._buildRupturasList(),
-                ],
-              ),
-            ),
-            if (fotos.isNotEmpty) ...[
-              pw.SizedBox(height: 20),
-              pw.Container(
-                padding: const pw.EdgeInsets.all(10),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border(
-                      left: pw.BorderSide(color: PdfColors.blue, width: 4)),
-                ),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text('FOTOS REGISTRADAS',
-                        style: pw.TextStyle(
-                          fontSize: 18,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.blue,
-                        )),
-                    pw.SizedBox(height: 10),
-                    ..._buildFotosListEmGrid(),
-                  ],
-                ),
-              ),
-            ],
-            pw.SizedBox(height: 40),
-            pw.Center(
-              child: pw.Text(
-                'Relatório gerado automaticamente em $dataFormatada',
-                style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
-              ),
-            ),
-          ],
-        ),
-      );
-
-      final pdfBytes = await pdf.save();
-
-      if (mounted) Navigator.pop(context);
-
-      await Share.shareXFiles(
-        [
-          XFile.fromData(pdfBytes,
-              name: nomeArquivo, mimeType: 'application/pdf')
-        ],
-        text: 'Posicionamento - ${widget.storeName} - $dataFormatada',
-      );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                '✅ PDF compartilhado! (${(pdfBytes.length / (1024 * 1024)).toStringAsFixed(1)} MB)'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) Navigator.pop(context);
-      print('Erro: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Erro ao gerar PDF: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  List<pw.Widget> _buildRupturasList() {
-    final widgets = <pw.Widget>[];
-    bool hasRuptura = false;
-
-    for (var produto in produtos) {
-      if (rupturasSelecionadas[produto] == true) {
-        hasRuptura = true;
-        final motivo = motivosSelecionados[produto];
-        if (motivo == 'outros') {
-          final outroMotivo = (outrosMotivos[produto]?.isNotEmpty == true)
-              ? outrosMotivos[produto]
-              : 'outros';
-          widgets.add(pw.Padding(
-            padding: const pw.EdgeInsets.only(left: 20),
-            child: pw.Text('- $produto (Motivo: $outroMotivo)',
-                style: pw.TextStyle(color: PdfColors.red900)),
-          ));
-        } else {
-          widgets.add(pw.Padding(
-            padding: const pw.EdgeInsets.only(left: 20),
-            child: pw.Text('- $produto (Motivo: $motivo)',
-                style: pw.TextStyle(color: PdfColors.red900)),
-          ));
-        }
-      }
-    }
-
-    if (!hasRuptura) {
-      widgets.add(pw.Padding(
-        padding: const pw.EdgeInsets.only(left: 20),
-        child: pw.Text('Nenhuma ruptura registrada',
-            style: pw.TextStyle(color: PdfColors.green)),
-      ));
-    }
-
-    return widgets;
-  }
-
-  // ===== FUNÇÃO CORRIGIDA - SEM DIMENSÕES FIXAS (NÃO ESTOURA MARGENS) =====
-  List<pw.Widget> _buildFotosListEmGrid() {
-    final widgets = <pw.Widget>[];
-
-    for (int i = 0; i < fotos.length; i += 2) {
-      final rowChildren = <pw.Widget>[];
-
-      // Primeira foto
-      rowChildren.add(
-        pw.Expanded(
-          child: pw.Container(
-            padding: const pw.EdgeInsets.all(5),
-            child: pw.Column(
-              children: [
-                pw.Image(
-                  pw.MemoryImage(fotos[i]),
-                  fit: pw.BoxFit.contain,
-                ),
-                pw.SizedBox(height: 8),
-                if (fotosDescricao[i].isNotEmpty)
-                  pw.Text(
-                    fotosDescricao[i],
-                    style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
-                    textAlign: pw.TextAlign.center,
-                  ),
-              ],
-            ),
-          ),
-        ),
-      );
-
-      // Segunda foto (se existir)
-      if (i + 1 < fotos.length) {
-        rowChildren.add(
-          pw.Expanded(
-            child: pw.Container(
-              padding: const pw.EdgeInsets.all(5),
-              child: pw.Column(
-                children: [
-                  pw.Image(
-                    pw.MemoryImage(fotos[i + 1]),
-                    fit: pw.BoxFit.contain,
-                  ),
-                  pw.SizedBox(height: 8),
-                  if (fotosDescricao[i + 1].isNotEmpty)
-                    pw.Text(
-                      fotosDescricao[i + 1],
-                      style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
-                      textAlign: pw.TextAlign.center,
-                    ),
-                ],
-              ),
-            ),
-          ),
-        );
-      } else {
-        rowChildren.add(pw.Expanded(child: pw.Container()));
-      }
-
-      widgets.add(pw.Row(children: rowChildren));
-      widgets.add(pw.SizedBox(height: 10));
-    }
-
-    return widgets;
+    await Share.share(texto.trim(), subject: 'Relatório Abertura');
   }
 
   @override
@@ -8313,22 +7451,24 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
     crachaController.dispose();
     gerenteController.dispose();
     encarregadoController.dispose();
-    dataController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    const verdeEscuro = Color(0xFF006400);
+    const preto = Color(0xff0e0101);
     return Scaffold(
       appBar: AppBar(
         backgroundColor: verdeEscuro,
+        centerTitle: true,
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Image.asset('assets/images/Logo StockOne.png', height: 32),
             const SizedBox(width: 8),
             const Text(
-              "ABERTURA",
+              "POSICIONAMENTO",
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -8338,34 +7478,27 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.share, color: Colors.white, size: 28),
-            onPressed: _compartilharPDF,
-            tooltip: 'Compartilhar PDF',
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: DefaultTextStyle(
-          style: const TextStyle(fontSize: 19, color: verdeEscuro),
+          style: const TextStyle(fontSize: 19, color: preto),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Data:',
-                  labelStyle: TextStyle(fontSize: 23, color: verdeEscuro),
-                  hintText: 'dd/MM/yyyy',
+              const SizedBox(height: 16),
+              Text(
+                'Data: $dataFormatada',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 19,
+                  color: verdeEscuro,
                 ),
-                controller: dataController,
-                onChanged: _atualizarDataManual,
               ),
               const SizedBox(height: 32),
               TextField(
                 decoration: const InputDecoration(
-                  labelText: 'Gerência:',
+                  labelText: "Gerência:",
                   labelStyle: TextStyle(fontSize: 23, color: verdeEscuro),
                 ),
                 controller: gerenteController,
@@ -8374,7 +7507,7 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
               const SizedBox(height: 16),
               TextField(
                 decoration: const InputDecoration(
-                  labelText: 'Encarregado(s):',
+                  labelText: "Encarregado(s):",
                   labelStyle: TextStyle(fontSize: 23, color: verdeEscuro),
                 ),
                 controller: encarregadoController,
@@ -8388,10 +7521,8 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
                   labelStyle: TextStyle(fontSize: 23, color: verdeEscuro),
                 ),
                 items: List.generate(16, (index) => index)
-                    .map((v) => DropdownMenuItem(
-                          value: v,
-                          child: Text(v.toString()),
-                        ))
+                    .map((v) =>
+                        DropdownMenuItem(value: v, child: Text(v.toString())))
                     .toList(),
                 onChanged: (value) {
                   setState(() => colaboradoresAtivos = value ?? 0);
@@ -8401,7 +7532,7 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
               const SizedBox(height: 16),
               TextField(
                 decoration: const InputDecoration(
-                  labelText: 'Crachá:',
+                  labelText: "Crachá:",
                   labelStyle: TextStyle(fontSize: 23, color: verdeEscuro),
                 ),
                 controller: crachaController,
@@ -8415,216 +7546,29 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
                   labelStyle: TextStyle(fontSize: 23, color: verdeEscuro),
                 ),
                 items: List.generate(31, (index) => index)
-                    .map((v) => DropdownMenuItem(
-                          value: v,
-                          child: Text(v.toString()),
-                        ))
+                    .map((v) =>
+                        DropdownMenuItem(value: v, child: Text(v.toString())))
                     .toList(),
                 onChanged: (value) {
                   setState(() => sobrasGeladeira = value ?? 0);
                   _salvarPreferencias();
                 },
               ),
-              const SizedBox(height: 20),
-              const Text(
-                'Rupturas:',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 23,
-                    color: verdeEscuro),
-              ),
-              Column(
-                children: produtos.map((produto) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      CheckboxListTile(
-                        title: Text(produto),
-                        value: rupturasSelecionadas[produto],
-                        onChanged: (v) {
-                          setState(() {
-                            rupturasSelecionadas[produto] = v ?? false;
-                            if (v == false) {
-                              motivosSelecionados[produto] = motivos[0];
-                              outrosMotivos[produto] = '';
-                            }
-                            _salvarPreferencias();
-                          });
-                        },
-                      ),
-                      if (rupturasSelecionadas[produto] == true)
-                        Padding(
-                          padding:
-                              const EdgeInsets.only(left: 32.0, bottom: 10),
-                          child: DropdownButtonFormField<String>(
-                            value: motivosSelecionados[produto],
-                            decoration: InputDecoration(
-                              labelText: 'Motivo ($produto)',
-                              labelStyle: const TextStyle(
-                                  fontSize: 19, color: verdeEscuro),
-                            ),
-                            style: const TextStyle(
-                                fontSize: 19, color: Colors.red),
-                            items: motivos
-                                .map((m) => DropdownMenuItem(
-                                      value: m,
-                                      child: Text(m,
-                                          style: const TextStyle(
-                                              fontSize: 19, color: Colors.red)),
-                                    ))
-                                .toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                motivosSelecionados[produto] = value!;
-                                _salvarPreferencias();
-                              });
-                            },
-                          ),
-                        ),
-                      if (motivosSelecionados[produto] == 'outros' &&
-                          rupturasSelecionadas[produto] == true)
-                        Padding(
-                          padding:
-                              const EdgeInsets.only(left: 32.0, bottom: 10),
-                          child: TextField(
-                            decoration: const InputDecoration(
-                              labelText: 'Descreva o motivo',
-                            ),
-                            onChanged: (v) {
-                              outrosMotivos[produto] = v;
-                              _salvarPreferencias();
-                            },
-                            controller: TextEditingController(
-                                text: outrosMotivos[produto])
-                              ..selection = TextSelection.fromPosition(
-                                  TextPosition(
-                                      offset:
-                                          outrosMotivos[produto]?.length ?? 0)),
-                          ),
-                        ),
-                    ],
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 20),
-              // Seção de Fotos
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Fotos:',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 23,
-                        color: azulEscuro),
+              const SizedBox(height: 32),
+              Center(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: verdeEscuro,
+                    foregroundColor: Colors.white,
                   ),
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.camera_alt,
-                            size: 32, color: verdeEscuro),
-                        onPressed: _adicionarFotoCamera,
-                        tooltip: 'Tirar foto',
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.photo_library,
-                            size: 32, color: verdeEscuro),
-                        onPressed: _selecionarMultiplasFotos,
-                        tooltip: 'Escolher múltiplas fotos',
-                      ),
-                      if (fotos.isNotEmpty)
-                        IconButton(
-                          icon: const Icon(Icons.delete_sweep,
-                              size: 32, color: Colors.red),
-                          onPressed: _apagarTodasFotos,
-                          tooltip: 'Apagar todas as fotos',
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              // Mostrar tamanho total das fotos
-              if (fotos.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    'Tamanho total das fotos: ${_getTotalSize()}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  onPressed: _compartilharRelatorioComImagens,
+                  icon: const Icon(Icons.share),
+                  label: const Text(
+                    'Compartilhar',
+                    style: TextStyle(fontSize: 19),
                   ),
                 ),
-              // Lista de fotos adicionadas
-              if (fotos.isNotEmpty)
-                Column(
-                  children: [
-                    ...fotos.asMap().entries.map((entry) {
-                      int index = entry.key;
-                      Uint8List foto = entry.value;
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                height: 200,
-                                width: double.infinity,
-                                decoration: BoxDecoration(
-                                  border:
-                                      Border.all(color: Colors.grey.shade300),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child:
-                                      Image.memory(foto, fit: BoxFit.contain),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              TextField(
-                                decoration: const InputDecoration(
-                                  labelText: 'Descrição da foto (opcional)',
-                                  border: OutlineInputBorder(),
-                                  contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 8),
-                                ),
-                                onChanged: (descricao) =>
-                                    _atualizarDescricaoFoto(index, descricao),
-                              ),
-                              const SizedBox(height: 8),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: TextButton.icon(
-                                  icon: const Icon(Icons.delete,
-                                      color: Colors.red),
-                                  label: const Text('Remover',
-                                      style: TextStyle(color: Colors.red)),
-                                  onPressed: () => _removerFoto(index),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ],
-                )
-              else
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'Nenhuma foto adicionada.\nClique nos ícones da câmera ou galeria para adicionar fotos.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                    ),
-                  ),
-                ),
+              ),
             ],
           ),
         ),
@@ -8645,30 +7589,47 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   static const verdeEscuro = Color(0xFF006400);
   static const vermelhoEscuro = Color(0xFF8B0000);
 
+  TimeOfDay horarioSaida = TimeOfDay.now();
+
   late TextEditingController crachaController;
   late TextEditingController gerenteController;
   late TextEditingController encarregadoController;
-  late TextEditingController dataController;
+  late TextEditingController giroMedioController;
 
+  String resultadoInteiro = '';
+  String vendamediadiaria = '';
   String userName = '';
   int colaboradoresAtivos = 0;
   late String dataFormatada;
   late String dataParaArquivo;
 
-  // Lista para armazenar as fotos
-  List<Uint8List> fotos = [];
-  List<String> fotosDescricao = [];
-
-  final ImagePicker _picker = ImagePicker();
+  List<String> rotinaOpcoes = [
+    'rotina',
+    'inauguração',
+    'cobrir falta de funcionários',
+    'outros',
+  ];
+  List<String> rotinaSelecionadas = [];
+  String rotinaOutros = '';
+  String trabalhoRealizado = '';
+  String giroMedio = '';
+  String qtdRetirada = '';
+  String lotesRetirados = '';
+  String qtdSobra = '';
+  String rabanadaassada = '';
+  String paopararabanada = '';
+  String paodealhodacasapicante = '';
+  String paodealhodacasa = '';
 
   final List<String> produtos = [
     'Pão Francês',
-    'Pão Francês Fibras',
+    'Pão Francês integral',
     'Pão Francês Panhoca',
     'Pão Francês com Queijo',
     'Pão Baguete Francesa Queijo',
     'Pão Baguete Francesa',
     'Pão Baguete Francesa Gergelim',
+    'Mini Pão Francês Gergelim',
     'Baguete Francesa Queijo',
     'Baguete Francesa',
     'Pão Queijo Tradicional',
@@ -8678,7 +7639,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     'Pão Samaritano',
     'Pão Pizza',
     'Pão Tatu',
-    'Pão Tatu Com Açúcar',
     'Mini Pão Sonho',
     'Mini Pão Sonho Chocolate',
     'Pão Bambino',
@@ -8689,7 +7649,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     'Rosca Caseira Côco',
     'Rosca Caseira Leite em Pó',
     'Rosca Côco/Queijo',
-    'Sanduíche Bahamas 120',
+    'Sanduíche Bahamas',
     'Rabanada Assada',
     'Pão Fofinho',
     'Sanduíche Fofinho',
@@ -8716,134 +7676,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   late Map<String, String> outrosMotivos;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  void _atualizarDataAtual() {
-    final dataHoje = DateTime.now();
-    dataFormatada =
-        "${dataHoje.day.toString().padLeft(2, '0')}/${dataHoje.month.toString().padLeft(2, '0')}/${dataHoje.year}";
-    dataParaArquivo =
-        "${dataHoje.year}-${dataHoje.month.toString().padLeft(2, '0')}-${dataHoje.day.toString().padLeft(2, '0')}";
-    dataController.text = dataFormatada;
-  }
-
-  // ===== FUNÇÃO DE COMPRESSÃO DE IMAGEM =====
-  Future<Uint8List> _compressImage(Uint8List bytes) async {
-    try {
-      final img.Image? image = img.decodeImage(bytes);
-      if (image == null) return bytes;
-
-      int targetWidth = image.width;
-      int targetHeight = image.height;
-
-      if (image.width > 900 || image.height > 900) {
-        if (image.width > image.height) {
-          targetWidth = 900;
-          targetHeight = (image.height * 900 / image.width).round();
-        } else {
-          targetHeight = 900;
-          targetWidth = (image.width * 900 / image.height).round();
-        }
-      }
-
-      final img.Image resized = img.copyResize(
-        image,
-        width: targetWidth,
-        height: targetHeight,
-        interpolation: img.Interpolation.average,
-      );
-
-      return Uint8List.fromList(img.encodeJpg(resized, quality: 75));
-    } catch (e) {
-      print('Erro ao comprimir imagem: $e');
-      return bytes;
-    }
-  }
-
-  // Funções para salvar e carregar fotos no SharedPreferences
-  Future<void> _salvarFotosNoSharedPreferences() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-
-      final List<String> fotosBase64 =
-          fotos.map((foto) => base64Encode(foto)).toList();
-      await prefs.setStringList('fotos_${widget.storeName}', fotosBase64);
-      await prefs.setStringList(
-          'fotos_desc_${widget.storeName}', fotosDescricao);
-
-      print('Fotos salvas: ${fotos.length}');
-    } catch (e) {
-      print('Erro ao salvar fotos: $e');
-    }
-  }
-
-  Future<void> _carregarFotosDoSharedPreferences() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-
-      final List<String>? fotosBase64 =
-          prefs.getStringList('fotos_${widget.storeName}');
-      final List<String>? descricoes =
-          prefs.getStringList('fotos_desc_${widget.storeName}');
-
-      if (fotosBase64 != null && fotosBase64.isNotEmpty) {
-        final List<Uint8List> fotosCarregadas = [];
-        for (String fotoBase64 in fotosBase64) {
-          fotosCarregadas.add(base64Decode(fotoBase64));
-        }
-
-        setState(() {
-          fotos = fotosCarregadas;
-          fotosDescricao =
-              descricoes ?? List.filled(fotosCarregadas.length, '');
-        });
-
-        print('Fotos carregadas: ${fotos.length}');
-      }
-    } catch (e) {
-      print('Erro ao carregar fotos: $e');
-    }
-  }
-
-  // Função para apagar TODAS as fotos
-  Future<void> _apagarTodasFotos() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Apagar todas as fotos'),
-        content: const Text(
-            'Tem certeza que deseja apagar TODAS as fotos? Esta ação não pode ser desfeita.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Apagar todas'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      setState(() {
-        fotos.clear();
-        fotosDescricao.clear();
-      });
-      await _salvarFotosNoSharedPreferences();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Todas as fotos foram removidas!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    }
-  }
-
   @override
   void initState() {
     super.initState();
@@ -8851,148 +7683,19 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     crachaController = TextEditingController();
     gerenteController = TextEditingController();
     encarregadoController = TextEditingController();
-    dataController = TextEditingController();
+    giroMedioController = TextEditingController();
 
     rupturasSelecionadas = {for (var p in produtos) p: false};
     motivosSelecionados = {for (var p in produtos) p: motivos[0]};
     outrosMotivos = {for (var p in produtos) p: ''};
 
-    _atualizarDataAtual();
+    final dataHoje = DateTime.now();
+    dataFormatada =
+        "${dataHoje.day.toString().padLeft(2, '0')}/${dataHoje.month.toString().padLeft(2, '0')}/${dataHoje.year}";
+    dataParaArquivo =
+        "${dataHoje.year}-${dataHoje.month.toString().padLeft(2, '0')}-${dataHoje.day.toString().padLeft(2, '0')}";
+
     _carregarPreferencias();
-    _carregarFotosDoSharedPreferences();
-    _recompressExistingPhotos();
-  }
-
-  // Recomprime todas as fotos existentes
-  Future<void> _recompressExistingPhotos() async {
-    if (fotos.isEmpty) return;
-
-    print('Recomprimindo ${fotos.length} fotos existentes...');
-    bool changed = false;
-    List<Uint8List> novasFotos = [];
-
-    for (var foto in fotos) {
-      final comprimida = await _compressImage(foto);
-      if (comprimida.length < foto.length) {
-        changed = true;
-        novasFotos.add(comprimida);
-      } else {
-        novasFotos.add(foto);
-      }
-    }
-
-    if (changed) {
-      setState(() {
-        fotos = novasFotos;
-      });
-      await _salvarFotosNoSharedPreferences();
-      print('Fotos recomprimidas com sucesso!');
-    }
-  }
-
-  // Função para selecionar MÚLTIPLAS fotos da galeria (COM COMPRESSÃO)
-  Future<void> _selecionarMultiplasFotos() async {
-    try {
-      final List<XFile>? fotosSelecionadas = await _picker.pickMultiImage(
-        imageQuality: 70,
-        maxWidth: 900,
-        maxHeight: 900,
-      );
-
-      if (fotosSelecionadas != null && fotosSelecionadas.isNotEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Processando imagens...'),
-              duration: Duration(seconds: 1),
-            ),
-          );
-        }
-
-        for (var foto in fotosSelecionadas) {
-          Uint8List bytes = await foto.readAsBytes();
-          bytes = await _compressImage(bytes);
-          setState(() {
-            fotos.add(bytes);
-            fotosDescricao.add('');
-          });
-        }
-        await _salvarFotosNoSharedPreferences();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content:
-                  Text('✅ ${fotosSelecionadas.length} foto(s) adicionadas!'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      print('Erro ao selecionar múltiplas fotos: $e');
-    }
-  }
-
-  // Função para adicionar foto da câmera (COM COMPRESSÃO)
-  Future<void> _adicionarFotoCamera() async {
-    try {
-      final XFile? foto = await _picker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 70,
-        maxWidth: 900,
-        maxHeight: 900,
-      );
-
-      if (foto != null) {
-        Uint8List bytes = await foto.readAsBytes();
-        bytes = await _compressImage(bytes);
-        setState(() {
-          fotos.add(bytes);
-          fotosDescricao.add('');
-        });
-        await _salvarFotosNoSharedPreferences();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Foto adicionada!'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 1),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      print('Erro ao tirar foto: $e');
-    }
-  }
-
-  // Função para remover foto individual
-  void _removerFoto(int index) async {
-    setState(() {
-      fotos.removeAt(index);
-      fotosDescricao.removeAt(index);
-    });
-    await _salvarFotosNoSharedPreferences();
-  }
-
-  // Função para atualizar descrição da foto
-  void _atualizarDescricaoFoto(int index, String descricao) async {
-    setState(() {
-      fotosDescricao[index] = descricao;
-    });
-    await _salvarFotosNoSharedPreferences();
-  }
-
-  String _getTotalSize() {
-    int totalBytes = fotos.fold(0, (sum, foto) => sum + foto.length);
-    if (totalBytes < 1024 * 1024) {
-      return '${(totalBytes / 1024).toStringAsFixed(1)} KB';
-    } else {
-      return '${(totalBytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
   }
 
   Future<void> _carregarPreferencias() async {
@@ -9008,7 +7711,30 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         final fetchedEncarregado = data['encarregado'] ?? '';
 
         final fetchedColaboradores = relatorioData['colaboradoresAtivos'] ?? 0;
+        final fetchedRotinaSelecionadas =
+            List<String>.from(relatorioData['rotinaSelecionadas'] ?? []);
+        final fetchedRotinaOutros = relatorioData['rotinaOutros'] ?? '';
+        final fetchedTrabalhoRealizado =
+            relatorioData['trabalhoRealizado'] ?? '';
+        final fetchedGiroMedio = relatorioData['giroMedio'] ?? '';
+        final fetchedQtdRetirada = relatorioData['qtdRetirada'] ?? '';
+        final fetchedLotesRetirados = relatorioData['lotesRetirados'] ?? '';
+        final fetchedrabanadaassada = relatorioData['rabanadaassada'] ?? '';
+        final fetchedpaopararabanada = relatorioData['paopararabanada'] ?? '';
+        final fetchedpaodealhodacasa = relatorioData['paodealhodacasa'] ?? '';
+        final fetchedpaodealhodacasapicante =
+            relatorioData['paodealhodacasapicante'] ?? '';
+        final fetchedQtdSobra = relatorioData['qtdSobra'] ?? '';
         final fetchedUserName = data['userName'] ?? '';
+
+        final vendasData = data['vendas'] ?? {};
+        final vendaMensalPaoFrances =
+            (vendasData['Pão Francês'] ?? 0).toDouble();
+        final diasDeGiro = data['diasGiro'] ?? 1;
+        final resultado = (diasDeGiro != 0)
+            ? (vendaMensalPaoFrances / diasDeGiro / 0.07)
+            : 0.0;
+        final calcResultadoInteiro = resultado.ceil().toString();
 
         final rupturasData = relatorioData['rupturas'] ?? {};
 
@@ -9018,7 +7744,28 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
           encarregadoController.text = fetchedEncarregado;
 
           colaboradoresAtivos = fetchedColaboradores;
+          rotinaSelecionadas = fetchedRotinaSelecionadas;
+          rotinaOutros = fetchedRotinaOutros;
+          trabalhoRealizado = fetchedTrabalhoRealizado;
+          giroMedio = fetchedGiroMedio;
+          qtdRetirada = fetchedQtdRetirada;
+          lotesRetirados = fetchedLotesRetirados;
+          qtdSobra = fetchedQtdSobra;
           userName = fetchedUserName;
+          paopararabanada = fetchedpaopararabanada;
+          rabanadaassada = fetchedrabanadaassada;
+          paodealhodacasapicante = fetchedpaodealhodacasapicante;
+          paodealhodacasa = fetchedpaodealhodacasa;
+
+          resultadoInteiro = calcResultadoInteiro;
+          giroMedioController.text = giroMedio;
+
+          final parsedGiro = double.tryParse(giroMedio);
+          if (parsedGiro != null && parsedGiro > 0) {
+            vendamediadiaria = (parsedGiro / 0.07).toStringAsFixed(0);
+          } else {
+            vendamediadiaria = '';
+          }
 
           for (var produto in produtos) {
             final produtoData = rupturasData[produto] ?? {};
@@ -9033,37 +7780,12 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     }
   }
 
-  void _atualizarDataManual(String texto) {
-    final regex = RegExp(r'^(\d{2})/(\d{2})/(\d{4})$');
-    final match = regex.firstMatch(texto);
-
-    if (match != null) {
-      final dia = int.parse(match.group(1)!);
-      final mes = int.parse(match.group(2)!);
-      final ano = int.parse(match.group(3)!);
-
-      if (ano >= 2000 &&
-          ano <= 2100 &&
-          mes >= 1 &&
-          mes <= 12 &&
-          dia >= 1 &&
-          dia <= 31) {
-        setState(() {
-          dataFormatada = texto;
-          dataParaArquivo =
-              "$ano-${mes.toString().padLeft(2, '0')}-${dia.toString().padLeft(2, '0')}";
-        });
-      }
-    }
-  }
-
   Future<void> _salvarPreferencias() async {
     try {
       await _firestore.collection('stores').doc(widget.storeName).set({
         'cracha': crachaController.text,
         'gerente': gerenteController.text,
         'encarregado': encarregadoController.text,
-        'colaboradoresAtivos': colaboradoresAtivos,
         'lastUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
@@ -9077,7 +7799,20 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
       }
 
       final relatorioData = {
+        'colaboradoresAtivos': colaboradoresAtivos,
+        'rotinaSelecionadas': rotinaSelecionadas,
+        'rotinaOutros': rotinaOutros,
+        'trabalhoRealizado': trabalhoRealizado,
+        'giroMedio': giroMedio,
+        'qtdRetirada': qtdRetirada,
+        'lotesRetirados': lotesRetirados,
+        'qtdSobra': qtdSobra,
+        'resultadoInteiro': resultadoInteiro,
         'rupturas': rupturasData,
+        'rabanadaassada': rabanadaassada,
+        'paopararabanada': paopararabanada,
+        'paodealhodacasa': paodealhodacasa,
+        'paodealhodacasapicante': paodealhodacasapicante,
       };
 
       await _firestore.collection('stores').doc(widget.storeName).set({
@@ -9089,323 +7824,59 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     }
   }
 
-  Future<void> _compartilharEArquivarPDF() async {
-    final dataParts = dataFormatada.split('/');
-    final dia = dataParts[0];
-    final mes = dataParts[1];
-    final ano = dataParts[2].substring(2);
-    final nomeArquivo = 'Relatorio_${widget.storeName}_${dia}_${mes}_$ano.pdf';
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text(
-              'Gerando PDF com ${fotos.length} foto(s)...',
-              style: const TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Tamanho total das fotos: ${_getTotalSize()}',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    try {
-      final pdf = pw.Document();
-
-      pdf.addPage(
-        pw.MultiPage(
-          pageFormat: PdfPageFormat.a4,
-          build: (context) => [
-            pw.Center(
-              child: pw.Column(
-                children: [
-                  pw.Text(widget.storeName,
-                      style: pw.TextStyle(
-                        fontSize: 48,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.red900,
-                      )),
-                ],
-              ),
-            ),
-            pw.SizedBox(height: 30),
-            pw.Container(
-              padding: const pw.EdgeInsets.all(10),
-              decoration: pw.BoxDecoration(
-                border: pw.Border(
-                    left: pw.BorderSide(color: PdfColors.green900, width: 4)),
-              ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text('INFORMAÇÕES DA VISITA',
-                      style: pw.TextStyle(
-                        fontSize: 18,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.green900,
-                      )),
-                  pw.SizedBox(height: 10),
-                  pw.Text('Data: $dataFormatada'),
-                  pw.Text('Promotor(a): $userName'),
-                  pw.Text('Crachá: ${crachaController.text}'),
-                  pw.Text('Gerencia: ${gerenteController.text}'),
-                  pw.Text('Encarregado(s): ${encarregadoController.text}'),
-                  pw.Text('Colaboradores no dia: $colaboradoresAtivos'),
-                ],
-              ),
-            ),
-            pw.SizedBox(height: 20),
-            pw.Container(
-              padding: const pw.EdgeInsets.all(10),
-              decoration: pw.BoxDecoration(
-                border: pw.Border(
-                    left: pw.BorderSide(color: PdfColors.green900, width: 4)),
-              ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text('RUPTURAS REGISTRADAS',
-                      style: pw.TextStyle(
-                        fontSize: 18,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.green900,
-                      )),
-                  pw.SizedBox(height: 10),
-                  ..._buildRupturasList(),
-                ],
-              ),
-            ),
-            if (fotos.isNotEmpty) ...[
-              pw.SizedBox(height: 20),
-              pw.Container(
-                padding: const pw.EdgeInsets.all(10),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border(
-                      left: pw.BorderSide(color: PdfColors.blue, width: 4)),
-                ),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text('FOTOS REGISTRADAS',
-                        style: pw.TextStyle(
-                          fontSize: 18,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.blue,
-                        )),
-                    pw.SizedBox(height: 10),
-                    ..._buildFotosListEmGrid(),
-                  ],
-                ),
-              ),
-            ],
-            pw.SizedBox(height: 40),
-            pw.Center(
-              child: pw.Text(
-                'Relatorio gerado automaticamente em $dataFormatada',
-                style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
-              ),
-            ),
-          ],
-        ),
-      );
-
-      final pdfBytes = await pdf.save();
-
-      final textoRelatorio = await _gerarTextoRelatorioParaArquivo();
-
-      await _firestore
-          .collection('relatorios')
-          .doc('lojas')
-          .collection('lojas')
-          .doc(widget.storeName)
-          .collection('datas')
-          .doc(dataParaArquivo)
-          .set({
-        'loja': widget.storeName,
-        'data': dataParaArquivo,
-        'dataFormatada': dataFormatada,
-        'textoCompleto': textoRelatorio,
-        'tecnico': userName,
-        'cracha': crachaController.text,
-        'gerente': gerenteController.text,
-        'encarregado': encarregadoController.text,
-        'colaboradoresAtivos': colaboradoresAtivos,
-        'nomeArquivoPDF': nomeArquivo,
-        'rupturas': _salvarRupturasParaFirestore(),
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      if (mounted) Navigator.pop(context);
-
-      await Share.shareXFiles(
-        [
-          XFile.fromData(pdfBytes,
-              name: nomeArquivo, mimeType: 'application/pdf')
-        ],
-        text: 'Relatorio Final - ${widget.storeName} - $dataFormatada',
-      );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).clearSnackBars();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ PDF compartilhado e relatorio arquivado!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 4),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) Navigator.pop(context);
-      print('Erro: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).clearSnackBars();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Erro ao gerar PDF: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  // ===== FUNÇÃO CORRIGIDA - SEM DIMENSÕES FIXAS (NÃO ESTOURA MARGENS) =====
-  List<pw.Widget> _buildFotosListEmGrid() {
-    final widgets = <pw.Widget>[];
-
-    for (int i = 0; i < fotos.length; i += 2) {
-      final rowChildren = <pw.Widget>[];
-
-      // Primeira foto
-      rowChildren.add(
-        pw.Expanded(
-          child: pw.Container(
-            padding: const pw.EdgeInsets.all(5),
-            child: pw.Column(
-              children: [
-                pw.Image(
-                  pw.MemoryImage(fotos[i]),
-                  fit: pw.BoxFit.contain,
-                ),
-                pw.SizedBox(height: 8),
-                if (fotosDescricao[i].isNotEmpty)
-                  pw.Text(
-                    fotosDescricao[i],
-                    style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
-                    textAlign: pw.TextAlign.center,
-                  ),
-              ],
-            ),
-          ),
-        ),
-      );
-
-      // Segunda foto (se existir)
-      if (i + 1 < fotos.length) {
-        rowChildren.add(
-          pw.Expanded(
-            child: pw.Container(
-              padding: const pw.EdgeInsets.all(5),
-              child: pw.Column(
-                children: [
-                  pw.Image(
-                    pw.MemoryImage(fotos[i + 1]),
-                    fit: pw.BoxFit.contain,
-                  ),
-                  pw.SizedBox(height: 8),
-                  if (fotosDescricao[i + 1].isNotEmpty)
-                    pw.Text(
-                      fotosDescricao[i + 1],
-                      style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
-                      textAlign: pw.TextAlign.center,
-                    ),
-                ],
-              ),
-            ),
-          ),
-        );
-      } else {
-        rowChildren.add(pw.Expanded(child: pw.Container()));
-      }
-
-      widgets.add(pw.Row(children: rowChildren));
-      widgets.add(pw.SizedBox(height: 10));
-    }
-
-    return widgets;
-  }
-
-  List<pw.Widget> _buildRupturasList() {
-    final widgets = <pw.Widget>[];
-    bool hasRuptura = false;
-
-    for (var produto in produtos) {
-      if (rupturasSelecionadas[produto] == true) {
-        hasRuptura = true;
-        final motivo = motivosSelecionados[produto];
-        if (motivo == 'outros') {
-          final outroMotivo = (outrosMotivos[produto]?.isNotEmpty == true)
-              ? outrosMotivos[produto]
-              : 'outros';
-          widgets.add(pw.Padding(
-            padding: const pw.EdgeInsets.only(left: 20),
-            child: pw.Text('- $produto (Motivo: $outroMotivo)',
-                style: pw.TextStyle(color: PdfColors.red900)),
-          ));
-        } else {
-          widgets.add(pw.Padding(
-            padding: const pw.EdgeInsets.only(left: 20),
-            child: pw.Text('- $produto (Motivo: $motivo)',
-                style: pw.TextStyle(color: PdfColors.red900)),
-          ));
-        }
-      }
-    }
-
-    if (!hasRuptura) {
-      widgets.add(pw.Padding(
-        padding: const pw.EdgeInsets.only(left: 20),
-        child: pw.Text('Nenhuma ruptura registrada',
-            style: pw.TextStyle(color: PdfColors.green)),
-      ));
-    }
-
-    return widgets;
-  }
-
-  Future<String> _gerarTextoRelatorioParaArquivo() async {
+  String _gerarTextoRelatorio() {
     final buffer = StringBuffer();
     buffer.writeln('BOA TARDE A TODOS!');
     buffer.writeln();
     buffer.writeln('*Término de visita: ${widget.storeName}');
     buffer.writeln('*Data: $dataFormatada');
+    buffer.writeln('*Horário: ${horarioSaida.format(context)}');
     buffer.writeln('*Promotor: $userName');
     buffer.writeln('*Crachá: ${crachaController.text}');
     buffer.writeln('*Gerência: ${gerenteController.text}');
     buffer.writeln('*Encarregado: ${encarregadoController.text}');
     buffer.writeln('*Colaboradores no dia: $colaboradoresAtivos');
+    buffer.writeln('*Venda Pão Francês/dia:');
+    buffer.writeln('$resultadoInteiro unidades');
+    buffer.writeln();
+    buffer.writeln('*Motivo:');
+    buffer.writeln();
+
+    if (rotinaSelecionadas.isNotEmpty) {
+      buffer.write(rotinaSelecionadas.join(', '));
+      if (rotinaSelecionadas.contains('outros') && rotinaOutros.isNotEmpty) {
+        buffer.write(' ($rotinaOutros)');
+      }
+    } else {
+      buffer.write('Nenhum motivo selecionado');
+    }
+    buffer.writeln();
+    buffer.writeln();
+    buffer.writeln('*Trabalho Realizado No Setor:');
+    buffer.writeln();
+    buffer.writeln(
+        trabalhoRealizado.isEmpty ? 'Não informado' : trabalhoRealizado);
+    buffer.writeln();
+    buffer.writeln('*Vendas Do Dia Anterior:');
+    buffer.writeln();
+    buffer.writeln('#Pão Francês:');
+    buffer.writeln(
+        '${vendamediadiaria.isEmpty ? '0' : vendamediadiaria} unidades');
+    buffer.writeln('#Pão de Queijo Tradicional:');
+    buffer.writeln('${qtdRetirada.isEmpty ? '0' : qtdRetirada} Kilos');
+    buffer.writeln('#Pão de Queijo Coquetel:');
+    buffer.writeln('${lotesRetirados.isEmpty ? '0' : lotesRetirados} Kilos');
+    buffer.writeln('#Biscoito de Queijo:');
+    buffer.writeln('${qtdSobra.isEmpty ? '0' : qtdSobra} Kilos');
     buffer.writeln();
     buffer.writeln('*Rupturas:');
     buffer.writeln();
-    buffer.write(_formatarRupturasTexto());
-    buffer.writeln();
-    buffer.writeln('*Fotos: ${fotos.length} foto(s) incluída(s) no PDF');
+    buffer.write(_formatarRupturas());
 
     return buffer.toString().trim();
   }
 
-  String _formatarRupturasTexto() {
+  String _formatarRupturas() {
     final buffer = StringBuffer();
     bool hasRuptura = false;
 
@@ -9430,6 +7901,84 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     return buffer.toString();
   }
 
+  Future<void> _copiarTexto() async {
+    final texto = _gerarTextoRelatorio();
+    await Clipboard.setData(ClipboardData(text: texto));
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Texto copiado para a área de transferência!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _arquivarRelatorio() async {
+    final texto = _gerarTextoRelatorio();
+
+    try {
+      await _firestore
+          .collection('relatorios')
+          .doc('lojas')
+          .collection('lojas')
+          .doc(widget.storeName)
+          .collection('datas')
+          .doc(dataParaArquivo)
+          .set({
+        'loja': widget.storeName,
+        'data': dataParaArquivo,
+        'dataFormatada': dataFormatada,
+        'horario': horarioSaida.format(context),
+        'textoCompleto': texto,
+        'tecnico': userName,
+        'cracha': crachaController.text,
+        'gerente': gerenteController.text,
+        'encarregado': encarregadoController.text,
+        'colaboradoresAtivos': colaboradoresAtivos,
+        'resultadoInteiro': resultadoInteiro,
+        'rotinaSelecionadas': rotinaSelecionadas,
+        'rotinaOutros': rotinaOutros,
+        'trabalhoRealizado': trabalhoRealizado,
+        'giroMedio': giroMedio,
+        'qtdRetirada': qtdRetirada,
+        'lotesRetirados': lotesRetirados,
+        'qtdSobra': qtdSobra,
+        'vendamediadiaria': vendamediadiaria,
+        'rabanadaassada': rabanadaassada,
+        'paopararabanada': paopararabanada,
+        'paodealhodacasa': paodealhodacasa,
+        'paodealhodacasapicante': paodealhodacasapicante,
+        'rupturas': _salvarRupturasParaFirestore(),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Relatório arquivado com sucesso!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Erro ao arquivar relatório: $e');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao arquivar: $e'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
   Map<String, dynamic> _salvarRupturasParaFirestore() {
     final rupturasData = <String, dynamic>{};
     for (var produto in produtos) {
@@ -9442,12 +7991,30 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     return rupturasData;
   }
 
+  Future<void> _compartilharRelatorioFinal() async {
+    final texto = _gerarTextoRelatorio();
+    await Share.share(texto, subject: 'Relatório Final');
+  }
+
+  void _toggleRotina(String item, bool checked) {
+    setState(() {
+      if (checked) {
+        if (!rotinaSelecionadas.contains(item)) {
+          rotinaSelecionadas.add(item);
+        }
+      } else {
+        rotinaSelecionadas.remove(item);
+      }
+      _salvarPreferencias();
+    });
+  }
+
   @override
   void dispose() {
     crachaController.dispose();
     gerenteController.dispose();
     encarregadoController.dispose();
-    dataController.dispose();
+    giroMedioController.dispose();
     super.dispose();
   }
 
@@ -9455,7 +8022,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Color(0xff075fa8),
+        backgroundColor: vermelhoEscuro,
         centerTitle: true,
         title: Row(
           mainAxisSize: MainAxisSize.min,
@@ -9473,14 +8040,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.share, color: Colors.white, size: 28),
-            onPressed: _compartilharEArquivarPDF,
-            tooltip: 'Compartilhar PDF e Arquivar',
-          ),
-          const SizedBox(width: 8),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -9489,14 +8048,27 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Data:',
-                  labelStyle: TextStyle(fontSize: 23, color: verdeEscuro),
-                  hintText: 'dd/MM/yyyy',
-                ),
-                controller: dataController,
-                onChanged: _atualizarDataManual,
+              ListTile(
+                title: const Text('Horário Saída'),
+                trailing: Text(horarioSaida.format(context),
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                onTap: () async {
+                  final picked = await showTimePicker(
+                      context: context, initialTime: horarioSaida);
+                  if (picked != null) {
+                    setState(() {
+                      horarioSaida = picked;
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Data: $dataFormatada',
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 19,
+                    color: verdeEscuro),
               ),
               const SizedBox(height: 32),
               TextField(
@@ -9542,6 +8114,229 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                 ),
                 controller: crachaController,
                 onChanged: (_) => _salvarPreferencias(),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Venda Média Pão Francês/Dia:',
+                          style: TextStyle(fontSize: 23, color: verdeEscuro),
+                        ),
+                        const SizedBox(height: 8),
+                        RichText(
+                          text: TextSpan(
+                            children: [
+                              TextSpan(
+                                text: resultadoInteiro.isNotEmpty
+                                    ? resultadoInteiro
+                                    : '0',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.red,
+                                ),
+                              ),
+                              const TextSpan(
+                                text: ' unidades',
+                                style: TextStyle(
+                                    fontSize: 16, color: Color(0xff0c0c0c)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Motivo:',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 23,
+                    color: verdeEscuro),
+              ),
+              ...rotinaOpcoes.map((item) {
+                if (item == 'outros') {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CheckboxListTile(
+                        title: Text(item),
+                        value: rotinaSelecionadas.contains(item),
+                        onChanged: (v) {
+                          _toggleRotina(item, v ?? false);
+                        },
+                      ),
+                      if (rotinaSelecionadas.contains(item))
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: TextField(
+                            decoration: const InputDecoration(
+                                labelText: 'Descrever outros'),
+                            onChanged: (v) {
+                              setState(() {
+                                rotinaOutros = v;
+                              });
+                              _salvarPreferencias();
+                            },
+                            controller: TextEditingController(
+                                text: rotinaOutros)
+                              ..selection = TextSelection.fromPosition(
+                                  TextPosition(offset: rotinaOutros.length)),
+                          ),
+                        ),
+                    ],
+                  );
+                }
+                return CheckboxListTile(
+                  title: Text(item),
+                  value: rotinaSelecionadas.contains(item),
+                  onChanged: (v) {
+                    _toggleRotina(item, v ?? false);
+                  },
+                );
+              }).toList(),
+              const SizedBox(height: 20),
+              const Text(
+                'Trabalho Realizado no Setor:',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 23,
+                    color: verdeEscuro),
+              ),
+              TextField(
+                maxLines: null,
+                minLines: 3,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: 'Descreva o trabalho realizado',
+                ),
+                controller: TextEditingController(text: trabalhoRealizado)
+                  ..selection = TextSelection.fromPosition(
+                      TextPosition(offset: trabalhoRealizado.length)),
+                onChanged: (v) {
+                  trabalhoRealizado = v;
+                  _salvarPreferencias();
+                },
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Vendas do Dia Anterior:',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 23,
+                    color: verdeEscuro),
+              ),
+              const SizedBox(height: 25),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 4,
+                    child: TextField(
+                      decoration: const InputDecoration(
+                        labelText: 'Pão Francês (kg)',
+                        labelStyle: TextStyle(fontSize: 16),
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                      controller: giroMedioController,
+                      onChanged: (v) {
+                        giroMedio = v;
+                        final valor = double.tryParse(giroMedio);
+                        if (valor != null && valor > 0) {
+                          final convertido = (valor / 0.07).toStringAsFixed(0);
+                          setState(() {
+                            vendamediadiaria = convertido;
+                          });
+                        } else {
+                          setState(() {
+                            vendamediadiaria = '';
+                          });
+                        }
+                        _salvarPreferencias();
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 2,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 12, horizontal: 8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade400),
+                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.white,
+                      ),
+                      child: Text(
+                        vendamediadiaria.isNotEmpty
+                            ? '$vendamediadiaria unid'
+                            : '0 unid',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Pão de Queijo Tradicional (Kg)',
+                  labelStyle: TextStyle(fontSize: 16),
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+                controller: TextEditingController(text: qtdRetirada)
+                  ..selection = TextSelection.fromPosition(
+                      TextPosition(offset: qtdRetirada.length)),
+                onChanged: (v) {
+                  qtdRetirada = v;
+                  _salvarPreferencias();
+                },
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Pão de Queijo Coquetel (Kg)',
+                  labelStyle: TextStyle(fontSize: 16),
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+                controller: TextEditingController(text: lotesRetirados)
+                  ..selection = TextSelection.fromPosition(
+                      TextPosition(offset: lotesRetirados.length)),
+                onChanged: (v) {
+                  lotesRetirados = v;
+                  _salvarPreferencias();
+                },
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Biscoito de Queijo (Kg)',
+                  labelStyle: TextStyle(fontSize: 16),
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+                controller: TextEditingController(text: qtdSobra)
+                  ..selection = TextSelection.fromPosition(
+                      TextPosition(offset: qtdSobra.length)),
+                onChanged: (v) {
+                  qtdSobra = v;
+                  _salvarPreferencias();
+                },
               ),
               const SizedBox(height: 20),
               const Text(
@@ -9625,131 +8420,46 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                   );
                 }).toList(),
               ),
-              const SizedBox(height: 20),
-              // Seção de Fotos
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Fotos:',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 23,
-                        color: Color(0xff075fa8)),
-                  ),
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.camera_alt,
-                            size: 32, color: verdeEscuro),
-                        onPressed: _adicionarFotoCamera,
-                        tooltip: 'Tirar foto',
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.photo_library,
-                            size: 32, color: verdeEscuro),
-                        onPressed: _selecionarMultiplasFotos,
-                        tooltip: 'Escolher múltiplas fotos',
-                      ),
-                      if (fotos.isNotEmpty)
-                        IconButton(
-                          icon: const Icon(Icons.delete_sweep,
-                              size: 32, color: Colors.red),
-                          onPressed: _apagarTodasFotos,
-                          tooltip: 'Apagar todas as fotos',
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              // Mostrar tamanho total das fotos
-              if (fotos.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    'Tamanho total das fotos: ${_getTotalSize()}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                  ),
-                ),
-              // Lista de fotos adicionadas
-              if (fotos.isNotEmpty)
-                Column(
-                  children: [
-                    ...fotos.asMap().entries.map((entry) {
-                      int index = entry.key;
-                      Uint8List foto = entry.value;
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                height: 200,
-                                width: double.infinity,
-                                decoration: BoxDecoration(
-                                  border:
-                                      Border.all(color: Colors.grey.shade300),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child:
-                                      Image.memory(foto, fit: BoxFit.contain),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              TextField(
-                                decoration: const InputDecoration(
-                                  labelText: 'Descrição da foto (opcional)',
-                                  border: OutlineInputBorder(),
-                                  contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 8),
-                                ),
-                                onChanged: (descricao) =>
-                                    _atualizarDescricaoFoto(index, descricao),
-                              ),
-                              const SizedBox(height: 8),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: TextButton.icon(
-                                  icon: const Icon(Icons.delete,
-                                      color: Colors.red),
-                                  label: const Text('Remover',
-                                      style: TextStyle(color: Colors.red)),
-                                  onPressed: () => _removerFoto(index),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ],
-                )
-              else
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'Nenhuma foto adicionada.\nClique nos ícones da câmera ou galeria para adicionar fotos.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                    ),
-                  ),
-                ),
               const SizedBox(height: 40),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
+              Center(
+                child: Column(
+                  children: [
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.share),
+                      label: const Text('Compartilhar'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: vermelhoEscuro,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 14),
+                        textStyle: const TextStyle(fontSize: 20),
+                      ),
+                      onPressed: _compartilharRelatorioFinal,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.archive),
+                      label: const Text('Arquivar'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: verdeEscuro,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 14),
+                        textStyle: const TextStyle(fontSize: 20),
+                      ),
+                      onPressed: _arquivarRelatorio,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.copy),
+                      label: const Text('Copiar texto'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade700,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 14),
+                        textStyle: const TextStyle(fontSize: 20),
+                      ),
+                      onPressed: _copiarTexto,
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -23128,7 +21838,7 @@ class ConsultarRelatorios extends StatefulWidget {
 
 class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
   static const verdeEscuro = Color(0xFF006400);
-  static const azulEscuro = Color(0xFF075fa8);
+  static const rosaEscuro = Color(0xFFE91E63);
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -23208,6 +21918,7 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
           .doc(lojaSelecionada)
           .collection('datas')
           .where('data', isEqualTo: _formatarDataFirestore(dataSelecionada!))
+          .orderBy('data', descending: true)
           .get();
 
       setState(() {
@@ -23262,8 +21973,6 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
   }
 
   Widget _campoInfo(String titulo, String valor) {
-    if (valor.isEmpty) return const SizedBox.shrink();
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: RichText(
@@ -23287,6 +21996,86 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
     );
   }
 
+  Widget _buildMotivo(Map<String, dynamic> data) {
+    final rotinaSelecionadas =
+        List<String>.from(data['rotinaSelecionadas'] ?? []);
+    final rotinaOutros = data['rotinaOutros'] ?? '';
+
+    if (rotinaSelecionadas.isEmpty) {
+      return _campoInfo('Motivo:', 'Nenhum motivo selecionado');
+    }
+
+    String motivoTexto = rotinaSelecionadas.join(', ');
+    if (rotinaSelecionadas.contains('outros') && rotinaOutros.isNotEmpty) {
+      motivoTexto = '$motivoTexto ($rotinaOutros)';
+    }
+
+    return _campoInfo('Motivo:', motivoTexto);
+  }
+
+  Widget _buildVendasDiaAnterior(Map<String, dynamic> data) {
+    final vendamediadiaria = data['vendamediadiaria'] ?? '';
+    final qtdRetirada = data['qtdRetirada'] ?? '0';
+    final lotesRetirados = data['lotesRetirados'] ?? '0';
+    final qtdSobra = data['qtdSobra'] ?? '0';
+    final giroMedio = data['giroMedio'] ?? '0';
+
+    String paoFrancesUnidades = vendamediadiaria;
+    if (paoFrancesUnidades.isEmpty && giroMedio != '0') {
+      final valor = double.tryParse(giroMedio.toString()) ?? 0;
+      paoFrancesUnidades = (valor / 0.07).toStringAsFixed(0);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 18),
+        const Text(
+          'Vendas do Dia Anterior:',
+          style: TextStyle(
+            fontSize: 21,
+            fontWeight: FontWeight.bold,
+            color: verdeEscuro,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Pão Francês: ${paoFrancesUnidades.isEmpty ? '0' : paoFrancesUnidades} unidades',
+                style: const TextStyle(fontSize: 17, color: Colors.black87),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Pão de Queijo Tradicional: $qtdRetirada Kilos',
+                style: const TextStyle(fontSize: 17, color: Colors.black87),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Pão de Queijo Coquetel: $lotesRetirados Kilos',
+                style: const TextStyle(fontSize: 17, color: Colors.black87),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Biscoito de Queijo: $qtdSobra Kilos',
+                style: const TextStyle(fontSize: 17, color: Colors.black87),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildRupturas(Map<String, dynamic> data) {
     final rupturas = data['rupturas'] ?? {};
 
@@ -23299,8 +22088,6 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
         }
       });
     }
-
-    if (produtosComRuptura.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -23323,28 +22110,34 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: Colors.grey.shade300),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: produtosComRuptura.map((entry) {
-              final produto = entry.key;
-              final info = entry.value;
-              final motivo = info['motivo'] ?? 'sem motivo';
-              final outroMotivo = info['outroMotivo'] ?? '';
+          child: produtosComRuptura.isEmpty
+              ? const Text(
+                  'Nenhuma ruptura registrada',
+                  style: TextStyle(fontSize: 17, color: Colors.black87),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: produtosComRuptura.map((entry) {
+                    final produto = entry.key;
+                    final info = entry.value;
+                    final motivo = info['motivo'] ?? 'sem motivo';
+                    final outroMotivo = info['outroMotivo'] ?? '';
 
-              String motivoTexto = motivo;
-              if (motivo == 'outros' && outroMotivo.isNotEmpty) {
-                motivoTexto = 'outros ($outroMotivo)';
-              }
+                    String motivoTexto = motivo;
+                    if (motivo == 'outros' && outroMotivo.isNotEmpty) {
+                      motivoTexto = 'outros ($outroMotivo)';
+                    }
 
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  '• $produto (Motivo: $motivoTexto)',
-                  style: const TextStyle(fontSize: 16, color: Colors.black87),
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        '• $produto (Motivo: $motivoTexto)',
+                        style: const TextStyle(
+                            fontSize: 16, color: Colors.black87),
+                      ),
+                    );
+                  }).toList(),
                 ),
-              );
-            }).toList(),
-          ),
         ),
       ],
     );
@@ -23354,7 +22147,7 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: azulEscuro,
+        backgroundColor: rosaEscuro,
         centerTitle: true,
         title: Row(
           children: [
@@ -23365,7 +22158,7 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
             const SizedBox(width: 8),
             const Expanded(
               child: Text(
-                'Consultar Relatórios',
+                'Consultar',
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 20,
@@ -23455,7 +22248,7 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
                   style: TextStyle(fontSize: 20),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: azulEscuro,
+                  backgroundColor: rosaEscuro,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 onPressed: _buscarRelatorios,
@@ -23492,7 +22285,7 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.store, color: azulEscuro),
+                          const Icon(Icons.store, color: rosaEscuro),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -23500,10 +22293,11 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
                               style: const TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
-                                color: azulEscuro,
+                                color: rosaEscuro,
                               ),
                             ),
                           ),
+                          // Botão de copiar ao lado do nome da loja
                           if (textoCompleto.isNotEmpty)
                             IconButton(
                               icon: const Icon(Icons.copy, color: Colors.blue),
@@ -23513,16 +22307,45 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
                         ],
                       ),
                       const Divider(height: 30),
-                      // Informações da visita
                       _campoInfo('Data:', data['dataFormatada'] ?? ''),
+                      _campoInfo('Horário:', data['horario'] ?? ''),
                       _campoInfo('Técnico:', data['tecnico'] ?? ''),
                       _campoInfo('Crachá:', data['cracha'] ?? ''),
                       _campoInfo('Gerente:', data['gerente'] ?? ''),
                       _campoInfo('Encarregado:', data['encarregado'] ?? ''),
-                      _campoInfo('Colaboradores no dia:',
+                      _campoInfo('Colaboradores:',
                           '${data['colaboradoresAtivos'] ?? ''}'),
+                      _campoInfo('Venda Média Pão Francês/Dia:',
+                          '${data['resultadoInteiro'] ?? '0'} unidades'),
 
-                      // Rupturas
+                      _buildMotivo(data),
+
+                      const SizedBox(height: 18),
+                      const Text(
+                        'Trabalho Realizado:',
+                        style: TextStyle(
+                          fontSize: 21,
+                          fontWeight: FontWeight.bold,
+                          color: verdeEscuro,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Text(
+                          data['trabalhoRealizado'] ?? 'Não informado',
+                          style: const TextStyle(
+                              fontSize: 17, color: Colors.black87),
+                        ),
+                      ),
+
+                      _buildVendasDiaAnterior(data),
                       _buildRupturas(data),
 
                       const SizedBox(height: 16),
