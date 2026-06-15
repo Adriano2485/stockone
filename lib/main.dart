@@ -423,13 +423,13 @@ class _RedeScreenState extends State<RedeScreen> {
     }
   }
 
-  // ===== CARD PARA LOJA FAVORITA (mesmo estilo da StoreSelectionScreen) =====
+  // ===== CARD PARA LOJA FAVORITA (tamanho reduzido igual ao da StoreSelectionScreen) =====
   Widget _favoriteStoreCard(String storeName) {
     return Card(
-      elevation: 3,
+      elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: Colors.amber.shade300, width: 1.5),
+        side: BorderSide(color: Colors.amber.shade300, width: 1),
       ),
       child: Container(
         decoration: BoxDecoration(
@@ -446,59 +446,45 @@ class _RedeScreenState extends State<RedeScreen> {
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
           onTap: () => _onFavoriteStoreTap(storeName),
-          child: Stack(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 4,
-                  vertical: 12,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 4,
+              vertical: 8,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.star,
+                  color: Colors.amber,
+                  size: 32,
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const SizedBox(height: 20),
-                    Text(
-                      storeName,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.brown.shade800,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Loja favorita',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.brown.shade600,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              Positioned(
-                top: 4,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: const Icon(
-                      Icons.star,
-                      color: Colors.amber,
-                      size: 28,
-                    ),
+                const SizedBox(height: 8),
+                Text(
+                  storeName,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.brown.shade700,
                   ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ],
+                const SizedBox(height: 2),
+                Text(
+                  'Favorita',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.brown.shade500,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -8541,47 +8527,30 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   static const verdeEscuro = Color(0xFF006400);
   static const vermelhoEscuro = Color(0xFF8B0000);
 
-  TimeOfDay horarioSaida = TimeOfDay.now();
-
   late TextEditingController crachaController;
   late TextEditingController gerenteController;
   late TextEditingController encarregadoController;
-  late TextEditingController giroMedioController;
+  late TextEditingController dataController;
 
-  String resultadoInteiro = '';
-  String vendamediadiaria = '';
   String userName = '';
   int colaboradoresAtivos = 0;
   late String dataFormatada;
   late String dataParaArquivo;
 
-  List<String> rotinaOpcoes = [
-    'rotina',
-    'inauguração',
-    'cobrir falta de funcionários',
-    'outros',
-  ];
-  List<String> rotinaSelecionadas = [];
-  String rotinaOutros = '';
-  String trabalhoRealizado = '';
-  String giroMedio = '';
-  String qtdRetirada = '';
-  String lotesRetirados = '';
-  String qtdSobra = '';
-  String rabanadaassada = '';
-  String paopararabanada = '';
-  String paodealhodacasapicante = '';
-  String paodealhodacasa = '';
+  // Lista para armazenar as fotos
+  List<Uint8List> fotos = [];
+  List<String> fotosDescricao = [];
+
+  final ImagePicker _picker = ImagePicker();
 
   final List<String> produtos = [
     'Pão Francês',
-    'Pão Francês integral',
+    'Pão Francês Fibras',
     'Pão Francês Panhoca',
     'Pão Francês com Queijo',
     'Pão Baguete Francesa Queijo',
     'Pão Baguete Francesa',
     'Pão Baguete Francesa Gergelim',
-    'Mini Pão Francês Gergelim',
     'Baguete Francesa Queijo',
     'Baguete Francesa',
     'Pão Queijo Tradicional',
@@ -8591,6 +8560,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     'Pão Samaritano',
     'Pão Pizza',
     'Pão Tatu',
+    'Pão Tatu Com Açúcar',
     'Mini Pão Sonho',
     'Mini Pão Sonho Chocolate',
     'Pão Bambino',
@@ -8601,7 +8571,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     'Rosca Caseira Côco',
     'Rosca Caseira Leite em Pó',
     'Rosca Côco/Queijo',
-    'Sanduíche Bahamas',
+    'Sanduíche Bahamas 120',
     'Rabanada Assada',
     'Pão Fofinho',
     'Sanduíche Fofinho',
@@ -8628,6 +8598,134 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   late Map<String, String> outrosMotivos;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  void _atualizarDataAtual() {
+    final dataHoje = DateTime.now();
+    dataFormatada =
+        "${dataHoje.day.toString().padLeft(2, '0')}/${dataHoje.month.toString().padLeft(2, '0')}/${dataHoje.year}";
+    dataParaArquivo =
+        "${dataHoje.year}-${dataHoje.month.toString().padLeft(2, '0')}-${dataHoje.day.toString().padLeft(2, '0')}";
+    dataController.text = dataFormatada;
+  }
+
+  // ===== FUNÇÃO DE COMPRESSÃO DE IMAGEM =====
+  Future<Uint8List> _compressImage(Uint8List bytes) async {
+    try {
+      final img.Image? image = img.decodeImage(bytes);
+      if (image == null) return bytes;
+
+      int targetWidth = image.width;
+      int targetHeight = image.height;
+
+      if (image.width > 900 || image.height > 900) {
+        if (image.width > image.height) {
+          targetWidth = 900;
+          targetHeight = (image.height * 900 / image.width).round();
+        } else {
+          targetHeight = 900;
+          targetWidth = (image.width * 900 / image.height).round();
+        }
+      }
+
+      final img.Image resized = img.copyResize(
+        image,
+        width: targetWidth,
+        height: targetHeight,
+        interpolation: img.Interpolation.average,
+      );
+
+      return Uint8List.fromList(img.encodeJpg(resized, quality: 75));
+    } catch (e) {
+      print('Erro ao comprimir imagem: $e');
+      return bytes;
+    }
+  }
+
+  // Funções para salvar e carregar fotos no SharedPreferences
+  Future<void> _salvarFotosNoSharedPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      final List<String> fotosBase64 =
+          fotos.map((foto) => base64Encode(foto)).toList();
+      await prefs.setStringList('fotos_${widget.storeName}', fotosBase64);
+      await prefs.setStringList(
+          'fotos_desc_${widget.storeName}', fotosDescricao);
+
+      print('Fotos salvas: ${fotos.length}');
+    } catch (e) {
+      print('Erro ao salvar fotos: $e');
+    }
+  }
+
+  Future<void> _carregarFotosDoSharedPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      final List<String>? fotosBase64 =
+          prefs.getStringList('fotos_${widget.storeName}');
+      final List<String>? descricoes =
+          prefs.getStringList('fotos_desc_${widget.storeName}');
+
+      if (fotosBase64 != null && fotosBase64.isNotEmpty) {
+        final List<Uint8List> fotosCarregadas = [];
+        for (String fotoBase64 in fotosBase64) {
+          fotosCarregadas.add(base64Decode(fotoBase64));
+        }
+
+        setState(() {
+          fotos = fotosCarregadas;
+          fotosDescricao =
+              descricoes ?? List.filled(fotosCarregadas.length, '');
+        });
+
+        print('Fotos carregadas: ${fotos.length}');
+      }
+    } catch (e) {
+      print('Erro ao carregar fotos: $e');
+    }
+  }
+
+  // Função para apagar TODAS as fotos
+  Future<void> _apagarTodasFotos() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Apagar todas as fotos'),
+        content: const Text(
+            'Tem certeza que deseja apagar TODAS as fotos? Esta ação não pode ser desfeita.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Apagar todas'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      setState(() {
+        fotos.clear();
+        fotosDescricao.clear();
+      });
+      await _salvarFotosNoSharedPreferences();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Todas as fotos foram removidas!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -8635,19 +8733,148 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     crachaController = TextEditingController();
     gerenteController = TextEditingController();
     encarregadoController = TextEditingController();
-    giroMedioController = TextEditingController();
+    dataController = TextEditingController();
 
     rupturasSelecionadas = {for (var p in produtos) p: false};
     motivosSelecionados = {for (var p in produtos) p: motivos[0]};
     outrosMotivos = {for (var p in produtos) p: ''};
 
-    final dataHoje = DateTime.now();
-    dataFormatada =
-        "${dataHoje.day.toString().padLeft(2, '0')}/${dataHoje.month.toString().padLeft(2, '0')}/${dataHoje.year}";
-    dataParaArquivo =
-        "${dataHoje.year}-${dataHoje.month.toString().padLeft(2, '0')}-${dataHoje.day.toString().padLeft(2, '0')}";
-
+    _atualizarDataAtual();
     _carregarPreferencias();
+    _carregarFotosDoSharedPreferences();
+    _recompressExistingPhotos();
+  }
+
+  // Recomprime todas as fotos existentes
+  Future<void> _recompressExistingPhotos() async {
+    if (fotos.isEmpty) return;
+
+    print('Recomprimindo ${fotos.length} fotos existentes...');
+    bool changed = false;
+    List<Uint8List> novasFotos = [];
+
+    for (var foto in fotos) {
+      final comprimida = await _compressImage(foto);
+      if (comprimida.length < foto.length) {
+        changed = true;
+        novasFotos.add(comprimida);
+      } else {
+        novasFotos.add(foto);
+      }
+    }
+
+    if (changed) {
+      setState(() {
+        fotos = novasFotos;
+      });
+      await _salvarFotosNoSharedPreferences();
+      print('Fotos recomprimidas com sucesso!');
+    }
+  }
+
+  // Função para selecionar MÚLTIPLAS fotos da galeria (COM COMPRESSÃO)
+  Future<void> _selecionarMultiplasFotos() async {
+    try {
+      final List<XFile>? fotosSelecionadas = await _picker.pickMultiImage(
+        imageQuality: 70,
+        maxWidth: 900,
+        maxHeight: 900,
+      );
+
+      if (fotosSelecionadas != null && fotosSelecionadas.isNotEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Processando imagens...'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+        }
+
+        for (var foto in fotosSelecionadas) {
+          Uint8List bytes = await foto.readAsBytes();
+          bytes = await _compressImage(bytes);
+          setState(() {
+            fotos.add(bytes);
+            fotosDescricao.add('');
+          });
+        }
+        await _salvarFotosNoSharedPreferences();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content:
+                  Text('✅ ${fotosSelecionadas.length} foto(s) adicionadas!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Erro ao selecionar múltiplas fotos: $e');
+    }
+  }
+
+  // Função para adicionar foto da câmera (COM COMPRESSÃO)
+  Future<void> _adicionarFotoCamera() async {
+    try {
+      final XFile? foto = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 70,
+        maxWidth: 900,
+        maxHeight: 900,
+      );
+
+      if (foto != null) {
+        Uint8List bytes = await foto.readAsBytes();
+        bytes = await _compressImage(bytes);
+        setState(() {
+          fotos.add(bytes);
+          fotosDescricao.add('');
+        });
+        await _salvarFotosNoSharedPreferences();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Foto adicionada!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 1),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Erro ao tirar foto: $e');
+    }
+  }
+
+  // Função para remover foto individual
+  void _removerFoto(int index) async {
+    setState(() {
+      fotos.removeAt(index);
+      fotosDescricao.removeAt(index);
+    });
+    await _salvarFotosNoSharedPreferences();
+  }
+
+  // Função para atualizar descrição da foto
+  void _atualizarDescricaoFoto(int index, String descricao) async {
+    setState(() {
+      fotosDescricao[index] = descricao;
+    });
+    await _salvarFotosNoSharedPreferences();
+  }
+
+  String _getTotalSize() {
+    int totalBytes = fotos.fold(0, (sum, foto) => sum + foto.length);
+    if (totalBytes < 1024 * 1024) {
+      return '${(totalBytes / 1024).toStringAsFixed(1)} KB';
+    } else {
+      return '${(totalBytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
   }
 
   Future<void> _carregarPreferencias() async {
@@ -8663,30 +8890,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         final fetchedEncarregado = data['encarregado'] ?? '';
 
         final fetchedColaboradores = relatorioData['colaboradoresAtivos'] ?? 0;
-        final fetchedRotinaSelecionadas =
-            List<String>.from(relatorioData['rotinaSelecionadas'] ?? []);
-        final fetchedRotinaOutros = relatorioData['rotinaOutros'] ?? '';
-        final fetchedTrabalhoRealizado =
-            relatorioData['trabalhoRealizado'] ?? '';
-        final fetchedGiroMedio = relatorioData['giroMedio'] ?? '';
-        final fetchedQtdRetirada = relatorioData['qtdRetirada'] ?? '';
-        final fetchedLotesRetirados = relatorioData['lotesRetirados'] ?? '';
-        final fetchedrabanadaassada = relatorioData['rabanadaassada'] ?? '';
-        final fetchedpaopararabanada = relatorioData['paopararabanada'] ?? '';
-        final fetchedpaodealhodacasa = relatorioData['paodealhodacasa'] ?? '';
-        final fetchedpaodealhodacasapicante =
-            relatorioData['paodealhodacasapicante'] ?? '';
-        final fetchedQtdSobra = relatorioData['qtdSobra'] ?? '';
         final fetchedUserName = data['userName'] ?? '';
-
-        final vendasData = data['vendas'] ?? {};
-        final vendaMensalPaoFrances =
-            (vendasData['Pão Francês'] ?? 0).toDouble();
-        final diasDeGiro = data['diasGiro'] ?? 1;
-        final resultado = (diasDeGiro != 0)
-            ? (vendaMensalPaoFrances / diasDeGiro / 0.07)
-            : 0.0;
-        final calcResultadoInteiro = resultado.ceil().toString();
 
         final rupturasData = relatorioData['rupturas'] ?? {};
 
@@ -8696,28 +8900,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
           encarregadoController.text = fetchedEncarregado;
 
           colaboradoresAtivos = fetchedColaboradores;
-          rotinaSelecionadas = fetchedRotinaSelecionadas;
-          rotinaOutros = fetchedRotinaOutros;
-          trabalhoRealizado = fetchedTrabalhoRealizado;
-          giroMedio = fetchedGiroMedio;
-          qtdRetirada = fetchedQtdRetirada;
-          lotesRetirados = fetchedLotesRetirados;
-          qtdSobra = fetchedQtdSobra;
           userName = fetchedUserName;
-          paopararabanada = fetchedpaopararabanada;
-          rabanadaassada = fetchedrabanadaassada;
-          paodealhodacasapicante = fetchedpaodealhodacasapicante;
-          paodealhodacasa = fetchedpaodealhodacasa;
-
-          resultadoInteiro = calcResultadoInteiro;
-          giroMedioController.text = giroMedio;
-
-          final parsedGiro = double.tryParse(giroMedio);
-          if (parsedGiro != null && parsedGiro > 0) {
-            vendamediadiaria = (parsedGiro / 0.07).toStringAsFixed(0);
-          } else {
-            vendamediadiaria = '';
-          }
 
           for (var produto in produtos) {
             final produtoData = rupturasData[produto] ?? {};
@@ -8732,12 +8915,37 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     }
   }
 
+  void _atualizarDataManual(String texto) {
+    final regex = RegExp(r'^(\d{2})/(\d{2})/(\d{4})$');
+    final match = regex.firstMatch(texto);
+
+    if (match != null) {
+      final dia = int.parse(match.group(1)!);
+      final mes = int.parse(match.group(2)!);
+      final ano = int.parse(match.group(3)!);
+
+      if (ano >= 2000 &&
+          ano <= 2100 &&
+          mes >= 1 &&
+          mes <= 12 &&
+          dia >= 1 &&
+          dia <= 31) {
+        setState(() {
+          dataFormatada = texto;
+          dataParaArquivo =
+              "$ano-${mes.toString().padLeft(2, '0')}-${dia.toString().padLeft(2, '0')}";
+        });
+      }
+    }
+  }
+
   Future<void> _salvarPreferencias() async {
     try {
       await _firestore.collection('stores').doc(widget.storeName).set({
         'cracha': crachaController.text,
         'gerente': gerenteController.text,
         'encarregado': encarregadoController.text,
+        'colaboradoresAtivos': colaboradoresAtivos,
         'lastUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
@@ -8751,20 +8959,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
       }
 
       final relatorioData = {
-        'colaboradoresAtivos': colaboradoresAtivos,
-        'rotinaSelecionadas': rotinaSelecionadas,
-        'rotinaOutros': rotinaOutros,
-        'trabalhoRealizado': trabalhoRealizado,
-        'giroMedio': giroMedio,
-        'qtdRetirada': qtdRetirada,
-        'lotesRetirados': lotesRetirados,
-        'qtdSobra': qtdSobra,
-        'resultadoInteiro': resultadoInteiro,
         'rupturas': rupturasData,
-        'rabanadaassada': rabanadaassada,
-        'paopararabanada': paopararabanada,
-        'paodealhodacasa': paodealhodacasa,
-        'paodealhodacasapicante': paodealhodacasapicante,
       };
 
       await _firestore.collection('stores').doc(widget.storeName).set({
@@ -8776,59 +8971,323 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     }
   }
 
-  String _gerarTextoRelatorio() {
+  Future<void> _compartilharEArquivarPDF() async {
+    final dataParts = dataFormatada.split('/');
+    final dia = dataParts[0];
+    final mes = dataParts[1];
+    final ano = dataParts[2].substring(2);
+    final nomeArquivo = 'Relatorio_${widget.storeName}_${dia}_${mes}_$ano.pdf';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(
+              'Gerando PDF com ${fotos.length} foto(s)...',
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Tamanho total das fotos: ${_getTotalSize()}',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final pdf = pw.Document();
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          build: (context) => [
+            pw.Center(
+              child: pw.Column(
+                children: [
+                  pw.Text(widget.storeName,
+                      style: pw.TextStyle(
+                        fontSize: 48,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.red900,
+                      )),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 30),
+            pw.Container(
+              padding: const pw.EdgeInsets.all(10),
+              decoration: pw.BoxDecoration(
+                border: pw.Border(
+                    left: pw.BorderSide(color: PdfColors.green900, width: 4)),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text('INFORMAÇÕES DA VISITA',
+                      style: pw.TextStyle(
+                        fontSize: 18,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.green900,
+                      )),
+                  pw.SizedBox(height: 10),
+                  pw.Text('Data: $dataFormatada'),
+                  pw.Text('Promotor(a): $userName'),
+                  pw.Text('Crachá: ${crachaController.text}'),
+                  pw.Text('Gerencia: ${gerenteController.text}'),
+                  pw.Text('Encarregado(s): ${encarregadoController.text}'),
+                  pw.Text('Colaboradores no dia: $colaboradoresAtivos'),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 20),
+            pw.Container(
+              padding: const pw.EdgeInsets.all(10),
+              decoration: pw.BoxDecoration(
+                border: pw.Border(
+                    left: pw.BorderSide(color: PdfColors.green900, width: 4)),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text('RUPTURAS REGISTRADAS',
+                      style: pw.TextStyle(
+                        fontSize: 18,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.green900,
+                      )),
+                  pw.SizedBox(height: 10),
+                  ..._buildRupturasList(),
+                ],
+              ),
+            ),
+            if (fotos.isNotEmpty) ...[
+              pw.SizedBox(height: 20),
+              pw.Container(
+                padding: const pw.EdgeInsets.all(10),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border(
+                      left: pw.BorderSide(color: PdfColors.blue, width: 4)),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text('FOTOS REGISTRADAS',
+                        style: pw.TextStyle(
+                          fontSize: 18,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.blue,
+                        )),
+                    pw.SizedBox(height: 10),
+                    ..._buildFotosListEmGrid(),
+                  ],
+                ),
+              ),
+            ],
+            pw.SizedBox(height: 40),
+            pw.Center(
+              child: pw.Text(
+                'Relatorio gerado automaticamente em $dataFormatada',
+                style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      final pdfBytes = await pdf.save();
+
+      final textoRelatorio = await _gerarTextoRelatorioParaArquivo();
+
+      await _firestore
+          .collection('relatorios')
+          .doc('lojas')
+          .collection('lojas')
+          .doc(widget.storeName)
+          .collection('datas')
+          .doc(dataParaArquivo)
+          .set({
+        'loja': widget.storeName,
+        'data': dataParaArquivo,
+        'dataFormatada': dataFormatada,
+        'textoCompleto': textoRelatorio,
+        'tecnico': userName,
+        'cracha': crachaController.text,
+        'gerente': gerenteController.text,
+        'encarregado': encarregadoController.text,
+        'colaboradoresAtivos': colaboradoresAtivos,
+        'nomeArquivoPDF': nomeArquivo,
+        'rupturas': _salvarRupturasParaFirestore(),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) Navigator.pop(context);
+
+      await Share.shareXFiles(
+        [
+          XFile.fromData(pdfBytes,
+              name: nomeArquivo, mimeType: 'application/pdf')
+        ],
+        text: 'Relatorio Final - ${widget.storeName} - $dataFormatada',
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ PDF compartilhado e relatorio arquivado!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      print('Erro: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Erro ao gerar PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // ===== FUNÇÃO CORRIGIDA - SEM DIMENSÕES FIXAS (NÃO ESTOURA MARGENS) =====
+  List<pw.Widget> _buildFotosListEmGrid() {
+    final widgets = <pw.Widget>[];
+
+    for (int i = 0; i < fotos.length; i += 2) {
+      final rowChildren = <pw.Widget>[];
+
+      // Primeira foto
+      rowChildren.add(
+        pw.Expanded(
+          child: pw.Container(
+            padding: const pw.EdgeInsets.all(5),
+            child: pw.Column(
+              children: [
+                pw.Image(
+                  pw.MemoryImage(fotos[i]),
+                  fit: pw.BoxFit.contain,
+                ),
+                pw.SizedBox(height: 8),
+                if (fotosDescricao[i].isNotEmpty)
+                  pw.Text(
+                    fotosDescricao[i],
+                    style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
+                    textAlign: pw.TextAlign.center,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      // Segunda foto (se existir)
+      if (i + 1 < fotos.length) {
+        rowChildren.add(
+          pw.Expanded(
+            child: pw.Container(
+              padding: const pw.EdgeInsets.all(5),
+              child: pw.Column(
+                children: [
+                  pw.Image(
+                    pw.MemoryImage(fotos[i + 1]),
+                    fit: pw.BoxFit.contain,
+                  ),
+                  pw.SizedBox(height: 8),
+                  if (fotosDescricao[i + 1].isNotEmpty)
+                    pw.Text(
+                      fotosDescricao[i + 1],
+                      style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
+                      textAlign: pw.TextAlign.center,
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      } else {
+        rowChildren.add(pw.Expanded(child: pw.Container()));
+      }
+
+      widgets.add(pw.Row(children: rowChildren));
+      widgets.add(pw.SizedBox(height: 10));
+    }
+
+    return widgets;
+  }
+
+  List<pw.Widget> _buildRupturasList() {
+    final widgets = <pw.Widget>[];
+    bool hasRuptura = false;
+
+    for (var produto in produtos) {
+      if (rupturasSelecionadas[produto] == true) {
+        hasRuptura = true;
+        final motivo = motivosSelecionados[produto];
+        if (motivo == 'outros') {
+          final outroMotivo = (outrosMotivos[produto]?.isNotEmpty == true)
+              ? outrosMotivos[produto]
+              : 'outros';
+          widgets.add(pw.Padding(
+            padding: const pw.EdgeInsets.only(left: 20),
+            child: pw.Text('- $produto (Motivo: $outroMotivo)',
+                style: pw.TextStyle(color: PdfColors.red900)),
+          ));
+        } else {
+          widgets.add(pw.Padding(
+            padding: const pw.EdgeInsets.only(left: 20),
+            child: pw.Text('- $produto (Motivo: $motivo)',
+                style: pw.TextStyle(color: PdfColors.red900)),
+          ));
+        }
+      }
+    }
+
+    if (!hasRuptura) {
+      widgets.add(pw.Padding(
+        padding: const pw.EdgeInsets.only(left: 20),
+        child: pw.Text('Nenhuma ruptura registrada',
+            style: pw.TextStyle(color: PdfColors.green)),
+      ));
+    }
+
+    return widgets;
+  }
+
+  Future<String> _gerarTextoRelatorioParaArquivo() async {
     final buffer = StringBuffer();
     buffer.writeln('BOA TARDE A TODOS!');
     buffer.writeln();
     buffer.writeln('*Término de visita: ${widget.storeName}');
     buffer.writeln('*Data: $dataFormatada');
-    buffer.writeln('*Horário: ${horarioSaida.format(context)}');
     buffer.writeln('*Promotor: $userName');
     buffer.writeln('*Crachá: ${crachaController.text}');
     buffer.writeln('*Gerência: ${gerenteController.text}');
     buffer.writeln('*Encarregado: ${encarregadoController.text}');
     buffer.writeln('*Colaboradores no dia: $colaboradoresAtivos');
-    buffer.writeln('*Venda Pão Francês/dia:');
-    buffer.writeln('$resultadoInteiro unidades');
-    buffer.writeln();
-    buffer.writeln('*Motivo:');
-    buffer.writeln();
-
-    if (rotinaSelecionadas.isNotEmpty) {
-      buffer.write(rotinaSelecionadas.join(', '));
-      if (rotinaSelecionadas.contains('outros') && rotinaOutros.isNotEmpty) {
-        buffer.write(' ($rotinaOutros)');
-      }
-    } else {
-      buffer.write('Nenhum motivo selecionado');
-    }
-    buffer.writeln();
-    buffer.writeln();
-    buffer.writeln('*Trabalho Realizado No Setor:');
-    buffer.writeln();
-    buffer.writeln(
-        trabalhoRealizado.isEmpty ? 'Não informado' : trabalhoRealizado);
-    buffer.writeln();
-    buffer.writeln('*Vendas Do Dia Anterior:');
-    buffer.writeln();
-    buffer.writeln('#Pão Francês:');
-    buffer.writeln(
-        '${vendamediadiaria.isEmpty ? '0' : vendamediadiaria} unidades');
-    buffer.writeln('#Pão de Queijo Tradicional:');
-    buffer.writeln('${qtdRetirada.isEmpty ? '0' : qtdRetirada} Kilos');
-    buffer.writeln('#Pão de Queijo Coquetel:');
-    buffer.writeln('${lotesRetirados.isEmpty ? '0' : lotesRetirados} Kilos');
-    buffer.writeln('#Biscoito de Queijo:');
-    buffer.writeln('${qtdSobra.isEmpty ? '0' : qtdSobra} Kilos');
     buffer.writeln();
     buffer.writeln('*Rupturas:');
     buffer.writeln();
-    buffer.write(_formatarRupturas());
+    buffer.write(_formatarRupturasTexto());
+    buffer.writeln();
+    buffer.writeln('*Fotos: ${fotos.length} foto(s) incluída(s) no PDF');
 
     return buffer.toString().trim();
   }
 
-  String _formatarRupturas() {
+  String _formatarRupturasTexto() {
     final buffer = StringBuffer();
     bool hasRuptura = false;
 
@@ -8853,84 +9312,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     return buffer.toString();
   }
 
-  Future<void> _copiarTexto() async {
-    final texto = _gerarTextoRelatorio();
-    await Clipboard.setData(ClipboardData(text: texto));
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Texto copiado para a área de transferência!'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-
-  Future<void> _arquivarRelatorio() async {
-    final texto = _gerarTextoRelatorio();
-
-    try {
-      await _firestore
-          .collection('relatorios')
-          .doc('lojas')
-          .collection('lojas')
-          .doc(widget.storeName)
-          .collection('datas')
-          .doc(dataParaArquivo)
-          .set({
-        'loja': widget.storeName,
-        'data': dataParaArquivo,
-        'dataFormatada': dataFormatada,
-        'horario': horarioSaida.format(context),
-        'textoCompleto': texto,
-        'tecnico': userName,
-        'cracha': crachaController.text,
-        'gerente': gerenteController.text,
-        'encarregado': encarregadoController.text,
-        'colaboradoresAtivos': colaboradoresAtivos,
-        'resultadoInteiro': resultadoInteiro,
-        'rotinaSelecionadas': rotinaSelecionadas,
-        'rotinaOutros': rotinaOutros,
-        'trabalhoRealizado': trabalhoRealizado,
-        'giroMedio': giroMedio,
-        'qtdRetirada': qtdRetirada,
-        'lotesRetirados': lotesRetirados,
-        'qtdSobra': qtdSobra,
-        'vendamediadiaria': vendamediadiaria,
-        'rabanadaassada': rabanadaassada,
-        'paopararabanada': paopararabanada,
-        'paodealhodacasa': paodealhodacasa,
-        'paodealhodacasapicante': paodealhodacasapicante,
-        'rupturas': _salvarRupturasParaFirestore(),
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Relatório arquivado com sucesso!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      print('Erro ao arquivar relatório: $e');
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao arquivar: $e'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-    }
-  }
-
   Map<String, dynamic> _salvarRupturasParaFirestore() {
     final rupturasData = <String, dynamic>{};
     for (var produto in produtos) {
@@ -8943,30 +9324,12 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     return rupturasData;
   }
 
-  Future<void> _compartilharRelatorioFinal() async {
-    final texto = _gerarTextoRelatorio();
-    await Share.share(texto, subject: 'Relatório Final');
-  }
-
-  void _toggleRotina(String item, bool checked) {
-    setState(() {
-      if (checked) {
-        if (!rotinaSelecionadas.contains(item)) {
-          rotinaSelecionadas.add(item);
-        }
-      } else {
-        rotinaSelecionadas.remove(item);
-      }
-      _salvarPreferencias();
-    });
-  }
-
   @override
   void dispose() {
     crachaController.dispose();
     gerenteController.dispose();
     encarregadoController.dispose();
-    giroMedioController.dispose();
+    dataController.dispose();
     super.dispose();
   }
 
@@ -8974,7 +9337,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: vermelhoEscuro,
+        backgroundColor: Color(0xff075fa8),
         centerTitle: true,
         title: Row(
           mainAxisSize: MainAxisSize.min,
@@ -8992,6 +9355,14 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share, color: Colors.white, size: 28),
+            onPressed: _compartilharEArquivarPDF,
+            tooltip: 'Compartilhar PDF e Arquivar',
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -9000,27 +9371,14 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ListTile(
-                title: const Text('Horário Saída'),
-                trailing: Text(horarioSaida.format(context),
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
-                onTap: () async {
-                  final picked = await showTimePicker(
-                      context: context, initialTime: horarioSaida);
-                  if (picked != null) {
-                    setState(() {
-                      horarioSaida = picked;
-                    });
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Data: $dataFormatada',
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 19,
-                    color: verdeEscuro),
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Data:',
+                  labelStyle: TextStyle(fontSize: 23, color: verdeEscuro),
+                  hintText: 'dd/MM/yyyy',
+                ),
+                controller: dataController,
+                onChanged: _atualizarDataManual,
               ),
               const SizedBox(height: 32),
               TextField(
@@ -9066,229 +9424,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                 ),
                 controller: crachaController,
                 onChanged: (_) => _salvarPreferencias(),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Venda Média Pão Francês/Dia:',
-                          style: TextStyle(fontSize: 23, color: verdeEscuro),
-                        ),
-                        const SizedBox(height: 8),
-                        RichText(
-                          text: TextSpan(
-                            children: [
-                              TextSpan(
-                                text: resultadoInteiro.isNotEmpty
-                                    ? resultadoInteiro
-                                    : '0',
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.red,
-                                ),
-                              ),
-                              const TextSpan(
-                                text: ' unidades',
-                                style: TextStyle(
-                                    fontSize: 16, color: Color(0xff0c0c0c)),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Motivo:',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 23,
-                    color: verdeEscuro),
-              ),
-              ...rotinaOpcoes.map((item) {
-                if (item == 'outros') {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      CheckboxListTile(
-                        title: Text(item),
-                        value: rotinaSelecionadas.contains(item),
-                        onChanged: (v) {
-                          _toggleRotina(item, v ?? false);
-                        },
-                      ),
-                      if (rotinaSelecionadas.contains(item))
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: TextField(
-                            decoration: const InputDecoration(
-                                labelText: 'Descrever outros'),
-                            onChanged: (v) {
-                              setState(() {
-                                rotinaOutros = v;
-                              });
-                              _salvarPreferencias();
-                            },
-                            controller: TextEditingController(
-                                text: rotinaOutros)
-                              ..selection = TextSelection.fromPosition(
-                                  TextPosition(offset: rotinaOutros.length)),
-                          ),
-                        ),
-                    ],
-                  );
-                }
-                return CheckboxListTile(
-                  title: Text(item),
-                  value: rotinaSelecionadas.contains(item),
-                  onChanged: (v) {
-                    _toggleRotina(item, v ?? false);
-                  },
-                );
-              }).toList(),
-              const SizedBox(height: 20),
-              const Text(
-                'Trabalho Realizado no Setor:',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 23,
-                    color: verdeEscuro),
-              ),
-              TextField(
-                maxLines: null,
-                minLines: 3,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: 'Descreva o trabalho realizado',
-                ),
-                controller: TextEditingController(text: trabalhoRealizado)
-                  ..selection = TextSelection.fromPosition(
-                      TextPosition(offset: trabalhoRealizado.length)),
-                onChanged: (v) {
-                  trabalhoRealizado = v;
-                  _salvarPreferencias();
-                },
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Vendas do Dia Anterior:',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 23,
-                    color: verdeEscuro),
-              ),
-              const SizedBox(height: 25),
-              Row(
-                children: [
-                  Expanded(
-                    flex: 4,
-                    child: TextField(
-                      decoration: const InputDecoration(
-                        labelText: 'Pão Francês (kg)',
-                        labelStyle: TextStyle(fontSize: 16),
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.number,
-                      controller: giroMedioController,
-                      onChanged: (v) {
-                        giroMedio = v;
-                        final valor = double.tryParse(giroMedio);
-                        if (valor != null && valor > 0) {
-                          final convertido = (valor / 0.07).toStringAsFixed(0);
-                          setState(() {
-                            vendamediadiaria = convertido;
-                          });
-                        } else {
-                          setState(() {
-                            vendamediadiaria = '';
-                          });
-                        }
-                        _salvarPreferencias();
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    flex: 2,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 12, horizontal: 8),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade400),
-                        borderRadius: BorderRadius.circular(12),
-                        color: Colors.white,
-                      ),
-                      child: Text(
-                        vendamediadiaria.isNotEmpty
-                            ? '$vendamediadiaria unid'
-                            : '0 unid',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.red,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Pão de Queijo Tradicional (Kg)',
-                  labelStyle: TextStyle(fontSize: 16),
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                controller: TextEditingController(text: qtdRetirada)
-                  ..selection = TextSelection.fromPosition(
-                      TextPosition(offset: qtdRetirada.length)),
-                onChanged: (v) {
-                  qtdRetirada = v;
-                  _salvarPreferencias();
-                },
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Pão de Queijo Coquetel (Kg)',
-                  labelStyle: TextStyle(fontSize: 16),
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                controller: TextEditingController(text: lotesRetirados)
-                  ..selection = TextSelection.fromPosition(
-                      TextPosition(offset: lotesRetirados.length)),
-                onChanged: (v) {
-                  lotesRetirados = v;
-                  _salvarPreferencias();
-                },
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Biscoito de Queijo (Kg)',
-                  labelStyle: TextStyle(fontSize: 16),
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                controller: TextEditingController(text: qtdSobra)
-                  ..selection = TextSelection.fromPosition(
-                      TextPosition(offset: qtdSobra.length)),
-                onChanged: (v) {
-                  qtdSobra = v;
-                  _salvarPreferencias();
-                },
               ),
               const SizedBox(height: 20),
               const Text(
@@ -9372,46 +9507,131 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                   );
                 }).toList(),
               ),
-              const SizedBox(height: 40),
-              Center(
-                child: Column(
+              const SizedBox(height: 20),
+              // Seção de Fotos
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Fotos:',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 23,
+                        color: Color(0xff075fa8)),
+                  ),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.camera_alt,
+                            size: 32, color: verdeEscuro),
+                        onPressed: _adicionarFotoCamera,
+                        tooltip: 'Tirar foto',
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.photo_library,
+                            size: 32, color: verdeEscuro),
+                        onPressed: _selecionarMultiplasFotos,
+                        tooltip: 'Escolher múltiplas fotos',
+                      ),
+                      if (fotos.isNotEmpty)
+                        IconButton(
+                          icon: const Icon(Icons.delete_sweep,
+                              size: 32, color: Colors.red),
+                          onPressed: _apagarTodasFotos,
+                          tooltip: 'Apagar todas as fotos',
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              // Mostrar tamanho total das fotos
+              if (fotos.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'Tamanho total das fotos: ${_getTotalSize()}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                ),
+              // Lista de fotos adicionadas
+              if (fotos.isNotEmpty)
+                Column(
                   children: [
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.share),
-                      label: const Text('Compartilhar'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: vermelhoEscuro,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 14),
-                        textStyle: const TextStyle(fontSize: 20),
-                      ),
-                      onPressed: _compartilharRelatorioFinal,
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.archive),
-                      label: const Text('Arquivar'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: verdeEscuro,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 14),
-                        textStyle: const TextStyle(fontSize: 20),
-                      ),
-                      onPressed: _arquivarRelatorio,
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.copy),
-                      label: const Text('Copiar texto'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue.shade700,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 14),
-                        textStyle: const TextStyle(fontSize: 20),
-                      ),
-                      onPressed: _copiarTexto,
-                    ),
+                    ...fotos.asMap().entries.map((entry) {
+                      int index = entry.key;
+                      Uint8List foto = entry.value;
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                height: 200,
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  border:
+                                      Border.all(color: Colors.grey.shade300),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child:
+                                      Image.memory(foto, fit: BoxFit.contain),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              TextField(
+                                decoration: const InputDecoration(
+                                  labelText: 'Descrição da foto (opcional)',
+                                  border: OutlineInputBorder(),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 8),
+                                ),
+                                onChanged: (descricao) =>
+                                    _atualizarDescricaoFoto(index, descricao),
+                              ),
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton.icon(
+                                  icon: const Icon(Icons.delete,
+                                      color: Colors.red),
+                                  label: const Text('Remover',
+                                      style: TextStyle(color: Colors.red)),
+                                  onPressed: () => _removerFoto(index),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
                   ],
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'Nenhuma foto adicionada.\nClique nos ícones da câmera ou galeria para adicionar fotos.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 40),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
             ],
@@ -9421,7 +9641,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     );
   }
 }
-
 class FoldedCornerPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -22612,7 +22831,7 @@ class ConsultarRelatorios extends StatefulWidget {
 
 class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
   static const verdeEscuro = Color(0xFF006400);
-  static const rosaEscuro = Color(0xFFE91E63);
+  static const azulEscuro = Color(0xFF075fa8);
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -22692,7 +22911,6 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
           .doc(lojaSelecionada)
           .collection('datas')
           .where('data', isEqualTo: _formatarDataFirestore(dataSelecionada!))
-          .orderBy('data', descending: true)
           .get();
 
       setState(() {
@@ -22747,6 +22965,8 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
   }
 
   Widget _campoInfo(String titulo, String valor) {
+    if (valor.isEmpty) return const SizedBox.shrink();
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: RichText(
@@ -22770,86 +22990,6 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
     );
   }
 
-  Widget _buildMotivo(Map<String, dynamic> data) {
-    final rotinaSelecionadas =
-        List<String>.from(data['rotinaSelecionadas'] ?? []);
-    final rotinaOutros = data['rotinaOutros'] ?? '';
-
-    if (rotinaSelecionadas.isEmpty) {
-      return _campoInfo('Motivo:', 'Nenhum motivo selecionado');
-    }
-
-    String motivoTexto = rotinaSelecionadas.join(', ');
-    if (rotinaSelecionadas.contains('outros') && rotinaOutros.isNotEmpty) {
-      motivoTexto = '$motivoTexto ($rotinaOutros)';
-    }
-
-    return _campoInfo('Motivo:', motivoTexto);
-  }
-
-  Widget _buildVendasDiaAnterior(Map<String, dynamic> data) {
-    final vendamediadiaria = data['vendamediadiaria'] ?? '';
-    final qtdRetirada = data['qtdRetirada'] ?? '0';
-    final lotesRetirados = data['lotesRetirados'] ?? '0';
-    final qtdSobra = data['qtdSobra'] ?? '0';
-    final giroMedio = data['giroMedio'] ?? '0';
-
-    String paoFrancesUnidades = vendamediadiaria;
-    if (paoFrancesUnidades.isEmpty && giroMedio != '0') {
-      final valor = double.tryParse(giroMedio.toString()) ?? 0;
-      paoFrancesUnidades = (valor / 0.07).toStringAsFixed(0);
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 18),
-        const Text(
-          'Vendas do Dia Anterior:',
-          style: TextStyle(
-            fontSize: 21,
-            fontWeight: FontWeight.bold,
-            color: verdeEscuro,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade300),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Pão Francês: ${paoFrancesUnidades.isEmpty ? '0' : paoFrancesUnidades} unidades',
-                style: const TextStyle(fontSize: 17, color: Colors.black87),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Pão de Queijo Tradicional: $qtdRetirada Kilos',
-                style: const TextStyle(fontSize: 17, color: Colors.black87),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Pão de Queijo Coquetel: $lotesRetirados Kilos',
-                style: const TextStyle(fontSize: 17, color: Colors.black87),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Biscoito de Queijo: $qtdSobra Kilos',
-                style: const TextStyle(fontSize: 17, color: Colors.black87),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildRupturas(Map<String, dynamic> data) {
     final rupturas = data['rupturas'] ?? {};
 
@@ -22862,6 +23002,8 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
         }
       });
     }
+
+    if (produtosComRuptura.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -22884,34 +23026,28 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: Colors.grey.shade300),
           ),
-          child: produtosComRuptura.isEmpty
-              ? const Text(
-                  'Nenhuma ruptura registrada',
-                  style: TextStyle(fontSize: 17, color: Colors.black87),
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: produtosComRuptura.map((entry) {
-                    final produto = entry.key;
-                    final info = entry.value;
-                    final motivo = info['motivo'] ?? 'sem motivo';
-                    final outroMotivo = info['outroMotivo'] ?? '';
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: produtosComRuptura.map((entry) {
+              final produto = entry.key;
+              final info = entry.value;
+              final motivo = info['motivo'] ?? 'sem motivo';
+              final outroMotivo = info['outroMotivo'] ?? '';
 
-                    String motivoTexto = motivo;
-                    if (motivo == 'outros' && outroMotivo.isNotEmpty) {
-                      motivoTexto = 'outros ($outroMotivo)';
-                    }
+              String motivoTexto = motivo;
+              if (motivo == 'outros' && outroMotivo.isNotEmpty) {
+                motivoTexto = 'outros ($outroMotivo)';
+              }
 
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text(
-                        '• $produto (Motivo: $motivoTexto)',
-                        style: const TextStyle(
-                            fontSize: 16, color: Colors.black87),
-                      ),
-                    );
-                  }).toList(),
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  '• $produto (Motivo: $motivoTexto)',
+                  style: const TextStyle(fontSize: 16, color: Colors.black87),
                 ),
+              );
+            }).toList(),
+          ),
         ),
       ],
     );
@@ -22921,7 +23057,7 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: rosaEscuro,
+        backgroundColor: azulEscuro,
         centerTitle: true,
         title: Row(
           children: [
@@ -22932,7 +23068,7 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
             const SizedBox(width: 8),
             const Expanded(
               child: Text(
-                'Consultar',
+                'Consultar Relatórios',
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 20,
@@ -23022,7 +23158,7 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
                   style: TextStyle(fontSize: 20),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: rosaEscuro,
+                  backgroundColor: azulEscuro,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 onPressed: _buscarRelatorios,
@@ -23059,7 +23195,7 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.store, color: rosaEscuro),
+                          const Icon(Icons.store, color: azulEscuro),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -23067,11 +23203,10 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
                               style: const TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
-                                color: rosaEscuro,
+                                color: azulEscuro,
                               ),
                             ),
                           ),
-                          // Botão de copiar ao lado do nome da loja
                           if (textoCompleto.isNotEmpty)
                             IconButton(
                               icon: const Icon(Icons.copy, color: Colors.blue),
@@ -23081,45 +23216,16 @@ class _ConsultarRelatoriosState extends State<ConsultarRelatorios> {
                         ],
                       ),
                       const Divider(height: 30),
+                      // Informações da visita
                       _campoInfo('Data:', data['dataFormatada'] ?? ''),
-                      _campoInfo('Horário:', data['horario'] ?? ''),
                       _campoInfo('Técnico:', data['tecnico'] ?? ''),
                       _campoInfo('Crachá:', data['cracha'] ?? ''),
                       _campoInfo('Gerente:', data['gerente'] ?? ''),
                       _campoInfo('Encarregado:', data['encarregado'] ?? ''),
-                      _campoInfo('Colaboradores:',
+                      _campoInfo('Colaboradores no dia:',
                           '${data['colaboradoresAtivos'] ?? ''}'),
-                      _campoInfo('Venda Média Pão Francês/Dia:',
-                          '${data['resultadoInteiro'] ?? '0'} unidades'),
 
-                      _buildMotivo(data),
-
-                      const SizedBox(height: 18),
-                      const Text(
-                        'Trabalho Realizado:',
-                        style: TextStyle(
-                          fontSize: 21,
-                          fontWeight: FontWeight.bold,
-                          color: verdeEscuro,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: Text(
-                          data['trabalhoRealizado'] ?? 'Não informado',
-                          style: const TextStyle(
-                              fontSize: 17, color: Colors.black87),
-                        ),
-                      ),
-
-                      _buildVendasDiaAnterior(data),
+                      // Rupturas
                       _buildRupturas(data),
 
                       const SizedBox(height: 16),
