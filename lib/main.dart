@@ -8056,14 +8056,14 @@ class _ReportAberturaScreenState extends State<ReportAberturaScreen> {
 
       final tempDir = await getTemporaryDirectory();
 
-final file = File('${tempDir.path}/$nomeArquivo');
+      final file = File('${tempDir.path}/$nomeArquivo');
 
-await file.writeAsBytes(pdfBytes);
+      await file.writeAsBytes(pdfBytes);
 
-await Share.shareXFiles(
-  [XFile(file.path)],
-  text: 'Posicionamento - ${widget.storeName} - $dataFormatada',
-);
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'Posicionamento - ${widget.storeName} - $dataFormatada',
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -9132,13 +9132,16 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
 
       if (mounted) Navigator.pop(context);
 
-      await Share.shareXFiles(
-        [
-          XFile.fromData(pdfBytes,
-              name: nomeArquivo, mimeType: 'application/pdf')
-        ],
-        text: 'Relatorio Final - ${widget.storeName} - $dataFormatada',
-      );
+     final tempDir = await getTemporaryDirectory();
+
+final file = File('${tempDir.path}/$nomeArquivo');
+
+await file.writeAsBytes(pdfBytes);
+
+await Share.shareXFiles(
+  [XFile(file.path)],
+  text: 'Relatorio - ${widget.storeName} - $dataFormatada',
+);
 
       if (mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
