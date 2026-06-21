@@ -6940,7 +6940,7 @@ class DetalhesPedidoScreen extends StatelessWidget {
         storeName.replaceAll(RegExp(r'[^a-zA-Z0-9\s]'), '').trim();
     if (nomeLoja.isEmpty) nomeLoja = 'Loja';
 
-    final nomeArquivo = 'Pedido $nomeLoja ${dia}${mes}$ano.pdf';
+    final nomeArquivo = 'Sugestao Pedido $nomeLoja ${dia}${mes}$ano.pdf';
 
     // 🔥 SHOW DIALOG DE CARREGAMENTO
     showDialog(
@@ -6972,23 +6972,17 @@ class DetalhesPedidoScreen extends StatelessWidget {
             pw.Center(
               child: pw.Column(
                 children: [
-                  pw.Text('RESUMO DO PEDIDO',
-                      style: pw.TextStyle(
-                        fontSize: 32,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.purple,
-                      )),
-                  pw.SizedBox(height: 10),
                   pw.Text(storeName,
                       style: pw.TextStyle(
                         fontSize: 28,
                         fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.purple900,
+                        color: PdfColors.purple,
                       )),
+                  
                 ],
               ),
             ),
-            pw.SizedBox(height: 20),
+            pw.SizedBox(height: 10),
 
             // 🔥 INFORMAÇÕES DO PEDIDO
             pw.Container(
@@ -7001,20 +6995,19 @@ class DetalhesPedidoScreen extends StatelessWidget {
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text('INFORMAÇÕES DO PEDIDO',
+                  pw.Text('SUGESTÃO DE PEDIDO',
                       style: pw.TextStyle(
-                        fontSize: 18,
+                        fontSize: 12,
                         fontWeight: pw.FontWeight.bold,
                         color: PdfColors.purple,
                       )),
                   pw.SizedBox(height: 10),
-                  pw.Text('Loja: $storeName'),
                   pw.Text('Responsável: ${pedido['usuario'] ?? ''}'),
                   pw.Text('Data: ${pedido['data'] ?? ''}'),
                 ],
               ),
             ),
-            pw.SizedBox(height: 20),
+            pw.SizedBox(height: 10),
 
             // 🔥 TABELA DE PRODUTOS
             pw.Container(
@@ -7027,13 +7020,7 @@ class DetalhesPedidoScreen extends StatelessWidget {
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text('PRODUTOS',
-                      style: pw.TextStyle(
-                        fontSize: 18,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.blue,
-                      )),
-                  pw.SizedBox(height: 10),
+                 pw.SizedBox(height: 10),
                   pw.Table.fromTextArray(
                     headers: ['Produto', 'Caixas'],
                     data: multiplicadores.keys.map((produto) {
@@ -7078,7 +7065,7 @@ class DetalhesPedidoScreen extends StatelessWidget {
       // 🔥 COMPARTILHAR
       await Share.shareXFiles(
         [XFile(file.path)],
-        text: 'Pedido - $storeName - ${pedido['data'] ?? ''}',
+        text: 'Sugestao Pedido - $storeName - ${pedido['data'] ?? ''}',
       );
 
       // 🔥 SNACKBAR DE SUCESSO
