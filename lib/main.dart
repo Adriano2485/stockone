@@ -9754,7 +9754,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   // ============================================================
 
   Future<void> _compartilharEArquivarPDF() async {
-    // 🔥 VALIDAÇÃO DE SEGURANÇA PARA DATA
+    // 🔥 VALIDAÇÃO DE SEGURANÇA PARA DATA (igual abertura)
     String dataParaNome = dataFormatada;
 
     // Verifica se dataFormatada está vazia ou no formato errado
@@ -9774,12 +9774,8 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     final mes = dataParts[1];
     final ano = dataParts[2].substring(2);
 
-    // 🔥 SANITIZAR NOME DA LOJA
-    String nomeLoja =
-        widget.storeName.replaceAll(RegExp(r'[^a-zA-Z0-9\s]'), '').trim();
-    if (nomeLoja.isEmpty) nomeLoja = 'Loja';
-
-    final nomeArquivo = 'Relatorio $nomeLoja ${dia}${mes}$ano.pdf';
+    // 🔥 SEM SANITIZAÇÃO - IGUAL A ABERTURA
+    final nomeArquivo = 'Relatorio ${widget.storeName} ${dia}${mes}$ano.pdf';
 
     showDialog(
       context: context,
