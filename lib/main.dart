@@ -9219,27 +9219,32 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   List<Uint8List> fotos = [];
   List<String> fotosDescricao = [];
 
-  // 🔥 CONTROLLERS PARA DESCRIÇÃO DAS FOTOS
+  // Controllers para descrição das fotos
   final List<TextEditingController> _fotoDescricaoControllers = [];
 
-  // 🔥 CONTROLLERS PARA "OUTROS" MOTIVOS
+  // Controllers para "outros" motivos
   final Map<String, TextEditingController> _outroMotivoControllers = {};
 
-  // 🔥 CONTROLE DE DEBOUNCE
+  // 🔥 CONTROLE DE CONECTIVIDADE E SINCRONIZAÇÃO (IGUAL ABERTURA)
+  bool _isOnline = true;
+  bool _dadosPendentes = false;
+  Timer? _syncTimer;
+  StreamSubscription? _connectivitySubscription;
   Timer? _debounceTimer;
   Timer? _fotoDescDebounceTimer;
   Timer? _outroMotivoDebounceTimer;
-
-  // 🔥 TEMPO DE DEBOUNCE (1 segundo)
-  static const int _debounceTimeMs = 1000;
 
   // Dependências
   final ImagePicker _picker = ImagePicker();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // 🔥 CHAVES PARA SHAREDPREFERENCES
-  final String _dataKey = 'data_final_';
-  final String _dataArquivoKey = 'data_arquivo_final_';
+  // Chaves para SharedPreferences (IGUAL ABERTURA)
+  final String _backupKey = 'backup_final_';
+  final String _pendenteKey = 'pendente_final_';
+  final String _syncKey = 'ultima_sincronizacao_final_';
+
+  // Tempo de debounce (IGUAL ABERTURA)
+  static const int _debounceTimeMs = 1000;
 
   @override
   void initState() {
@@ -9254,58 +9259,326 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     motivosSelecionados = {for (var p in produtos) p: motivos[0]};
     outrosMotivos = {for (var p in produtos) p: ''};
 
-    // 🔥 Inicializar controllers para "outros" motivos
     for (var produto in produtos) {
       _outroMotivoControllers[produto] = TextEditingController();
     }
 
-    // 🔥 ORDEM CORRETA (igual abertura):
-    _atualizarDataAtual(); // 1º Inicializa dataFormatada
-    _carregarDataLocal(); // 2º Carrega dados salvos (sobrescreve se existir)
-    _carregarPreferencias(); // 3º Carrega Firebase
+    // 🔥 EXATAMENTE IGUAL A ABERTURA
+    _atualizarDataAtual();
+    _carregarDadosPriorizado();
+    _setupConnectivityListener();
+    _checkInitialConnectivity();
+
     _carregarFotosDoSharedPreferences();
     _recompressExistingPhotos();
   }
 
   // ============================================================
-  // 🔥 BACKUP LOCAL PARA DATA
+  // 🔥 PERSISTÊNCIA OFFLINE (IGUAL ABERTURA)
   // ============================================================
 
-  Future<void> _salvarDataLocal() async {
+  Future<void> _carregarDadosPriorizado() async {
+    try {
+      await _carregarPreferencias();
+
+      final prefs = await SharedPreferences.getInstance();
+      final pendente =
+          prefs.getBool('${_pendenteKey}${widget.storeName}') ?? false;
+
+      if (pendente) {
+        await _carregarBackupLocal();
+        if (_isOnline) {
+          await _sincronizarDadosPendentes();
+        }
+      } else {
+        await _limparBackupLocal();
+      }
+      return;
+    } catch (e) {
+      print('⚠️ Não foi possível carregar do Firebase: $e');
+    }
+
+    final carregouBackup = await _carregarBackupLocal();
+    if (carregouBackup && _isOnline) {
+      await _sincronizarDadosPendentes();
+    }
+  }
+
+  // ============================================================
+  // 🔥 BACKUP LOCAL (IGUAL ABERTURA)
+  // ============================================================
+
+  Future<void> _salvarBackupLocal() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('${_dataKey}${widget.storeName}', dataFormatada);
+
+      final backup = {
+        'cracha': crachaController.text,
+        'gerente': gerenteController.text,
+        'encarregado': encarregadoController.text,
+        'colaboradoresAtivos': colaboradoresAtivos,
+        'dataFormatada': dataFormatada,
+        'dataParaArquivo': dataParaArquivo,
+        'timestamp': DateTime.now().toIso8601String(),
+        'rupturas': _getRupturasMap(),
+      };
+
       await prefs.setString(
-          '${_dataArquivoKey}${widget.storeName}', dataParaArquivo);
-      print('💾 Data salva localmente: $dataFormatada');
+        '${_backupKey}${widget.storeName}',
+        jsonEncode(backup),
+      );
+
+      await prefs.setBool(
+        '${_pendenteKey}${widget.storeName}',
+        true,
+      );
+
+      setState(() {
+        _dadosPendentes = true;
+      });
+
+      print('💾 Backup local salvo');
     } catch (e) {
-      print('❌ Erro ao salvar data local: $e');
+      print('❌ Erro ao salvar backup local: $e');
     }
   }
 
-  Future<void> _carregarDataLocal() async {
+  Future<bool> _carregarBackupLocal() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final savedData = prefs.getString('${_dataKey}${widget.storeName}');
-      final savedDataArquivo =
-          prefs.getString('${_dataArquivoKey}${widget.storeName}');
 
-      if (savedData != null && savedData.isNotEmpty) {
-        dataFormatada = savedData;
+      final pendente =
+          prefs.getBool('${_pendenteKey}${widget.storeName}') ?? false;
+      if (!pendente) return false;
+
+      final backupJson = prefs.getString('${_backupKey}${widget.storeName}');
+      if (backupJson == null) return false;
+
+      final backup = jsonDecode(backupJson);
+
+      setState(() {
+        crachaController.text = backup['cracha'] ?? '';
+        gerenteController.text = backup['gerente'] ?? '';
+        encarregadoController.text = backup['encarregado'] ?? '';
+        colaboradoresAtivos = backup['colaboradoresAtivos'] ?? 0;
+        dataFormatada = backup['dataFormatada'] ?? dataFormatada;
+        dataParaArquivo = backup['dataParaArquivo'] ?? dataParaArquivo;
         dataController.text = dataFormatada;
-        print('📂 Data carregada do SharedPreferences: $dataFormatada');
-      }
 
-      if (savedDataArquivo != null && savedDataArquivo.isNotEmpty) {
-        dataParaArquivo = savedDataArquivo;
-      }
+        final rupturas = backup['rupturas'] ?? {};
+        for (var produto in produtos) {
+          final p = rupturas[produto] ?? {};
+          rupturasSelecionadas[produto] = p['selecionado'] ?? false;
+          motivosSelecionados[produto] = p['motivo'] ?? motivos[0];
+          outrosMotivos[produto] = p['outroMotivo'] ?? '';
+        }
+
+        _dadosPendentes = true;
+      });
+
+      _atualizarControllersOutroMotivo();
+
+      print('📂 Backup local carregado');
+      return true;
     } catch (e) {
-      print('❌ Erro ao carregar data local: $e');
+      print('❌ Erro ao carregar backup local: $e');
+      return false;
+    }
+  }
+
+  Future<void> _limparBackupLocal() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('${_backupKey}${widget.storeName}');
+      await prefs.setBool('${_pendenteKey}${widget.storeName}', false);
+
+      setState(() {
+        _dadosPendentes = false;
+      });
+
+      print('🧹 Backup local limpo');
+    } catch (e) {
+      print('❌ Erro ao limpar backup: $e');
     }
   }
 
   // ============================================================
-  // 🔥 DEBOUNCE (1 segundo para TODOS os campos de texto)
+  // 🔥 SINCRONIZAÇÃO (IGUAL ABERTURA)
+  // ============================================================
+
+  Future<void> _sincronizarDadosPendentes() async {
+    if (!_isOnline) {
+      print('📡 Offline - sincronização adiada');
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final pendente =
+        prefs.getBool('${_pendenteKey}${widget.storeName}') ?? false;
+
+    if (!pendente) {
+      print('✅ Nenhum dado pendente');
+      return;
+    }
+
+    print('🔄 Sincronizando dados pendentes...');
+
+    try {
+      await _carregarBackupLocal();
+      await _salvarNoFirebase();
+
+      await prefs.setBool('${_pendenteKey}${widget.storeName}', false);
+      await prefs.setString(
+        '${_syncKey}${widget.storeName}',
+        DateTime.now().toIso8601String(),
+      );
+
+      setState(() {
+        _dadosPendentes = false;
+      });
+
+      print('✅ Dados sincronizados!');
+    } catch (e) {
+      print('❌ Falha ao sincronizar: $e');
+
+      _syncTimer?.cancel();
+      _syncTimer = Timer(const Duration(seconds: 30), () {
+        if (mounted && _isOnline) {
+          _sincronizarDadosPendentes();
+        }
+      });
+    }
+  }
+
+  // ============================================================
+  // 🔥 FIREBASE (IGUAL ABERTURA)
+  // ============================================================
+
+  Future<void> _salvarPreferencias() async {
+    await _salvarBackupLocal();
+
+    if (_isOnline) {
+      try {
+        await _salvarNoFirebase();
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('${_pendenteKey}${widget.storeName}', false);
+
+        setState(() {
+          _dadosPendentes = false;
+        });
+
+        print('✅ Dados salvos no Firebase');
+      } catch (e) {
+        print('⚠️ Falha ao salvar no Firebase: $e');
+      }
+    } else {
+      print('📡 Offline: dados salvos apenas localmente');
+    }
+  }
+
+  Future<void> _salvarNoFirebase() async {
+    await _firestore.collection('stores').doc(widget.storeName).set({
+      'cracha': crachaController.text,
+      'gerente': gerenteController.text,
+      'encarregado': encarregadoController.text,
+      'colaboradoresAtivos': colaboradoresAtivos,
+      'lastUpdatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    await _firestore.collection('stores').doc(widget.storeName).set({
+      'relatorioFinal': {
+        'rupturas': _getRupturasMap(),
+      },
+      'lastUpdatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Map<String, dynamic> _getRupturasMap() {
+    final rupturas = <String, dynamic>{};
+    for (var produto in produtos) {
+      rupturas[produto] = {
+        'selecionado': rupturasSelecionadas[produto] ?? false,
+        'motivo': motivosSelecionados[produto] ?? motivos[0],
+        'outroMotivo': outrosMotivos[produto] ?? '',
+      };
+    }
+    return rupturas;
+  }
+
+  Future<void> _carregarPreferencias() async {
+    try {
+      final doc =
+          await _firestore.collection('stores').doc(widget.storeName).get();
+
+      if (doc.exists) {
+        final data = doc.data() ?? {};
+        final relatorioData = data['relatorioFinal'] ?? {};
+
+        setState(() {
+          crachaController.text = data['cracha'] ?? '';
+          gerenteController.text = data['gerente'] ?? '';
+          encarregadoController.text = data['encarregado'] ?? '';
+          userName = data['userName'] ?? '';
+          colaboradoresAtivos = data['colaboradoresAtivos'] ?? 0;
+        });
+
+        final rupturasData = relatorioData['rupturas'] ?? {};
+        for (var produto in produtos) {
+          final produtoData = rupturasData[produto] ?? {};
+          rupturasSelecionadas[produto] = produtoData['selecionado'] ?? false;
+          motivosSelecionados[produto] = produtoData['motivo'] ?? motivos[0];
+          outrosMotivos[produto] = produtoData['outroMotivo'] ?? '';
+        }
+
+        _atualizarControllersOutroMotivo();
+
+        print('📥 Dados carregados do Firebase');
+      }
+    } catch (e) {
+      print('❌ Erro ao carregar preferências: $e');
+      rethrow;
+    }
+  }
+
+  // ============================================================
+  // 🔥 CONECTIVIDADE (IGUAL ABERTURA)
+  // ============================================================
+
+  void _setupConnectivityListener() {
+    final Connectivity connectivity = Connectivity();
+
+    _connectivitySubscription =
+        connectivity.onConnectivityChanged.listen((result) {
+      final bool agoraEstaOnline = result != ConnectivityResult.none;
+
+      if (agoraEstaOnline != _isOnline) {
+        setState(() {
+          _isOnline = agoraEstaOnline;
+        });
+
+        print('🌐 Status: ${_isOnline ? "ONLINE" : "OFFLINE"}');
+
+        if (_isOnline) {
+          print('🔄 Conexão restaurada! Sincronizando...');
+          _sincronizarDadosPendentes();
+        }
+      }
+    });
+  }
+
+  void _checkInitialConnectivity() async {
+    try {
+      final connectivity = await Connectivity().checkConnectivity();
+      _isOnline = connectivity != ConnectivityResult.none;
+      print('🌐 Status inicial: ${_isOnline ? "ONLINE" : "OFFLINE"}');
+    } catch (e) {
+      _isOnline = false;
+    }
+  }
+
+  // ============================================================
+  // 🔥 DEBOUNCE (IGUAL ABERTURA)
   // ============================================================
 
   void _salvarComDebounce() {
@@ -9349,72 +9622,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   }
 
   // ============================================================
-  // 🔥 MÉTODO PARA CRIAR CONTROLLERS DAS FOTOS
-  // ============================================================
-
-  void _criarControllersParaFotos() {
-    for (var controller in _fotoDescricaoControllers) {
-      controller.dispose();
-    }
-    _fotoDescricaoControllers.clear();
-
-    for (int i = 0; i < fotos.length; i++) {
-      final controller = TextEditingController(text: fotosDescricao[i]);
-
-      controller.addListener(() {
-        final index = _fotoDescricaoControllers.indexOf(controller);
-        if (index >= 0 && index < fotosDescricao.length) {
-          fotosDescricao[index] = controller.text;
-          _salvarFotoDescComDebounce();
-        }
-      });
-
-      _fotoDescricaoControllers.add(controller);
-    }
-  }
-
-  // ============================================================
-  // 📅 DATAS
-  // ============================================================
-
-  void _atualizarDataAtual() {
-    final dataHoje = DateTime.now();
-    dataFormatada =
-        "${dataHoje.day.toString().padLeft(2, '0')}/${dataHoje.month.toString().padLeft(2, '0')}/${dataHoje.year}";
-    dataParaArquivo =
-        "${dataHoje.year}-${dataHoje.month.toString().padLeft(2, '0')}-${dataHoje.day.toString().padLeft(2, '0')}";
-    dataController.text = dataFormatada;
-  }
-
-  void _atualizarDataManual(String texto) {
-    final regex = RegExp(r'^(\d{2})/(\d{2})/(\d{4})$');
-    final match = regex.firstMatch(texto);
-
-    if (match != null) {
-      final dia = int.parse(match.group(1)!);
-      final mes = int.parse(match.group(2)!);
-      final ano = int.parse(match.group(3)!);
-
-      if (ano >= 2000 &&
-          ano <= 2100 &&
-          mes >= 1 &&
-          mes <= 12 &&
-          dia >= 1 &&
-          dia <= 31) {
-        setState(() {
-          dataFormatada = texto;
-          dataParaArquivo =
-              "$ano-${mes.toString().padLeft(2, '0')}-${dia.toString().padLeft(2, '0')}";
-          dataController.text = texto;
-        });
-        _salvarDataLocal();
-        _salvarPreferencias();
-      }
-    }
-  }
-
-  // ============================================================
-  // 📸 FOTOS
+  // 📸 FOTOS (IGUAL ABERTURA)
   // ============================================================
 
   Future<Uint8List> _compressImage(Uint8List bytes) async {
@@ -9452,27 +9660,25 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   Future<void> _salvarFotosNoSharedPreferences() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-
       final List<String> fotosBase64 =
           fotos.map((foto) => base64Encode(foto)).toList();
-      await prefs.setStringList('fotos_${widget.storeName}', fotosBase64);
       await prefs.setStringList(
-          'fotos_desc_${widget.storeName}', fotosDescricao);
-
-      print('💾 Fotos salvas: ${fotos.length}');
+          'fotos_final_${widget.storeName}', fotosBase64);
+      await prefs.setStringList(
+          'fotos_final_desc_${widget.storeName}', fotosDescricao);
+      print('💾 Fotos salvas (${fotos.length} imagens)');
     } catch (e) {
-      print('Erro ao salvar fotos: $e');
+      print('Erro ao salvar fotos final: $e');
     }
   }
 
   Future<void> _carregarFotosDoSharedPreferences() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-
       final List<String>? fotosBase64 =
-          prefs.getStringList('fotos_${widget.storeName}');
+          prefs.getStringList('fotos_final_${widget.storeName}');
       final List<String>? descricoes =
-          prefs.getStringList('fotos_desc_${widget.storeName}');
+          prefs.getStringList('fotos_final_desc_${widget.storeName}');
 
       if (fotosBase64 != null && fotosBase64.isNotEmpty) {
         final List<Uint8List> fotosCarregadas = [];
@@ -9486,20 +9692,38 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
               descricoes ?? List.filled(fotosCarregadas.length, '');
         });
 
-        // 🔥 Criar controllers para as fotos carregadas
         _criarControllersParaFotos();
-
-        print('📂 Fotos carregadas: ${fotos.length}');
       }
     } catch (e) {
-      print('Erro ao carregar fotos: $e');
+      print('Erro ao carregar fotos final: $e');
+    }
+  }
+
+  void _criarControllersParaFotos() {
+    for (var controller in _fotoDescricaoControllers) {
+      controller.dispose();
+    }
+    _fotoDescricaoControllers.clear();
+
+    for (int i = 0; i < fotos.length; i++) {
+      final controller = TextEditingController(text: fotosDescricao[i]);
+
+      controller.addListener(() {
+        final index = _fotoDescricaoControllers.indexOf(controller);
+        if (index >= 0 && index < fotosDescricao.length) {
+          fotosDescricao[index] = controller.text;
+          _salvarFotoDescComDebounce();
+        }
+      });
+
+      _fotoDescricaoControllers.add(controller);
     }
   }
 
   Future<void> _recompressExistingPhotos() async {
     if (fotos.isEmpty) return;
 
-    print('Recomprimindo ${fotos.length} fotos existentes...');
+    print('Recomprimindo ${fotos.length} fotos...');
     bool changed = false;
     List<Uint8List> novasFotos = [];
 
@@ -9518,7 +9742,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         fotos = novasFotos;
       });
       await _salvarFotosNoSharedPreferences();
-      print('Fotos recomprimidas com sucesso!');
+      print('Fotos recomprimidas!');
     }
   }
 
@@ -9528,7 +9752,8 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Apagar todas as fotos'),
         content: const Text(
-            'Tem certeza que deseja apagar TODAS as fotos? Esta ação não pode ser desfeita.'),
+          'Tem certeza que deseja apagar TODAS as fotos? Esta ação não pode ser desfeita.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -9590,7 +9815,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
           });
         }
 
-        // 🔥 RECRIAR CONTROLLERS APÓS ADICIONAR FOTOS
         _criarControllersParaFotos();
         await _salvarFotosNoSharedPreferences();
 
@@ -9622,12 +9846,12 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
       if (foto != null) {
         Uint8List bytes = await foto.readAsBytes();
         bytes = await _compressImage(bytes);
+
         setState(() {
           fotos.add(bytes);
           fotosDescricao.add('');
         });
 
-        // 🔥 RECRIAR CONTROLLERS APÓS ADICIONAR FOTO
         _criarControllersParaFotos();
         await _salvarFotosNoSharedPreferences();
 
@@ -9652,7 +9876,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
       fotosDescricao.removeAt(index);
     });
 
-    // 🔥 RECRIAR CONTROLLERS APÓS REMOVER FOTO
     _criarControllersParaFotos();
     await _salvarFotosNoSharedPreferences();
   }
@@ -9667,115 +9890,59 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   }
 
   // ============================================================
-  // 🔥 FIREBASE
+  // 📅 DATAS (IGUAL ABERTURA)
   // ============================================================
 
-  Future<void> _carregarPreferencias() async {
-    try {
-      final doc =
-          await _firestore.collection('stores').doc(widget.storeName).get();
-      if (doc.exists) {
-        final data = doc.data() ?? {};
-        final relatorioData = data['relatorioFinal'] ?? {};
+  void _atualizarDataAtual() {
+    final dataHoje = DateTime.now();
+    dataFormatada =
+        "${dataHoje.day.toString().padLeft(2, '0')}/${dataHoje.month.toString().padLeft(2, '0')}/${dataHoje.year}";
+    dataParaArquivo =
+        "${dataHoje.year}-${dataHoje.month.toString().padLeft(2, '0')}-${dataHoje.day.toString().padLeft(2, '0')}";
+    dataController.text = dataFormatada;
+  }
 
-        final fetchedCracha = data['cracha'] ?? '';
-        final fetchedGerente = data['gerente'] ?? '';
-        final fetchedEncarregado = data['encarregado'] ?? '';
+  void _atualizarDataManual(String texto) {
+    final regex = RegExp(r'^(\d{2})/(\d{2})/(\d{4})$');
+    final match = regex.firstMatch(texto);
 
-        // 🔥 AGORA BUSCA DENTRO DO relatorioFinal
-        final fetchedColaboradores = relatorioData['colaboradoresAtivos'] ?? 0;
-        final fetchedUserName = data['userName'] ?? '';
+    if (match != null) {
+      final dia = int.parse(match.group(1)!);
+      final mes = int.parse(match.group(2)!);
+      final ano = int.parse(match.group(3)!);
 
-        final rupturasData = relatorioData['rupturas'] ?? {};
-
+      if (ano >= 2000 &&
+          ano <= 2100 &&
+          mes >= 1 &&
+          mes <= 12 &&
+          dia >= 1 &&
+          dia <= 31) {
         setState(() {
-          crachaController.text = fetchedCracha;
-          gerenteController.text = fetchedGerente;
-          encarregadoController.text = fetchedEncarregado;
-
-          colaboradoresAtivos = fetchedColaboradores;
-          userName = fetchedUserName;
-
-          for (var produto in produtos) {
-            final produtoData = rupturasData[produto] ?? {};
-            rupturasSelecionadas[produto] = produtoData['selecionado'] ?? false;
-            motivosSelecionados[produto] = produtoData['motivo'] ?? motivos[0];
-            outrosMotivos[produto] = produtoData['outroMotivo'] ?? '';
-          }
+          dataFormatada = texto;
+          dataParaArquivo =
+              "$ano-${mes.toString().padLeft(2, '0')}-${dia.toString().padLeft(2, '0')}";
+          dataController.text = texto;
         });
-
-        _atualizarControllersOutroMotivo();
+        _salvarPreferencias();
       }
-    } catch (e) {
-      print('Erro ao carregar preferências: $e');
-    }
-  }
-
-  Future<void> _salvarPreferencias() async {
-    try {
-      // 🔥 SALVAR DATA NO SHAREDPREFERENCES
-      await _salvarDataLocal();
-
-      // 🔥 Dados principais fora do relatorioFinal
-      await _firestore.collection('stores').doc(widget.storeName).set({
-        'cracha': crachaController.text,
-        'gerente': gerenteController.text,
-        'encarregado': encarregadoController.text,
-        'lastUpdatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      // 🔥 Dados do relatorioFinal (incluindo colaboradoresAtivos)
-      final rupturasData = <String, dynamic>{};
-      for (var produto in produtos) {
-        rupturasData[produto] = {
-          'selecionado': rupturasSelecionadas[produto] ?? false,
-          'motivo': motivosSelecionados[produto] ?? motivos[0],
-          'outroMotivo': outrosMotivos[produto] ?? '',
-        };
-      }
-
-      final relatorioData = {
-        'colaboradoresAtivos':
-            colaboradoresAtivos, // 🔥 AGORA DENTRO DO relatorioFinal
-        'rupturas': rupturasData,
-      };
-
-      await _firestore.collection('stores').doc(widget.storeName).set({
-        'relatorioFinal': relatorioData,
-        'lastUpdatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    } catch (e) {
-      print('Erro ao salvar preferências: $e');
     }
   }
 
   // ============================================================
-  // 📄 PDF
+  // 📄 PDF (IGUAL ABERTURA)
   // ============================================================
 
   Future<void> _compartilharEArquivarPDF() async {
-    // 🔥 VALIDAÇÃO DE SEGURANÇA PARA DATA (igual abertura)
-    String dataParaNome = dataFormatada;
-
-    // Verifica se dataFormatada está vazia ou no formato errado
-    if (dataParaNome.isEmpty ||
-        !dataParaNome.contains('/') ||
-        dataParaNome.split('/').length != 3) {
-      // Usa data atual como fallback
-      final now = DateTime.now();
-      dataParaNome =
-          "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}";
-      print(
-          '⚠️ dataFormatada inválida: "$dataFormatada" → usando "$dataParaNome"');
-    }
-
-    final dataParts = dataParaNome.split('/');
+    // 🔥 EXATAMENTE IGUAL A ABERTURA
+    final dataParts = dataFormatada.split('/');
     final dia = dataParts[0];
     final mes = dataParts[1];
     final ano = dataParts[2].substring(2);
-
-    // 🔥 SEM SANITIZAÇÃO - IGUAL A ABERTURA
-    final nomeArquivo = 'Relatorio ${widget.storeName} ${dia}${mes}$ano.pdf';
+    
+    String nomeLoja = widget.storeName.replaceAll(RegExp(r'[^a-zA-Z0-9\s]'), '').trim();
+    if (nomeLoja.isEmpty) nomeLoja = 'Loja';
+    
+    final nomeArquivo = 'Relatorio $nomeLoja ${dia}${mes}$ano.pdf';
 
     showDialog(
       context: context,
@@ -9824,7 +9991,8 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
               padding: const pw.EdgeInsets.all(10),
               decoration: pw.BoxDecoration(
                 border: pw.Border(
-                    left: pw.BorderSide(color: PdfColors.green900, width: 4)),
+                  left: pw.BorderSide(color: PdfColors.green900, width: 4),
+                ),
               ),
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -9839,7 +10007,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                   pw.Text('Data: $dataFormatada'),
                   pw.Text('Promotor(a): $userName'),
                   pw.Text('Crachá: ${crachaController.text}'),
-                  pw.Text('Gerencia: ${gerenteController.text}'),
+                  pw.Text('Gerência: ${gerenteController.text}'),
                   pw.Text('Encarregado(s): ${encarregadoController.text}'),
                   pw.Text('Colaboradores no dia: $colaboradoresAtivos'),
                 ],
@@ -9850,7 +10018,8 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
               padding: const pw.EdgeInsets.all(10),
               decoration: pw.BoxDecoration(
                 border: pw.Border(
-                    left: pw.BorderSide(color: PdfColors.green900, width: 4)),
+                  left: pw.BorderSide(color: PdfColors.red, width: 4),
+                ),
               ),
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -9859,7 +10028,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                       style: pw.TextStyle(
                         fontSize: 18,
                         fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.green900,
+                        color: PdfColors.red,
                       )),
                   pw.SizedBox(height: 10),
                   ..._buildRupturasList(),
@@ -9872,7 +10041,8 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                 padding: const pw.EdgeInsets.all(10),
                 decoration: pw.BoxDecoration(
                   border: pw.Border(
-                      left: pw.BorderSide(color: PdfColors.blue, width: 4)),
+                    left: pw.BorderSide(color: PdfColors.blue, width: 4),
+                  ),
                 ),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -9892,7 +10062,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
             pw.SizedBox(height: 40),
             pw.Center(
               child: pw.Text(
-                'Relatorio gerado automaticamente em $dataFormatada',
+                'Relatório gerado automaticamente em $dataFormatada',
                 style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
               ),
             ),
@@ -9922,7 +10092,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         'encarregado': encarregadoController.text,
         'colaboradoresAtivos': colaboradoresAtivos,
         'nomeArquivoPDF': nomeArquivo,
-        'rupturas': _salvarRupturasParaFirestore(),
+        'rupturas': _getRupturasMap(),
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -9933,14 +10103,14 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
           XFile.fromData(pdfBytes,
               name: nomeArquivo, mimeType: 'application/pdf')
         ],
-        text: 'Relatorio Final - ${widget.storeName} - $dataFormatada',
+        text: 'Relatório Final - ${widget.storeName} - $dataFormatada',
       );
 
       if (mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ PDF compartilhado e relatorio arquivado!'),
+            content: Text('✅ PDF compartilhado e relatório arquivado!'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 4),
           ),
@@ -10108,25 +10278,12 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     return buffer.toString();
   }
 
-  Map<String, dynamic> _salvarRupturasParaFirestore() {
-    final rupturasData = <String, dynamic>{};
-    for (var produto in produtos) {
-      rupturasData[produto] = {
-        'selecionado': rupturasSelecionadas[produto] ?? false,
-        'motivo': motivosSelecionados[produto] ?? motivos[0],
-        'outroMotivo': outrosMotivos[produto] ?? '',
-      };
-    }
-    return rupturasData;
-  }
-
   // ============================================================
-  // 🔥 DISPOSE
+  // 🔥 DISPOSE (IGUAL ABERTURA)
   // ============================================================
 
   @override
   void dispose() {
-    // Salvar antes de sair
     _salvarPreferencias();
 
     crachaController.dispose();
@@ -10134,18 +10291,18 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     encarregadoController.dispose();
     dataController.dispose();
 
-    // 🔥 DISPOR TODOS OS CONTROLLERS DAS FOTOS
     for (var controller in _fotoDescricaoControllers) {
       controller.dispose();
     }
     _fotoDescricaoControllers.clear();
 
-    // 🔥 DISPOR CONTROLLERS DOS "OUTROS" MOTIVOS
     for (var controller in _outroMotivoControllers.values) {
       controller.dispose();
     }
     _outroMotivoControllers.clear();
 
+    _connectivitySubscription?.cancel();
+    _syncTimer?.cancel();
     _debounceTimer?.cancel();
     _fotoDescDebounceTimer?.cancel();
     _outroMotivoDebounceTimer?.cancel();
@@ -10195,7 +10352,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 🔥 DATA - Mantém como está (formato específico)
               TextField(
                 decoration: const InputDecoration(
                   labelText: 'Data:',
@@ -10207,7 +10363,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
               ),
               const SizedBox(height: 32),
 
-              // 🔥 GERÊNCIA - COM DEBOUNCE E QUEBRA DE LINHA
               TextField(
                 maxLines: null,
                 keyboardType: TextInputType.multiline,
@@ -10222,13 +10377,12 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
               ),
               const SizedBox(height: 16),
 
-              // 🔥 ENCARREGADO - COM DEBOUNCE E QUEBRA DE LINHA
               TextField(
                 maxLines: null,
                 keyboardType: TextInputType.multiline,
                 textInputAction: TextInputAction.newline,
                 decoration: const InputDecoration(
-                  labelText: 'Encarregado (s):',
+                  labelText: 'Encarregado(s):',
                   labelStyle: TextStyle(fontSize: 23, color: verdeEscuro),
                   border: OutlineInputBorder(),
                 ),
@@ -10256,7 +10410,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
               ),
               const SizedBox(height: 16),
 
-              // 🔥 CRACHÁ - COM DEBOUNCE E QUEBRA DE LINHA
               TextField(
                 maxLines: null,
                 keyboardType: TextInputType.multiline,
@@ -10274,9 +10427,10 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
               const Text(
                 'Rupturas:',
                 style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 23,
-                    color: verdeEscuro),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 23,
+                  color: verdeEscuro,
+                ),
               ),
               Column(
                 children: produtos.map((produto) {
@@ -10294,8 +10448,8 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                               outrosMotivos[produto] = '';
                               _outroMotivoControllers[produto]?.text = '';
                             }
-                            _salvarPreferencias();
                           });
+                          _salvarPreferencias();
                         },
                       ),
                       if (rupturasSelecionadas[produto] == true)
@@ -10307,17 +10461,24 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                             decoration: InputDecoration(
                               labelText: 'Motivo ($produto)',
                               labelStyle: const TextStyle(
-                                  fontSize: 19, color: verdeEscuro),
+                                fontSize: 19,
+                                color: verdeEscuro,
+                              ),
                             ),
                             style: const TextStyle(
-                                fontSize: 19, color: vermelhoEscuro),
+                              fontSize: 19,
+                              color: Colors.red,
+                            ),
                             items: motivos
                                 .map((m) => DropdownMenuItem(
                                       value: m,
-                                      child: Text(m,
-                                          style: const TextStyle(
-                                              fontSize: 19,
-                                              color: vermelhoEscuro)),
+                                      child: Text(
+                                        m,
+                                        style: const TextStyle(
+                                          fontSize: 19,
+                                          color: Colors.red,
+                                        ),
+                                      ),
                                     ))
                                 .toList(),
                             onChanged: (value) {
@@ -10330,8 +10491,8 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                                   _outroMotivoControllers[produto]?.text = '';
                                   outrosMotivos[produto] = '';
                                 }
-                                _salvarPreferencias();
                               });
+                              _salvarPreferencias();
                             },
                           ),
                         ),
@@ -10360,16 +10521,17 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Seção de Fotos
+              // Fotos
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
                     'Fotos:',
                     style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 23,
-                        color: Color(0xff075fa8)),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 23,
+                      color: Color(0xff075fa8),
+                    ),
                   ),
                   Row(
                     children: [
@@ -10397,7 +10559,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                 ],
               ),
               const SizedBox(height: 10),
-
               if (fotos.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
@@ -10406,7 +10567,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                     style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
                 ),
-
               if (fotos.isNotEmpty)
                 Column(
                   children: [
@@ -10414,7 +10574,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                       int index = entry.key;
                       Uint8List foto = entry.value;
 
-                      // 🔥 USAR CONTROLLER ESPECÍFICO PARA CADA FOTO
                       final controller =
                           index < _fotoDescricaoControllers.length
                               ? _fotoDescricaoControllers[index]
@@ -10442,7 +10601,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                                 ),
                               ),
                               const SizedBox(height: 8),
-                              // 🔥 DESCRIÇÃO DA FOTO - COM DEBOUNCE E QUEBRA DE LINHA
                               TextField(
                                 controller: controller,
                                 maxLines: null,
@@ -10452,7 +10610,9 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                                   labelText: 'Descrição da foto (opcional)',
                                   border: OutlineInputBorder(),
                                   contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 8),
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -10488,14 +10648,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                     ),
                   ),
                 ),
-              const SizedBox(height: 40),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
             ],
           ),
         ),
