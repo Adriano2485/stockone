@@ -6890,15 +6890,43 @@ class DetalhesPedidoScreen extends StatelessWidget {
   Future<void> _sharePedidoPdf(BuildContext context) async {
     final produtos = Map<String, dynamic>.from(pedido['produtos']);
 
-    // 🔥 GERAR NOME DO ARQUIVO COM storeName
+    // 🔥 GERAR NOME DO ARQUIVO COM O MESMO ESTILO
     final dataPedido = pedido['data'] ?? DateTime.now().toString();
-    final dataParts = dataPedido.toString().split(' ')[0].split('-');
-    final dia = dataParts[2] ?? DateTime.now().day.toString().padLeft(2, '0');
-    final mes = dataParts[1] ?? DateTime.now().month.toString().padLeft(2, '0');
-    final ano = dataParts[0] ?? DateTime.now().year.toString();
-    final anoShort = ano.substring(2);
+    String dataParaNome = dataPedido.toString();
 
-    final nomeArquivo = 'Pedido ${storeName} ${dia}${mes}$anoShort.pdf';
+    // 🔥 VERIFICA SE A DATA ESTÁ NO FORMATO DD/MM/YYYY
+    if (dataParaNome.contains('/')) {
+      // Já está no formato correto
+    } else if (dataParaNome.contains('-')) {
+      // Converte de YYYY-MM-DD para DD/MM/YYYY
+      final parts = dataParaNome.split(' ')[0].split('-');
+      if (parts.length == 3) {
+        dataParaNome = "${parts[2]}/${parts[1]}/${parts[0]}";
+      }
+    } else {
+      // Usa data atual como fallback
+      final now = DateTime.now();
+      dataParaNome =
+          "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}";
+    }
+
+    final dataParts = dataParaNome.split('/');
+    final dia = dataParts.isNotEmpty
+        ? dataParts[0]
+        : DateTime.now().day.toString().padLeft(2, '0');
+    final mes = dataParts.length > 1
+        ? dataParts[1]
+        : DateTime.now().month.toString().padLeft(2, '0');
+    final ano = dataParts.length > 2
+        ? dataParts[2].substring(2)
+        : DateTime.now().year.toString().substring(2);
+
+    // 🔥 SANITIZAR NOME DA LOJA
+    String nomeLoja =
+        storeName.replaceAll(RegExp(r'[^a-zA-Z0-9\s]'), '').trim();
+    if (nomeLoja.isEmpty) nomeLoja = 'Loja';
+
+    final nomeArquivo = 'Pedido $nomeLoja ${dia}${mes}$ano.pdf';
 
     // 🔥 SHOW DIALOG DE CARREGAMENTO
     showDialog(
@@ -9188,12 +9216,16 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   Timer? _fotoDescDebounceTimer;
   Timer? _outroMotivoDebounceTimer;
 
-  // 🔥 TEMPO DE DEBOUNCE (2 segundos)
+  // 🔥 TEMPO DE DEBOUNCE (1 segundo)
   static const int _debounceTimeMs = 1000;
 
   // Dependências
   final ImagePicker _picker = ImagePicker();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // 🔥 CHAVES PARA SHAREDPREFERENCES
+  final String _dataKey = 'data_final_';
+  final String _dataArquivoKey = 'data_arquivo_final_';
 
   @override
   void initState() {
@@ -9213,14 +9245,52 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
       _outroMotivoControllers[produto] = TextEditingController();
     }
 
-    _atualizarDataAtual();
+    _carregarDataLocal(); // 🔥 CARREGAR DATA DO SHAREDPREFERENCES PRIMEIRO
+    _atualizarDataAtual(); // 🔥 SE NÃO TIVER, USA DATA ATUAL
     _carregarPreferencias();
     _carregarFotosDoSharedPreferences();
     _recompressExistingPhotos();
   }
 
   // ============================================================
-  // 🔥 DEBOUNCE (2 segundos para TODOS os campos de texto)
+  // 🔥 BACKUP LOCAL PARA DATA
+  // ============================================================
+
+  Future<void> _salvarDataLocal() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('${_dataKey}${widget.storeName}', dataFormatada);
+      await prefs.setString(
+          '${_dataArquivoKey}${widget.storeName}', dataParaArquivo);
+      print('💾 Data salva localmente: $dataFormatada');
+    } catch (e) {
+      print('❌ Erro ao salvar data local: $e');
+    }
+  }
+
+  Future<void> _carregarDataLocal() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedData = prefs.getString('${_dataKey}${widget.storeName}');
+      final savedDataArquivo =
+          prefs.getString('${_dataArquivoKey}${widget.storeName}');
+
+      if (savedData != null && savedData.isNotEmpty) {
+        dataFormatada = savedData;
+        dataController.text = dataFormatada;
+        print('📂 Data carregada do SharedPreferences: $dataFormatada');
+      }
+
+      if (savedDataArquivo != null && savedDataArquivo.isNotEmpty) {
+        dataParaArquivo = savedDataArquivo;
+      }
+    } catch (e) {
+      print('❌ Erro ao carregar data local: $e');
+    }
+  }
+
+  // ============================================================
+  // 🔥 DEBOUNCE (1 segundo para TODOS os campos de texto)
   // ============================================================
 
   void _salvarComDebounce() {
@@ -9293,12 +9363,17 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   // ============================================================
 
   void _atualizarDataAtual() {
-    final dataHoje = DateTime.now();
-    dataFormatada =
-        "${dataHoje.day.toString().padLeft(2, '0')}/${dataHoje.month.toString().padLeft(2, '0')}/${dataHoje.year}";
-    dataParaArquivo =
-        "${dataHoje.year}-${dataHoje.month.toString().padLeft(2, '0')}-${dataHoje.day.toString().padLeft(2, '0')}";
-    dataController.text = dataFormatada;
+    // 🔥 SÓ ATUALIZA SE NÃO TIVER DATA SALVA LOCALMENTE
+    if (dataFormatada.isEmpty) {
+      final dataHoje = DateTime.now();
+      dataFormatada =
+          "${dataHoje.day.toString().padLeft(2, '0')}/${dataHoje.month.toString().padLeft(2, '0')}/${dataHoje.year}";
+      dataParaArquivo =
+          "${dataHoje.year}-${dataHoje.month.toString().padLeft(2, '0')}-${dataHoje.day.toString().padLeft(2, '0')}";
+      dataController.text = dataFormatada;
+      _salvarDataLocal(); // 🔥 SALVA A DATA GERADA
+      print('📅 Data atual gerada: $dataFormatada');
+    }
   }
 
   void _atualizarDataManual(String texto) {
@@ -9322,6 +9397,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
               "$ano-${mes.toString().padLeft(2, '0')}-${dia.toString().padLeft(2, '0')}";
           dataController.text = texto;
         });
+        _salvarDataLocal(); // 🔥 SALVA A DATA NO SHAREDPREFERENCES
         _salvarPreferencias();
       }
     }
@@ -9571,14 +9647,6 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
     await _salvarFotosNoSharedPreferences();
   }
 
-  // 🔥 REMOVIDO - Agora usando controllers com listener
-  // void _atualizarDescricaoFoto(int index, String descricao) async {
-  //   setState(() {
-  //     fotosDescricao[index] = descricao;
-  //   });
-  //   await _salvarFotosNoSharedPreferences();
-  // }
-
   String _getTotalSize() {
     int totalBytes = fotos.fold(0, (sum, foto) => sum + foto.length);
     if (totalBytes < 1024 * 1024) {
@@ -9604,7 +9672,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         final fetchedGerente = data['gerente'] ?? '';
         final fetchedEncarregado = data['encarregado'] ?? '';
 
-        // 🔥 AGORA BUSCA DENTRO DO relatorioFinal
+        // 🔥 BUSCA DENTRO DO relatorioFinal
         final fetchedColaboradores = relatorioData['colaboradoresAtivos'] ?? 0;
         final fetchedUserName = data['userName'] ?? '';
 
@@ -9635,6 +9703,9 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
 
   Future<void> _salvarPreferencias() async {
     try {
+      // 🔥 SALVAR DATA NO SHAREDPREFERENCES
+      await _salvarDataLocal();
+
       // 🔥 Dados principais fora do relatorioFinal
       await _firestore.collection('stores').doc(widget.storeName).set({
         'cracha': crachaController.text,
@@ -9673,11 +9744,32 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   // ============================================================
 
   Future<void> _compartilharEArquivarPDF() async {
-    final dataParts = dataFormatada.split('/');
+    // 🔥 VALIDAÇÃO DE SEGURANÇA PARA DATA
+    String dataParaNome = dataFormatada;
+
+    // Verifica se dataFormatada está vazia ou no formato errado
+    if (dataParaNome.isEmpty ||
+        !dataParaNome.contains('/') ||
+        dataParaNome.split('/').length != 3) {
+      // Usa data atual como fallback
+      final now = DateTime.now();
+      dataParaNome =
+          "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}";
+      print(
+          '⚠️ dataFormatada inválida: "$dataFormatada" → usando "$dataParaNome"');
+    }
+
+    final dataParts = dataParaNome.split('/');
     final dia = dataParts[0];
     final mes = dataParts[1];
     final ano = dataParts[2].substring(2);
-    final nomeArquivo = 'Relatorio ${widget.storeName} ${dia}${mes}$ano.pdf';
+
+    // 🔥 SANITIZAR NOME DA LOJA
+    String nomeLoja =
+        widget.storeName.replaceAll(RegExp(r'[^a-zA-Z0-9\s]'), '').trim();
+    if (nomeLoja.isEmpty) nomeLoja = 'Loja';
+
+    final nomeArquivo = 'Relatorio $nomeLoja ${dia}${mes}$ano.pdf';
 
     showDialog(
       context: context,
