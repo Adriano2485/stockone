@@ -9662,8 +9662,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
       final prefs = await SharedPreferences.getInstance();
       final List<String> fotosBase64 =
           fotos.map((foto) => base64Encode(foto)).toList();
-      await prefs.setStringList(
-          'fotos_final_${widget.storeName}', fotosBase64);
+      await prefs.setStringList('fotos_final_${widget.storeName}', fotosBase64);
       await prefs.setStringList(
           'fotos_final_desc_${widget.storeName}', fotosDescricao);
       print('💾 Fotos salvas (${fotos.length} imagens)');
@@ -9933,16 +9932,11 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   // ============================================================
 
   Future<void> _compartilharEArquivarPDF() async {
-    // 🔥 EXATAMENTE IGUAL A ABERTURA
     final dataParts = dataFormatada.split('/');
     final dia = dataParts[0];
     final mes = dataParts[1];
     final ano = dataParts[2].substring(2);
-    
-    String nomeLoja = widget.storeName.replaceAll(RegExp(r'[^a-zA-Z0-9\s]'), '').trim();
-    if (nomeLoja.isEmpty) nomeLoja = 'Loja';
-    
-    final nomeArquivo = 'Relatorio $nomeLoja ${dia}${mes}$ano.pdf';
+    final nomeArquivo = 'Relatorio ${widget.storeName} ${dia}${mes}$ano.pdf';
 
     showDialog(
       context: context,
@@ -9977,12 +9971,14 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
             pw.Center(
               child: pw.Column(
                 children: [
-                  pw.Text(widget.storeName,
-                      style: pw.TextStyle(
-                        fontSize: 48,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.red900,
-                      )),
+                  pw.Text(
+                    widget.storeName,
+                    style: pw.TextStyle(
+                      fontSize: 48,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.red900,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -9997,12 +9993,14 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text('INFORMAÇÕES DA VISITA',
-                      style: pw.TextStyle(
-                        fontSize: 18,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.green900,
-                      )),
+                  pw.Text(
+                    'INFORMAÇÕES DA VISITA',
+                    style: pw.TextStyle(
+                      fontSize: 18,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.green900,
+                    ),
+                  ),
                   pw.SizedBox(height: 10),
                   pw.Text('Data: $dataFormatada'),
                   pw.Text('Promotor(a): $userName'),
@@ -10024,12 +10022,14 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text('RUPTURAS REGISTRADAS',
-                      style: pw.TextStyle(
-                        fontSize: 18,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.red,
-                      )),
+                  pw.Text(
+                    'RUPTURAS REGISTRADAS',
+                    style: pw.TextStyle(
+                      fontSize: 18,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.red,
+                    ),
+                  ),
                   pw.SizedBox(height: 10),
                   ..._buildRupturasList(),
                 ],
@@ -10047,12 +10047,14 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text('FOTOS REGISTRADAS',
-                        style: pw.TextStyle(
-                          fontSize: 18,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.blue,
-                        )),
+                    pw.Text(
+                      'FOTOS REGISTRADAS',
+                      style: pw.TextStyle(
+                        fontSize: 18,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.blue,
+                      ),
+                    ),
                     pw.SizedBox(height: 10),
                     ..._buildFotosListEmGrid(),
                   ],
@@ -10071,6 +10073,11 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
       );
 
       final pdfBytes = await pdf.save();
+
+      // 🔥 AQUI ESTÁ A MUDANÇA (mesma lógica da função 2)
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/$nomeArquivo');
+      await file.writeAsBytes(pdfBytes);
 
       final textoRelatorio = await _gerarTextoRelatorioParaArquivo();
 
@@ -10099,15 +10106,11 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
       if (mounted) Navigator.pop(context);
 
       await Share.shareXFiles(
-        [
-          XFile.fromData(pdfBytes,
-              name: nomeArquivo, mimeType: 'application/pdf')
-        ],
+        [XFile(file.path)],
         text: 'Relatório Final - ${widget.storeName} - $dataFormatada',
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('✅ PDF compartilhado e relatório arquivado!'),
@@ -10118,9 +10121,8 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
       }
     } catch (e) {
       if (mounted) Navigator.pop(context);
-      print('Erro: $e');
+
       if (mounted) {
-        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('❌ Erro ao gerar PDF: $e'),
