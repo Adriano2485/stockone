@@ -4362,7 +4362,7 @@ class _StockAdjustmentScreenState extends State<StockAdjustmentScreen> {
 
       final dir = await getTemporaryDirectory();
       final file = File(
-          '${dir.path}/acerto_estoque_${widget.storeName}_${DateFormat('ddMMyyyy').format(selectedDate)}.pdf');
+          '${dir.path}/Acerto Estoque ${widget.storeName} ${DateFormat('ddMMyy').format(selectedDate)}.pdf');
       await file.writeAsBytes(bytes);
 
       await Share.shareXFiles(
@@ -6917,9 +6917,23 @@ class DetalhesPedidoScreen extends StatelessWidget {
     final mes = dataParts.length > 1
         ? dataParts[1]
         : DateTime.now().month.toString().padLeft(2, '0');
-    final ano = dataParts.length > 2
-        ? dataParts[2].substring(2)
-        : DateTime.now().year.toString().substring(2);
+
+    // 🔥 CORRIGIDO: Garantir que o ano tenha 4 dígitos
+    String anoCompleto =
+        dataParts.length > 2 ? dataParts[2] : DateTime.now().year.toString();
+
+    // 🔥 Se o ano tiver apenas 2 dígitos, converte para 4
+    if (anoCompleto.length == 2) {
+      // Se for 24 → 2024, 25 → 2025, etc.
+      final anoNum = int.tryParse(anoCompleto) ?? 0;
+      if (anoNum >= 0 && anoNum <= 99) {
+        anoCompleto = "20$anoCompleto"; // 20 + 24 = 2024
+      }
+    }
+
+    // 🔥 Agora pega os 2 últimos dígitos com segurança
+    final ano =
+        anoCompleto.length >= 4 ? anoCompleto.substring(2) : anoCompleto;
 
     // 🔥 SANITIZAR NOME DA LOJA
     String nomeLoja =
@@ -9245,9 +9259,10 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
       _outroMotivoControllers[produto] = TextEditingController();
     }
 
-    _carregarDataLocal(); // 🔥 CARREGAR DATA DO SHAREDPREFERENCES PRIMEIRO
-    _atualizarDataAtual(); // 🔥 SE NÃO TIVER, USA DATA ATUAL
-    _carregarPreferencias();
+    // 🔥 ORDEM CORRETA (igual abertura):
+    _atualizarDataAtual(); // 1º Inicializa dataFormatada
+    _carregarDataLocal(); // 2º Carrega dados salvos (sobrescreve se existir)
+    _carregarPreferencias(); // 3º Carrega Firebase
     _carregarFotosDoSharedPreferences();
     _recompressExistingPhotos();
   }
@@ -9363,17 +9378,12 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   // ============================================================
 
   void _atualizarDataAtual() {
-    // 🔥 SÓ ATUALIZA SE NÃO TIVER DATA SALVA LOCALMENTE
-    if (dataFormatada.isEmpty) {
-      final dataHoje = DateTime.now();
-      dataFormatada =
-          "${dataHoje.day.toString().padLeft(2, '0')}/${dataHoje.month.toString().padLeft(2, '0')}/${dataHoje.year}";
-      dataParaArquivo =
-          "${dataHoje.year}-${dataHoje.month.toString().padLeft(2, '0')}-${dataHoje.day.toString().padLeft(2, '0')}";
-      dataController.text = dataFormatada;
-      _salvarDataLocal(); // 🔥 SALVA A DATA GERADA
-      print('📅 Data atual gerada: $dataFormatada');
-    }
+    final dataHoje = DateTime.now();
+    dataFormatada =
+        "${dataHoje.day.toString().padLeft(2, '0')}/${dataHoje.month.toString().padLeft(2, '0')}/${dataHoje.year}";
+    dataParaArquivo =
+        "${dataHoje.year}-${dataHoje.month.toString().padLeft(2, '0')}-${dataHoje.day.toString().padLeft(2, '0')}";
+    dataController.text = dataFormatada;
   }
 
   void _atualizarDataManual(String texto) {
@@ -9397,7 +9407,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
               "$ano-${mes.toString().padLeft(2, '0')}-${dia.toString().padLeft(2, '0')}";
           dataController.text = texto;
         });
-        _salvarDataLocal(); // 🔥 SALVA A DATA NO SHAREDPREFERENCES
+        _salvarDataLocal();
         _salvarPreferencias();
       }
     }
@@ -9672,7 +9682,7 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         final fetchedGerente = data['gerente'] ?? '';
         final fetchedEncarregado = data['encarregado'] ?? '';
 
-        // 🔥 BUSCA DENTRO DO relatorioFinal
+        // 🔥 AGORA BUSCA DENTRO DO relatorioFinal
         final fetchedColaboradores = relatorioData['colaboradoresAtivos'] ?? 0;
         final fetchedUserName = data['userName'] ?? '';
 
