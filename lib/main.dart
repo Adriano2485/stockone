@@ -397,6 +397,15 @@ class _RedeScreenState extends State<RedeScreen> {
     }
   }
 
+  // ===== FUNÇÃO PARA LONG PRESS (SEGURAR POR 3 SEGUNDOS) =====
+  void _onLongPressBahamas() {
+    // Abre o HoleriteScreen
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const HoleriteScreen()),
+    );
+  }
+
   // ===== CARD PARA LOJA FAVORITA (tamanho reduzido igual ao da StoreSelectionScreen) =====
   Widget _favoriteStoreCard(String storeName) {
     return Card(
@@ -465,12 +474,18 @@ class _RedeScreenState extends State<RedeScreen> {
     );
   }
 
-  // ===== CARD PARA REDE FIXA =====
+  // ===== CARD PARA REDE FIXA (COM LONG PRESS) =====
   Widget _card(String imgPath, String rede, Widget destino) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () => _onCardTap(rede, destino),
+        onLongPress: () {
+          // Verifica se é o card da Bahamas
+          if (rede == "bahamas") {
+            _onLongPressBahamas();
+          }
+        },
         borderRadius: BorderRadius.circular(16),
         child: Ink(
           height: double.infinity,
