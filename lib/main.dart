@@ -7049,7 +7049,7 @@ class DetalhesPedidoScreen extends StatelessWidget {
           XFile.fromData(
             bytes,
             name:
-                'Sugestão de Pedido ${pedido['loja']} ${pedido['data']?.replaceAll('/', '') ?? DateTime.now().toString()}.pdf',
+                'Sugestão Pedido ${pedido['loja']} ${pedido['data']?.replaceAll('/', '') ?? DateTime.now().toString()}.pdf',
             mimeType: 'application/pdf',
           )
         ],
@@ -9936,144 +9936,145 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
   // 📄 PDF (IGUAL ABERTURA)
   // ============================================================
 
-  Future<void> _compartilharEArquivarPDF() async {
-    final dataParts = dataFormatada.split('/');
-    final dia = dataParts[0];
-    final mes = dataParts[1];
-    final ano = dataParts[2].substring(2);
-    final nomeArquivo = 'Relatorio ${widget.storeName} ${dia}${mes}$ano.pdf';
+ Future<void> _compartilharEArquivarPDF() async {
+  final dataParts = dataFormatada.split('/');
+  final dia = dataParts[0];
+  final mes = dataParts[1];
+  final ano = dataParts[2].substring(2);
+  final nomeArquivo = 'Relatorio ${widget.storeName} ${dia}${mes}$ano.pdf';
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text(
-              'Gerando PDF com ${fotos.length} foto(s)...',
-              style: const TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Tamanho total das fotos: ${_getTotalSize()}',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
-        ),
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => AlertDialog(
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(height: 16),
+          Text(
+            'Gerando PDF com ${fotos.length} foto(s)...',
+            style: const TextStyle(fontSize: 16),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Tamanho total das fotos: ${_getTotalSize()}',
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+        ],
       ),
-    );
+    ),
+  );
 
-    try {
-      final pdf = pw.Document();
+  try {
+    final pdf = pw.Document();
 
-      pdf.addPage(
-        pw.MultiPage(
-          pageFormat: PdfPageFormat.a4,
-          build: (context) => [
-            pw.Center(
-              child: pw.Column(
-                children: [
-                  pw.Text(widget.storeName,
-                      style: pw.TextStyle(
-                        fontSize: 48,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.red900,
-                      )),
-                ],
-              ),
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        build: (context) => [
+          pw.Center(
+            child: pw.Column(
+              children: [
+                pw.Text(widget.storeName,
+                    style: pw.TextStyle(
+                      fontSize: 48,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.red900,
+                    )),
+              ],
             ),
-            pw.SizedBox(height: 30),
-            pw.Container(
-              padding: const pw.EdgeInsets.all(10),
-              decoration: pw.BoxDecoration(
-                border: pw.Border(
-                    left: pw.BorderSide(color: PdfColors.green900, width: 4)),
-              ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text('INFORMAÇÕES DA VISITA',
-                      style: pw.TextStyle(
-                        fontSize: 18,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.green900,
-                      )),
-                  pw.SizedBox(height: 10),
-                  pw.Text('Data: $dataFormatada'),
-                  pw.Text('Promotor(a): $userName'),
-                  pw.Text('Crachá: ${crachaController.text}'),
-                  pw.Text('Gerencia: ${gerenteController.text}'),
-                  pw.Text('Encarregado(s): ${encarregadoController.text}'),
-                  pw.Text('Colaboradores no dia: $colaboradoresAtivos'),
-                ],
-              ),
+          ),
+          pw.SizedBox(height: 30),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(10),
+            decoration: pw.BoxDecoration(
+              border: pw.Border(
+                  left: pw.BorderSide(color: PdfColors.green900, width: 4)),
             ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text('INFORMAÇÕES DA VISITA',
+                    style: pw.TextStyle(
+                      fontSize: 18,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.green900,
+                    )),
+                pw.SizedBox(height: 10),
+                pw.Text('Data: $dataFormatada'),
+                pw.Text('Promotor(a): $userName'),
+                pw.Text('Crachá: ${crachaController.text}'),
+                pw.Text('Gerencia: ${gerenteController.text}'),
+                pw.Text('Encarregado(s): ${encarregadoController.text}'),
+                pw.Text('Colaboradores no dia: $colaboradoresAtivos'),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 20),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(10),
+            decoration: pw.BoxDecoration(
+              border: pw.Border(
+                  left: pw.BorderSide(color: PdfColors.green900, width: 4)),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text('RUPTURAS REGISTRADAS',
+                    style: pw.TextStyle(
+                      fontSize: 18,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.green900,
+                    )),
+                pw.SizedBox(height: 10),
+                ..._buildRupturasList(),
+              ],
+            ),
+          ),
+          if (fotos.isNotEmpty) ...[
             pw.SizedBox(height: 20),
             pw.Container(
               padding: const pw.EdgeInsets.all(10),
               decoration: pw.BoxDecoration(
                 border: pw.Border(
-                    left: pw.BorderSide(color: PdfColors.green900, width: 4)),
+                    left: pw.BorderSide(color: PdfColors.blue, width: 4)),
               ),
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text('RUPTURAS REGISTRADAS',
+                  pw.Text('FOTOS REGISTRADAS',
                       style: pw.TextStyle(
                         fontSize: 18,
                         fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.green900,
+                        color: PdfColors.blue,
                       )),
                   pw.SizedBox(height: 10),
-                  ..._buildRupturasList(),
+                  ..._buildFotosListEmGrid(),
                 ],
               ),
             ),
-            if (fotos.isNotEmpty) ...[
-              pw.SizedBox(height: 20),
-              pw.Container(
-                padding: const pw.EdgeInsets.all(10),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border(
-                      left: pw.BorderSide(color: PdfColors.blue, width: 4)),
-                ),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text('FOTOS REGISTRADAS',
-                        style: pw.TextStyle(
-                          fontSize: 18,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.blue,
-                        )),
-                    pw.SizedBox(height: 10),
-                    ..._buildFotosListEmGrid(),
-                  ],
-                ),
-              ),
-            ],
-            pw.SizedBox(height: 40),
-            pw.Center(
-              child: pw.Text(
-                'Relatorio gerado automaticamente em $dataFormatada',
-                style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
-              ),
-            ),
           ],
-        ),
-      );
+          pw.SizedBox(height: 40),
+          pw.Center(
+            child: pw.Text(
+              'Relatorio gerado automaticamente em $dataFormatada',
+              style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
+            ),
+          ),
+        ],
+      ),
+    );
 
-      final pdfBytes = await pdf.save();
+    final pdfBytes = await pdf.save();
 
-      final tempDir = await getTemporaryDirectory();
-      final file = File('${tempDir.path}/$nomeArquivo');
-      await file.writeAsBytes(pdfBytes);
+    // Fecha o dialog ANTES de qualquer operação externa
+    if (mounted) Navigator.pop(context);
 
+    // 1º - SALVA NO FIRESTORE (com timeout)
+    try {
       final textoRelatorio = await _gerarTextoRelatorioParaArquivo();
-
+      
       await _firestore
           .collection('relatorios')
           .doc('lojas')
@@ -10094,41 +10095,52 @@ class _ReportFinalScreenState extends State<ReportFinalScreen> {
         'nomeArquivoPDF': nomeArquivo,
         'rupturas': _getRupturasMap(),
         'createdAt': FieldValue.serverTimestamp(),
-      });
-      if (mounted) Navigator.pop(context);
-
-      await Share.shareXFiles(
-        [
-          XFile.fromData(pdfBytes,
-              name: nomeArquivo, mimeType: 'application/pdf')
-        ],
-        text: 'Relatorio Final - ${widget.storeName} - $dataFormatada',
+      }).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          print('Timeout ao salvar no Firestore, continuando...');
+          return;
+        },
       );
+    } catch (firestoreError) {
+      // Log do erro mas continua para compartilhar
+      print('Erro ao salvar no Firestore: $firestoreError');
+      // Não interrompe o fluxo principal
+    }
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).clearSnackBars();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ PDF compartilhado e relatorio arquivado!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 4),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) Navigator.pop(context);
-      print('Erro: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).clearSnackBars();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Erro ao gerar PDF: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+    // 2º - COMPARTILHA O PDF
+    await Share.shareXFiles(
+      [
+        XFile.fromData(pdfBytes,
+            name: nomeArquivo, mimeType: 'application/pdf')
+      ],
+      text: 'Relatorio Final - ${widget.storeName} - $dataFormatada',
+    );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ PDF compartilhado e relatorio arquivado!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 4),
+        ),
+      );
+    }
+  } catch (e) {
+    if (mounted) Navigator.pop(context);
+    print('Erro: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Erro ao gerar PDF: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
+}
 
   List<pw.Widget> _buildFotosListEmGrid() {
     final widgets = <pw.Widget>[];
