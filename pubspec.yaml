@@ -44,6 +44,8 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    - assets/fonts/LiberationSans-Regular.ttf
+    - assets/fonts/LiberationSans-Bold.ttf
     - assets/images/logo_ajudai.png
     - assets/images/paofrances.jpg
     - assets/images/codigos.png
@@ -146,11 +148,13 @@ flutter:
     - assets/images/baguetefrancesacomqueijox.png
     - assets/images/paofrancescomqueijox.png
     - assets/images/paopararabanadax.png
+    - assets/images/copa.png
+    - assets/images/Brasil.png
 
 # configuração do flutter_launcher_icons
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/images/iconeapp2.jpg"
+  image_path: "assets/images/logobrasil.jpg"
   adaptive_icon_background: "#ffffff"
-  adaptive_icon_foreground: "assets/images/iconeapp2.jpg"
+  adaptive_icon_foreground: "assets/images/logobrasil.jpg"
