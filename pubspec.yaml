@@ -150,9 +150,10 @@ flutter:
     - assets/images/Brasil.png
 
 # configuração do flutter_launcher_icons
-flutter_icons:
+flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/images/logobrasil.jpg"
   adaptive_icon_background: "#ffffff"
   adaptive_icon_foreground: "assets/images/logobrasil.jpg"
+  adaptive_icon_padding: 20
