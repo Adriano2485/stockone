@@ -35,8 +35,11 @@ jobs:
     - name: 🧹 Limpar build
       run: flutter clean
 
-    - name: 🤖 Build APK para todas arquiteturas
+    - name: 🤖 Build APK para todas arquiteturas (split)
       run: flutter build apk --release --split-per-abi
+
+    - name: 🤖 Build APK Universal
+      run: flutter build apk --release
 
     - name: 📊 Listar arquivos gerados
       run: |
@@ -64,7 +67,7 @@ jobs:
         path: build/app/outputs/flutter-apk/app-x86_64-release.apk
         retention-days: 30
 
-    - name: 📦 Upload APK - x86 (32 bits) 
+    - name: 📦 Upload APK - x86 (32 bits)
       uses: actions/upload-artifact@v4
       with:
         name: StockOne-x86
