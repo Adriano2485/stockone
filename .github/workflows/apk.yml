@@ -1,0 +1,113 @@
+name: 📱 Build Android (APK)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 📥 Baixar código
+      uses: actions/checkout@v4
+
+    - name: 🐦 Configurar Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.38.3'
+
+    - name: ⚙️ Configurar Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+
+    - name: ⚙️ Criar local.properties
+      run: |
+        cat > android/local.properties << EOF
+        sdk.dir=$ANDROID_HOME
+        flutter.sdk=$FLUTTER_ROOT
+        EOF
+
+    - name: 📦 Instalar dependências
+      run: flutter pub get
+
+    - name: 🧹 Limpar build
+      run: flutter clean
+
+    - name: 🤖 Build APK para todas arquiteturas
+      run: flutter build apk --release --split-per-abi
+
+    - name: 📊 Listar arquivos gerados
+      run: |
+        echo "📁 APKs gerados:"
+        ls -la build/app/outputs/flutter-apk/
+
+    - name: 📦 Upload APK - ARM v7a (32 bits)
+      uses: actions/upload-artifact@v4
+      with:
+        name: StockOne-ARMv7a
+        path: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+        retention-days: 30
+
+    - name: 📦 Upload APK - ARM v8a (64 bits)
+      uses: actions/upload-artifact@v4
+      with:
+        name: StockOne-ARMv8a
+        path: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+        retention-days: 30
+
+    - name: 📦 Upload APK - x86_64 (64 bits)
+      uses: actions/upload-artifact@v4
+      with:
+        name: StockOne-x86_64
+        path: build/app/outputs/flutter-apk/app-x86_64-release.apk
+        retention-days: 30
+
+    - name: 📦 Upload APK - x86 (32 bits) 
+      uses: actions/upload-artifact@v4
+      with:
+        name: StockOne-x86
+        path: build/app/outputs/flutter-apk/app-x86-release.apk
+        retention-days: 30
+
+    - name: 📦 Upload APK - Universal (todas arquiteturas)
+      uses: actions/upload-artifact@v4
+      with:
+        name: StockOne-Universal
+        path: build/app/outputs/flutter-apk/app-release.apk
+        retention-days: 30
+
+    - name: ✅ Sumário do Build
+      run: |
+        echo "## ✅ Build concluído com sucesso!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📱 APKs gerados:" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Arquitetura | Arquivo | Tamanho |" >> $GITHUB_STEP_SUMMARY
+        echo "|------------|---------|---------|" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f "build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk" ]; then
+          SIZE=$(du -h build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk | cut -f1)
+          echo "| ARM v7a (32 bits) | app-armeabi-v7a-release.apk | $SIZE |" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ -f "build/app/outputs/flutter-apk/app-arm64-v8a-release.apk" ]; then
+          SIZE=$(du -h build/app/outputs/flutter-apk/app-arm64-v8a-release.apk | cut -f1)
+          echo "| ARM v8a (64 bits) | app-arm64-v8a-release.apk | $SIZE |" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ -f "build/app/outputs/flutter-apk/app-x86_64-release.apk" ]; then
+          SIZE=$(du -h build/app/outputs/flutter-apk/app-x86_64-release.apk | cut -f1)
+          echo "| x86_64 (64 bits) | app-x86_64-release.apk | $SIZE |" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ -f "build/app/outputs/flutter-apk/app-x86-release.apk" ]; then
+          SIZE=$(du -h build/app/outputs/flutter-apk/app-x86-release.apk | cut -f1)
+          echo "| x86 (32 bits) | app-x86-release.apk | $SIZE |" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
+          SIZE=$(du -h build/app/outputs/flutter-apk/app-release.apk | cut -f1)
+          echo "| Universal | app-release.apk | $SIZE |" >> $GITHUB_STEP_SUMMARY
+        fi
